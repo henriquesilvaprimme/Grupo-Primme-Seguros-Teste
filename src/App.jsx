@@ -28,6 +28,7 @@ const App = () => {
   const [usuarioLogado, setUsuarioLogado] = useState(null);
   const [leadsFechados, setLeadsFechados] = useState([]);
   const [backgroundLoaded, setBackgroundLoaded] = useState(false);
+  const [shouldRefetchLeads, setShouldRefetchLeads] = useState(false); // Novo estado para forçar o re-fetch
 
   // Efeito para pré-carregar a imagem de fundo
   useEffect(() => {
@@ -108,17 +109,19 @@ const App = () => {
         if (!leadSelecionado) {
           setLeads([]);
         }
+      } finally {
+        setShouldRefetchLeads(false); // Reseta a flag após a busca
       }
     };
 
-  // Efeito para buscar leads periodicamente
+  // Efeito para buscar leads periodicamente ou quando um re-fetch é sinalizado
   useEffect(() => {
     fetchLeadsFromSheet(); // Busca inicial
     const interval = setInterval(() => {
       fetchLeadsFromSheet();
     }, 60000); // Atualiza a cada 60 segundos
     return () => clearInterval(interval); // Limpa o intervalo ao desmontar o componente
-  }, [leadSelecionado]); // Dependência em leadSelecionado para não interromper a edição
+  }, [leadSelecionado, shouldRefetchLeads]); // Adicionada dependência para shouldRefetchLeads
 
   /**
    * Busca os leads fechados da planilha Google Sheets.
@@ -192,11 +195,11 @@ const App = () => {
   };
 
   /**
-   * Adiciona um novo lead ao estado local, colocando-o no início da lista.
-   * @param {object} novoLead - O objeto do novo lead a ser adicionado.
+   * Sinaliza que um novo lead foi criado e que a lista de leads precisa ser re-buscada.
+   * Não adiciona o lead diretamente ao estado aqui, pois ele será buscado completo do GAS.
    */
   const adicionarLead = (novoLead) => {
-    setLeads((prevLeads) => [novoLead, ...prevLeads]);
+    setShouldRefetchLeads(true); // Sinaliza para o useEffect que um re-fetch é necessário
   };
 
   /**
