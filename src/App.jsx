@@ -218,7 +218,7 @@ const App = () => {
 
     // Faz a chamada para o Apps Script via fetch POST para persistir a mudança
     try {
-      await fetch('https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_status', {
+      await fetch(GOOGLE_SHEETS_USERS + '?v=alterar_status', { // Usando GOOGLE_SHEETS_USERS como base para o POST
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify({ id: id, status: novoStatus, phone: phone }),
@@ -290,7 +290,7 @@ const App = () => {
     });
 
     try {
-      fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_seguradora', {
+      fetch(GOOGLE_SHEETS_USERS + '?v=alterar_seguradora', { // Usando GOOGLE_SHEETS_USERS como base para o POST
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify({ lead: lead }),
@@ -357,7 +357,7 @@ const App = () => {
     if (novoTipo !== null) usuario.tipo = novoTipo;
 
     try {
-      fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_usuario', {
+      fetch(GOOGLE_SHEETS_USERS + '?v=alterar_usuario', { // Usando GOOGLE_SHEETS_USERS como base para o POST
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify({ usuario: usuario }),
