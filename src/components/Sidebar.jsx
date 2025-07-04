@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Users, Search, Trophy, UserPlus, UserCircle } from 'lucide-react';
+import { Home, Users, Search, Trophy, UserPlus, UserCircle, FilePlus } from 'lucide-react'; // Importando FilePlus para Criar Lead
 
 const Sidebar = ({ nomeUsuario }) => {
 
@@ -45,7 +45,7 @@ const Sidebar = ({ nomeUsuario }) => {
             }`
           }
         >
-          <Users size={20} />
+          <Users size={20} /> {/* Você pode querer um ícone diferente aqui, como CheckCircle */}
           Leads Fechados
         </NavLink>
 
@@ -57,7 +57,7 @@ const Sidebar = ({ nomeUsuario }) => {
             }`
           }
         >
-          <Users size={20} />
+          <Users size={20} /> {/* Você pode querer um ícone diferente aqui, como XCircle */}
           Leads Perdidos
         </NavLink>
 
@@ -87,6 +87,19 @@ const Sidebar = ({ nomeUsuario }) => {
 
         {isAdmin && (
           <>
+            {/* Novo link para Criar Lead */}
+            <NavLink
+              to="/criar-lead"
+              className={({ isActive }) =>
+                `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
+                  isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
+                }`
+              }
+            >
+              <FilePlus size={20} /> {/* Ícone para "Criar Lead" */}
+              Criar Lead
+            </NavLink>
+
             <NavLink
               to="/criar-usuario"
               className={({ isActive }) =>
