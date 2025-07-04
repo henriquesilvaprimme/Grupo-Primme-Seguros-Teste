@@ -55,7 +55,7 @@ const CriarLead = ({ adicionarLead }) => {
       // URL do seu Google Apps Script para criar leads
       // ATENÇÃO: Substitua este URL pelo URL real do seu script GAS para criar leads.
       // Certifique-se de que o endpoint no seu GAS seja 'criar_lead' ou o nome que você definir.
-      const response = await fetch('https://script.google.com/macros/s/SEU_ID_DO_SCRIPT_AQUI/exec?v=criar_lead', {
+      const response = await fetch('https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=criar_lead', {
         method: 'POST',
         mode: 'no-cors', // Necessário para evitar problemas de CORS com o Google Apps Script
         body: JSON.stringify(lead),
