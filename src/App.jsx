@@ -208,33 +208,46 @@ const App = () => {
    * @param {string} novoStatus - O novo status do lead.
    * @param {string} phone - O telefone do lead (usado para encontrar o lead).
    */
-  const atualizarStatusLead = (id, novoStatus, phone) => {
-    // Atualiza leads principal
+  const atualizarStatusLead = async (id, novoStatus, phone) => { // Adicionado 'async' aqui
+    // Atualiza leads principal no estado local imediatamente para feedback visual
     setLeads((prev) =>
       prev.map((lead) =>
         lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
       )
     );
 
-    // Se o status for 'Fechado', move/atualiza para a lista de leads fechados
+    // Faz a chamada para o Apps Script via fetch POST para persistir a mudança
+    try {
+      await fetch('https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_status', {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({ id: id, status: novoStatus, phone: phone }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      // Após a atualização bem-sucedida no GAS, force um re-fetch completo dos leads
+      setShouldRefetchLeads(true);
+    } catch (error) {
+      console.error('Erro ao enviar atualização de status para o Google Apps Script:', error);
+      // Opcional: Reverter o estado local se a atualização falhar
+    }
+
+    // Se o status for 'Fechado', move/atualiza para a lista de leads fechados (esta lógica pode ser simplificada se o GAS já faz a cópia)
     if (novoStatus === 'Fechado') {
       setLeadsFechados((prev) => {
         const jaExiste = prev.some((lead) => lead.phone === phone);
 
         if (jaExiste) {
-          // Se já existe, só atualiza
           const atualizados = prev.map((lead) =>
             lead.phone === phone ? { ...lead, Status: novoStatus, confirmado: true } : lead
           );
           return atualizados;
         } else {
-          // Se não existe, busca o lead na lista principal e adiciona
           const leadParaAdicionar = leads.find((lead) => lead.phone === phone);
-
           if (leadParaAdicionar) {
-            // Monta o objeto no padrão dos fechados (adapte conforme sua planilha 'Leads Fechados')
             const novoLeadFechado = {
-              ID: leadParaAdicionar.id, // Usa o ID existente do lead
+              ID: leadParaAdicionar.id,
               name: leadParaAdicionar.name,
               vehicleModel: leadParaAdicionar.vehiclemodel,
               vehicleYearModel: leadParaAdicionar.vehicleyearmodel,
