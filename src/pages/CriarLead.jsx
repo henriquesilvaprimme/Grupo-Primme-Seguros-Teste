@@ -4,10 +4,11 @@ import { useNavigate } from 'react-router-dom';
 const CriarLead = ({ adicionarLead }) => {
   // Estados para os campos do formulário de Lead
   const [nome, setNome] = useState('');
-  const [email, setEmail] = useState('');
+  const [modeloVeiculo, setModeloVeiculo] = useState('');
+  const [anoModeloVeiculo, setAnoModeloVeiculo] = useState('');
+  const [cidade, setCidade] = useState('');
   const [telefone, setTelefone] = useState('');
-  const [empresa, setEmpresa] = useState('');
-  const [origem, setOrigem] = useState(''); // Ex: "Website", "Referral", "Cold Call"
+  const [tipoSeguro, setTipoSeguro] = useState(''); // Novo campo: Tipo do Seguro
   const [status, setStatus] = useState('Novo'); // Status inicial padrão
   const [mensagem, setMensagem] = useState(''); // Para mensagens de feedback ao usuário
 
@@ -18,8 +19,8 @@ const CriarLead = ({ adicionarLead }) => {
    * Valida os campos e, se tudo estiver ok, chama a função para enviar os dados.
    */
   const handleCriar = () => {
-    // Validação básica dos campos obrigatórios
-    if (!nome || !email || !telefone || !empresa || !origem) {
+    // Validação básica dos campos obrigatórios com os novos campos
+    if (!nome || !modeloVeiculo || !anoModeloVeiculo || !cidade || !telefone || !tipoSeguro) {
       setMensagem('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
@@ -28,10 +29,11 @@ const CriarLead = ({ adicionarLead }) => {
     const novoLead = {
       id: Date.now(), // ID único baseado no timestamp
       nome,
-      email,
+      modeloVeiculo,
+      anoModeloVeiculo,
+      cidade,
       telefone,
-      empresa,
-      origem,
+      tipoSeguro,
       status,
       dataCriacao: new Date().toISOString(), // Adiciona a data de criação
     };
@@ -98,15 +100,39 @@ const CriarLead = ({ adicionarLead }) => {
         />
       </div>
 
-      {/* Campo Email */}
+      {/* Campo Modelo do Veículo */}
       <div>
-        <label className="block text-gray-700 font-medium mb-1">Email</label>
+        <label className="block text-gray-700 font-medium mb-1">Modelo do Veículo</label>
         <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          type="text"
+          value={modeloVeiculo}
+          onChange={(e) => setModeloVeiculo(e.target.value)}
           className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-150 ease-in-out"
-          placeholder="email@exemplo.com"
+          placeholder="Ex: Fiat Palio, Honda Civic"
+        />
+      </div>
+
+      {/* Campo Ano/Modelo */}
+      <div>
+        <label className="block text-gray-700 font-medium mb-1">Ano/Modelo do Veículo</label>
+        <input
+          type="text"
+          value={anoModeloVeiculo}
+          onChange={(e) => setAnoModeloVeiculo(e.target.value)}
+          className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-150 ease-in-out"
+          placeholder="Ex: 2020/2021"
+        />
+      </div>
+
+      {/* Campo Cidade */}
+      <div>
+        <label className="block text-gray-700 font-medium mb-1">Cidade</label>
+        <input
+          type="text"
+          value={cidade}
+          onChange={(e) => setCidade(e.target.value)}
+          className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-150 ease-in-out"
+          placeholder="Ex: São Paulo"
         />
       </div>
 
@@ -122,33 +148,20 @@ const CriarLead = ({ adicionarLead }) => {
         />
       </div>
 
-      {/* Campo Empresa */}
+      {/* Campo Tipo do Seguro */}
       <div>
-        <label className="block text-gray-700 font-medium mb-1">Empresa</label>
-        <input
-          type="text"
-          value={empresa}
-          onChange={(e) => setEmpresa(e.target.value)}
-          className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-150 ease-in-out"
-          placeholder="Nome da empresa"
-        />
-      </div>
-
-      {/* Campo Origem */}
-      <div>
-        <label className="block text-gray-700 font-medium mb-1">Origem do Lead</label>
+        <label className="block text-gray-700 font-medium mb-1">Tipo do Seguro</label>
         <select
-          value={origem}
-          onChange={(e) => setOrigem(e.target.value)}
+          value={tipoSeguro}
+          onChange={(e) => setTipoSeguro(e.target.value)}
           className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-150 ease-in-out"
         >
-          <option value="">Selecione a origem</option>
-          <option value="Website">Website</option>
-          <option value="Referral">Indicação</option>
-          <option value="Cold Call">Ligação Fria</option>
-          <option value="Social Media">Mídia Social</option>
-          <option value="Event">Evento</option>
-          <option value="Outro">Outro</option>
+          <option value="">Selecione o tipo de seguro</option>
+          <option value="Auto">Auto</option>
+          <option value="Residencial">Residencial</option>
+          <option value="Vida">Vida</option>
+          <option value="Empresarial">Empresarial</option>
+          <option value="Outros">Outros</option>
         </select>
       </div>
 
