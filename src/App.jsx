@@ -10,6 +10,7 @@ import BuscarLead from './BuscarLead';
 import CriarUsuario from './pages/CriarUsuario';
 import Usuarios from './pages/Usuarios';
 import Ranking from './pages/Ranking';
+import CriarLead from './CriarLead'; // Importa o novo componente CriarLead
 
 //const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwgeZteouyVWzrCvgHHQttx-5Bekgs_k-5EguO9Sn2p-XFrivFg9S7_gGKLdoDfCa08/exec';
 
@@ -42,7 +43,7 @@ const App = () => {
         const response = await fetch(GOOGLE_SHEETS_SCRIPT_URL );
         const data = await response.json();
 
-         console.log(data)
+          console.log(data)
 
         if (Array.isArray(data)) {
 
@@ -105,7 +106,7 @@ const App = () => {
     return () => clearInterval(interval);
   }, [leadSelecionado]);
   // FIM - sincronização leads
-   
+    
 
   const fetchLeadsFechadosFromSheet = async () => {
     try {
@@ -216,6 +217,10 @@ const App = () => {
     setUsuarios((prev) => [...prev, { ...usuario, id: prev.length + 1 }]);
   };
 
+  // Função para adicionar um novo lead ao estado local
+  const adicionarLead = (novoLead) => {
+    setLeads((prevLeads) => [...prevLeads, novoLead]);
+  };
 
 
   const atualizarStatusLeadAntigo = (id, novoStatus, phone) => {
@@ -257,7 +262,7 @@ const App = () => {
         const atualizados = prev.map((lead) =>
           lead.phone === phone ? { ...lead, Status: novoStatus, confirmado: true } : lead
         );
- 
+  
         return atualizados;
       } else {
         // Se não existe, busca o lead na lista principal e adiciona
@@ -343,7 +348,7 @@ const App = () => {
 
 
     // Faz a chamada para o Apps Script via fetch POST
-   fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_seguradora', {
+    fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_seguradora', {
         method: 'POST',
         mode: 'no-cors',
         body:JSON.stringify({
@@ -600,6 +605,11 @@ const App = () => {
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
                 />} />
+          {/* Nova rota para CriarLead */}
+          <Route 
+            path="/criar-lead" 
+            element={<CriarLead adicionarLead={adicionarLead} />} 
+          />
           {isAdmin && (
             <>
               <Route path="/criar-usuario" element={<CriarUsuario adicionarUsuario={adicionarUsuario} />} />
