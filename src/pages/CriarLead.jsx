@@ -9,7 +9,7 @@ const CriarLead = ({ adicionarLead }) => {
   const [cidade, setCidade] = useState('');
   const [telefone, setTelefone] = useState('');
   const [tipoSeguro, setTipoSeguro] = useState(''); // Novo campo: Tipo do Seguro
-  const [status, setStatus] = useState('Novo'); // Status inicial padrão
+  // O estado 'status' foi removido conforme solicitado
   const [mensagem, setMensagem] = useState(''); // Para mensagens de feedback ao usuário
 
   const navigate = useNavigate();
@@ -34,7 +34,7 @@ const CriarLead = ({ adicionarLead }) => {
       cidade,
       telefone,
       tipoSeguro,
-      status,
+      // O campo 'status' foi removido daqui também, pois não será mais coletado pelo formulário
       dataCriacao: new Date().toISOString(), // Adiciona a data de criação
     };
 
@@ -148,7 +148,7 @@ const CriarLead = ({ adicionarLead }) => {
         />
       </div>
 
-      {/* Campo Tipo do Seguro */}
+      {/* Campo Tipo do Seguro - Atualizado com novas opções */}
       <div>
         <label className="block text-gray-700 font-medium mb-1">Tipo do Seguro</label>
         <select
@@ -156,29 +156,14 @@ const CriarLead = ({ adicionarLead }) => {
           onChange={(e) => setTipoSeguro(e.target.value)}
           className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-150 ease-in-out"
         >
-          <option value="">Selecione o tipo de seguro</option>
-          <option value="Auto">Auto</option>
-          <option value="Residencial">Residencial</option>
-          <option value="Vida">Vida</option>
-          <option value="Empresarial">Empresarial</option>
-          <option value="Outros">Outros</option>
-        </select>
-      </div>
-
-      {/* Campo Status */}
-      <div>
-        <label className="block text-gray-700 font-medium mb-1">Status do Lead</label>
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-150 ease-in-out"
-        >
-          <option value=" "> </option>
+          <option value=""> </option> {/* Opção em branco */}
           <option value="Novo">Novo</option>
           <option value="Renovação">Renovação</option>
           <option value="Indicação">Indicação</option>
         </select>
       </div>
+
+      {/* O Campo Status do Lead foi removido daqui */}
 
       <div className="flex justify-end">
         <button
