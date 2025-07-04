@@ -208,7 +208,7 @@ const App = () => {
    * @param {string} novoStatus - O novo status do lead.
    * @param {string} phone - O telefone do lead (usado para encontrar o lead).
    */
-  const atualizarStatusLead = async (id, novoStatus, phone) => { // Adicionado 'async' aqui
+  const atualizarStatusLead = async (id, novoStatus, phone) => {
     // Atualiza leads principal no estado local imediatamente para feedback visual
     setLeads((prev) =>
       prev.map((lead) =>
@@ -228,56 +228,14 @@ const App = () => {
       });
       // Após a atualização bem-sucedida no GAS, force um re-fetch completo dos leads
       setShouldRefetchLeads(true);
+      // Também força um re-fetch dos leads fechados, caso o status tenha mudado para 'Fechado'
+      fetchLeadsFechadosFromSheet();
     } catch (error) {
       console.error('Erro ao enviar atualização de status para o Google Apps Script:', error);
       // Opcional: Reverter o estado local se a atualização falhar
     }
-
-    // Se o status for 'Fechado', move/atualiza para a lista de leads fechados (esta lógica pode ser simplificada se o GAS já faz a cópia)
-    if (novoStatus === 'Fechado') {
-      setLeadsFechados((prev) => {
-        const jaExiste = prev.some((lead) => lead.phone === phone);
-
-        if (jaExiste) {
-          const atualizados = prev.map((lead) =>
-            lead.phone === phone ? { ...lead, Status: novoStatus, confirmado: true } : lead
-          );
-          return atualizados;
-        } else {
-          const leadParaAdicionar = leads.find((lead) => lead.phone === phone);
-          if (leadParaAdicionar) {
-            const novoLeadFechado = {
-              ID: leadParaAdicionar.id,
-              name: leadParaAdicionar.name,
-              vehicleModel: leadParaAdicionar.vehiclemodel,
-              vehicleYearModel: leadParaAdicionar.vehicleyearmodel,
-              city: leadParaAdicionar.city,
-              phone: leadParaAdicionar.phone,
-              insurer: leadParaAdicionar.insurancetype || leadParaAdicionar.insuranceType || "",
-              Data: leadParaAdicionar.createdAt || new Date().toISOString(),
-              Responsavel: leadParaAdicionar.responsavel || "",
-              Status: "Fechado",
-              Seguradora: leadParaAdicionar.Seguradora || "",
-              PremioLiquido: leadParaAdicionar.premioLiquido || "",
-              Comissao: leadParaAdicionar.comissao || "",
-              Parcelamento: leadParaAdicionar.parcelamento || "",
-              id: leadParaAdicionar.id,
-              usuario: leadParaAdicionar.usuario || "",
-              nome: leadParaAdicionar.nome || "",
-              email: leadParaAdicionar.email || "",
-              senha: leadParaAdicionar.senha || "",
-              status: leadParaAdicionar.status || "Ativo",
-              tipo: leadParaAdicionar.tipo || "Usuario",
-              "Ativo/Inativo": leadParaAdicionar["Ativo/Inativo"] || "Ativo",
-              confirmado: true
-            };
-            return [...prev, novoLeadFechado];
-          }
-          console.warn("Lead não encontrado na lista principal para adicionar aos fechados.");
-          return prev;
-        }
-      });
-    }
+    // A lógica de duplicação para Leads Fechados/Perdidos será tratada exclusivamente no GAS.
+    // Não há necessidade de lógica de atualização local para leadsFechados aqui.
   };
 
   /**
