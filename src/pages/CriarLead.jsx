@@ -9,7 +9,6 @@ const CriarLead = ({ adicionarLead }) => {
   const [cidade, setCidade] = useState('');
   const [telefone, setTelefone] = useState('');
   const [tipoSeguro, setTipoSeguro] = useState(''); // Novo campo: Tipo do Seguro
-  // O estado 'status' foi removido conforme solicitado
   const [mensagem, setMensagem] = useState(''); // Para mensagens de feedback ao usuário
 
   const navigate = useNavigate();
@@ -26,22 +25,22 @@ const CriarLead = ({ adicionarLead }) => {
     }
 
     // Objeto com os dados do novo lead
+    // ID e dataCriacao agora são gerados pelo Google Apps Script
     const novoLead = {
-      id: Date.now(), // ID único baseado no timestamp
       nome,
       modeloVeiculo,
       anoModeloVeiculo,
       cidade,
       telefone,
       tipoSeguro,
-      // O campo 'status' foi removido daqui também, pois não será mais coletado pelo formulário
-      dataCriacao: new Date().toISOString(), // Adiciona a data de criação
     };
 
     // Chama a função para enviar os dados para o Google Apps Script
     criarLeadFunc(novoLead);
 
     // Adiciona o novo lead ao estado do componente pai (se houver)
+    // O ID e a data de criação reais virão do GAS na próxima busca,
+    // mas adicionamos o objeto para exibição imediata.
     adicionarLead(novoLead);
     
     // Navega para a página de leads após a criação
@@ -162,8 +161,6 @@ const CriarLead = ({ adicionarLead }) => {
           <option value="Indicação">Indicação</option>
         </select>
       </div>
-
-      {/* O Campo Status do Lead foi removido daqui */}
 
       <div className="flex justify-end">
         <button
