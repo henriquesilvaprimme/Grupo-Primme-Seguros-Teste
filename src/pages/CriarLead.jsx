@@ -160,11 +160,10 @@ const CriarLead = ({ adicionarLead }) => {
           onChange={(e) => setStatus(e.target.value)}
           className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-150 ease-in-out"
         >
+          <option value=" "> </option>
           <option value="Novo">Novo</option>
-          <option value="Em Contato">Em Contato</option>
-          <option value="Qualificado">Qualificado</option>
-          <option value="Desqualificado">Desqualificado</option>
-          <option value="Convertido">Convertido</option>
+          <option value="Renovação">Renovação</option>
+          <option value="Indicação">Indicação</option>
         </select>
       </div>
 
