@@ -16,7 +16,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   const [valores, setValores] = useState(() => {
     const inicial = {};
     fechados.forEach(lead => {
-      
+
       inicial[lead.ID] = {
         PremioLiquido: lead.PremioLiquido !== undefined ? Math.round(parseFloat(lead.PremioLiquido) * 100) : 0,
         Comissao: lead.Comissao ? String(lead.Comissao) : '',
@@ -26,6 +26,9 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     });
     return inicial;
   });
+
+  // Novo estado para o loader
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     setValores(prevValores => {
@@ -68,6 +71,19 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     setFiltroData(dataInput);
     console.log(dataInput)
   };
+
+  // Função para lidar com o refresh e ativar/desativar o loader
+  const handleRefresh = async () => {
+    setIsLoading(true); // Ativa o loader
+    try {
+      await fetchLeadsFechadosFromSheet(); // Chama a função para buscar dados
+    } catch (error) {
+      console.error('Erro ao atualizar leads fechados:', error);
+    } finally {
+      setIsLoading(false); // Desativa o loader
+    }
+  };
+
 
   const fechadosOrdenados = [...fechados].sort((a, b) => {
     const dataA = new Date(a.Data);
@@ -183,17 +199,52 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h1 style={{ margin: 0 }}>Leads Fechados</h1>
-
-          <button title='Clique para atualizar os dados'
-            onClick={() => {
-              fetchLeadsFechadosFromSheet();
+    <div style={{ padding: '20px', position: 'relative' }}>
+      {/* Loader de carregamento */}
+      {isLoading && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div
+            style={{
+              border: '8px solid #f3f3f3',
+              borderTop: '8px solid #3498db',
+              borderRadius: '50%',
+              width: '50px',
+              height: '50px',
+              animation: 'spin 1s linear infinite',
             }}
-          >
-            🔄
-          </button>
+          ></div>
+          <style>
+            {`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}
+          </style>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <h1 style={{ margin: 0 }}>Leads Fechados</h1>
+
+        <button title='Clique para atualizar os dados'
+          onClick={handleRefresh} // Chamando a nova função handleRefresh
+        >
+          🔄
+        </button>
       </div>
 
       <div
@@ -337,18 +388,18 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '250px' }}>
                 <select
-                   value={valores[lead.ID]?.insurer || ''}
-                   onChange={(e) => {
-                      const valor = e.target.value;
-                      setValores(prev => ({
-                        ...prev,
-                        [lead.ID]: {
-                          ...prev[lead.ID],
-                          insurer: valor
-                        }
-                      }));
-                      onUpdateInsurer(lead.ID, valor);
-                    }}
+                  value={valores[lead.ID]?.insurer || ''}
+                  onChange={(e) => {
+                    const valor = e.target.value;
+                    setValores(prev => ({
+                      ...prev,
+                      [lead.ID]: {
+                        ...prev[lead.ID],
+                        insurer: valor
+                      }
+                    }));
+                    onUpdateInsurer(lead.ID, valor);
+                  }}
                   disabled={lead.Seguradora}
                   style={{
                     padding: '8px',
