@@ -32,7 +32,7 @@ const Ranking = ({ usuarios }) => {
     setCarregando(true);
     try {
       const respostaLeads = await fetch(
-        'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=pegar_clientes_fechados'
+        'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
       );
       const dados = await respostaLeads.json();
       setLeads(dados);
@@ -151,7 +151,7 @@ const Ranking = ({ usuarios }) => {
   });
 
   const getMedalha = (posicao) => {
-    const medalhas = ['🥇', '🥈', '🥉'];
+    const medalhas = ['🏆', '🥈', '🥉'];
     return medalhas[posicao] || `${posicao + 1}º`;
   };
 
