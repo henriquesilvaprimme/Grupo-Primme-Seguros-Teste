@@ -1,5 +1,100 @@
 import React, { useEffect, useState } from 'react';
 
+// Componente para renderizar a medalha SVG com animações
+const MedalhaAnimada = ({ posicao }) => {
+  let corBase, corDestaque, texto;
+  let animationDelay = '0s'; // Atraso para as animações
+
+  switch (posicao) {
+    case 0: // Ouro
+      corBase = '#FFD700'; // Gold
+      corDestaque = '#FFECB3'; // Mais claro para o brilho
+      texto = '1º';
+      animationDelay = '0s';
+      break;
+    case 1: // Prata
+      corBase = '#C0C0C0'; // Silver
+      corDestaque = '#E0E0E0'; // Mais claro para o brilho
+      texto = '2º';
+      animationDelay = '0.1s'; // Atraso para a segunda medalha
+      break;
+    case 2: // Bronze
+      corBase = '#CD7F32'; // Bronze
+      corDestaque = '#DDAA77'; // Mais claro para o brilho
+      texto = '3º';
+      animationDelay = '0.2s'; // Atraso para a terceira medalha
+      break;
+    default:
+      return (
+        <div
+          style={{
+            backgroundColor: '#333',
+            color: '#fff',
+            borderRadius: '8px',
+            padding: '4px 10px',
+            fontSize: '1.1rem',
+            fontWeight: 'bold',
+          }}
+        >
+          {posicao + 1}º
+        </div>
+      );
+  }
+
+  return (
+    <div
+      className="medal-container"
+      style={{ '--animation-delay': animationDelay }} // Passa o atraso via CSS custom property
+    >
+      <svg
+        className="medal-svg"
+        width="40"
+        height="40"
+        viewBox="0 0 40 40"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* Círculo da medalha */}
+        <circle cx="20" cy="20" r="18" fill={corBase} stroke={corBase} strokeWidth="1" />
+        {/* Detalhe superior da fita */}
+        <path d="M15 2L25 2L20 8L15 2Z" fill={corBase} />
+        {/* Brilho da medalha - um gradiente que se move */}
+        <defs>
+          <linearGradient id={`shine-${posicao}`} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor={corBase} stopOpacity="0" />
+            <stop offset="20%" stopColor={corDestaque} stopOpacity="0.8" />
+            <stop offset="50%" stopColor={corDestaque} stopOpacity="1" />
+            <stop offset="80%" stopColor={corDestaque} stopOpacity="0.8" />
+            <stop offset="100%" stopColor={corBase} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <rect
+          x="-10"
+          y="0"
+          width="60"
+          height="40"
+          fill={`url(#shine-${posicao})`}
+          className="shine-overlay"
+        />
+        {/* Texto da posição */}
+        <text
+          x="20"
+          y="25"
+          fill={corBase === '#FFD700' ? '#A0522D' : corBase === '#C0C0C0' ? '#4F4F4F' : '#F0F8FF'} // Cores de texto contrastantes
+          fontSize="16"
+          fontWeight="bold"
+          textAnchor="middle"
+          alignmentBaseline="middle"
+        >
+          {texto}
+        </text>
+      </svg>
+      {/* <span className="medal-text">{texto}</span> */}
+    </div>
+  );
+};
+
+
 const Ranking = ({ usuarios }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [dadosLeads, setLeads] = useState([]);
@@ -28,7 +123,7 @@ const Ranking = ({ usuarios }) => {
     setIsLoading(true);
     try {
       const respostaLeads = await fetch(
-        'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
+        'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?v=pegar_clientes_fechados'
       );
       const dados = await respostaLeads.json();
       setLeads(dados);
@@ -145,79 +240,13 @@ const Ranking = ({ usuarios }) => {
     return b.demais - a.demais;
   });
 
-  const getMedalha = (posicao) => {
-    let color = '';
-    let shadow = '';
-    let text = '';
-
-    switch (posicao) {
-      case 0: // Ouro
-        color = '#FFD700'; // Gold
-        shadow = '0 0 15px #FFD700, 0 0 25px #FFD700';
-        text = '1º';
-        break;
-      case 1: // Prata
-        color = '#C0C0C0'; // Silver
-        shadow = '0 0 15px #C0C0C0, 0 0 25px #C0C0C0';
-        text = '2º';
-        break;
-      case 2: // Bronze
-        color = '#CD7F32'; // Bronze
-        shadow = '0 0 15px #CD7F32, 0 0 25px #CD7F32';
-        text = '3º';
-        break;
-      default:
-        return (
-          <div
-            style={{
-              backgroundColor: '#333',
-              color: '#fff',
-              borderRadius: '8px',
-              padding: '4px 10px',
-              fontSize: '1.1rem',
-              fontWeight: 'bold',
-            }}
-          >
-            {posicao + 1}º
-          </div>
-        );
-    }
-
-    return (
-      <div
-        className={`medal medal-${posicao}`}
-        style={{
-          backgroundColor: color,
-          boxShadow: shadow,
-          animation: `shine 1.5s infinite alternate, float 3s ease-in-out infinite`,
-          position: 'relative',
-          overflow: 'hidden',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: '50%', // Para a forma da medalha
-          width: '40px', // Tamanho da medalha
-          height: '40px',
-          fontSize: '1rem',
-          fontWeight: 'bold',
-          color: '#333', // Cor do texto dentro da medalha
-          border: `2px solid ${color === '#FFD700' ? '#FFC400' : color === '#C0C0C0' ? '#A9A9A9' : '#B87333'}`, // Borda mais escura
-        }}
-      >
-        {text}
-        {/* Efeito de brilho "passando" */}
-        <div className="shine-effect"></div>
-      </div>
-    );
-  };
-
   const aplicarFiltroData = () => {
     setFiltroData(dataInput);
   };
 
   return (
     <div style={{ padding: 20, position: 'relative' }}>
-      {/* Estilos CSS para as animações */}
+      {/* Estilos CSS globais para as animações das medalhas */}
       <style>
         {`
           @keyframes spin {
@@ -225,41 +254,33 @@ const Ranking = ({ usuarios }) => {
             100% { transform: rotate(360deg); }
           }
 
-          @keyframes shine {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-          }
-
-          @keyframes float {
+          /* Animação de flutuação para a medalha */
+          @keyframes float-medal {
             0% { transform: translateY(0px); }
             50% { transform: translateY(-5px); }
             100% { transform: translateY(0px); }
           }
 
-          .medal {
-            position: relative;
-            overflow: hidden;
-          }
-
-          .shine-effect {
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 200%;
-            height: 100%;
-            background: linear-gradient(
-              to right,
-              rgba(255, 255, 255, 0) 0%,
-              rgba(255, 255, 255, 0.4) 50%,
-              rgba(255, 255, 255, 0) 100%
-            );
-            transform: skewX(-20deg);
-            animation: shine-sweep 2s infinite linear;
-          }
-
+          /* Animação de brilho (passando um "reflexo") */
           @keyframes shine-sweep {
-            0% { left: -100%; }
-            100% { left: 100%; }
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+          }
+
+          .medal-container {
+            width: 40px;
+            height: 40px;
+            position: relative;
+            animation: float-medal 3s ease-in-out infinite var(--animation-delay); /* Usa a custom property */
+            transform-style: preserve-3d; /* Ajuda para algumas animações 3D */
+          }
+
+          .medal-svg {
+            display: block; /* Remove espaço extra de inline */
+          }
+
+          .shine-overlay {
+            animation: shine-sweep 2s linear infinite;
           }
         `}
       </style>
@@ -396,10 +417,11 @@ const Ranking = ({ usuarios }) => {
                     position: 'absolute',
                     top: '12px',
                     right: '12px',
-                    zIndex: 10, // Garante que a medalha fique por cima
+                    zIndex: 10,
                   }}
                 >
-                  {getMedalha(index)}
+                  {/* Usa o novo componente de Medalha Animada */}
+                  <MedalhaAnimada posicao={index} />
                 </div>
 
                 <div
@@ -426,3 +448,91 @@ const Ranking = ({ usuarios }) => {
                   >
                     {usuario.nome?.charAt(0)?.toUpperCase() || '?'}
                   </div>
+                  <div
+                    style={{
+                      fontSize: '1.4rem',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    {usuario.nome || 'Sem Nome'}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${contadores.length}, 1fr)`,
+                    textAlign: 'center',
+                    borderTop: '1px solid #eee',
+                    borderBottom: '1px solid #eee',
+                  }}
+                >
+                  {contadores.map((item, idx) => (
+                    <div
+                      key={item.label}
+                      style={{
+                        padding: '12px 8px',
+                        borderLeft: idx === 0 ? 'none' : '1px solid #eee',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontWeight: '600',
+                          fontSize: '0.9rem',
+                          color: item.color,
+                        }}
+                      >
+                        {item.label}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '1.3rem',
+                          marginTop: '6px',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        {item.count}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div
+                  style={{
+                    textAlign: 'center',
+                    borderTop: '1px solid #eee',
+                    paddingTop: '12px',
+                    color: '#555',
+                    fontWeight: '600',
+                  }}
+                >
+                  <div style={{ marginBottom: '8px' }}>
+                    <span>Prêmio Líquido: </span>
+                    <span style={{ fontWeight: 'bold' }}>
+                      {formatarMoeda(usuario.premioLiquido)}
+                    </span>
+                  </div>
+                  <div style={{ marginBottom: '8px' }}>
+                    <span>Comissão: </span>
+                    <span style={{ fontWeight: 'bold' }}>
+                      {formatarComissao(usuario.comissao)}
+                    </span>
+                  </div>
+                  <div>
+                    <span>Parcelamento: </span>
+                    <span style={{ fontWeight: 'bold' }}>
+                      {formatarParcelamento(usuario.parcelamento)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Ranking;
