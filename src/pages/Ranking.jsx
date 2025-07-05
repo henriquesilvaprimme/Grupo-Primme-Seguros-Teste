@@ -1,30 +1,25 @@
 import React, { useEffect, useState } from 'react';
 
-// Componente para renderizar a medalha SVG com animações
-const MedalhaAnimada = ({ posicao }) => {
-  let corBase, corDestaque, texto;
-  let animationDelay = '0s'; // Atraso para as animações
+// Componente para renderizar a medalha realista
+const MedalhaRealistica = ({ posicao }) => {
+  let medalClass = '';
+  let texto = '';
 
   switch (posicao) {
     case 0: // Ouro
-      corBase = '#FFD700'; // Gold
-      corDestaque = '#FFECB3'; // Mais claro para o brilho
+      medalClass = 'gold-medal';
       texto = '1º';
-      animationDelay = '0s';
       break;
     case 1: // Prata
-      corBase = '#C0C0C0'; // Silver
-      corDestaque = '#E0E0E0'; // Mais claro para o brilho
+      medalClass = 'silver-medal';
       texto = '2º';
-      animationDelay = '0.1s'; // Atraso para a segunda medalha
       break;
     case 2: // Bronze
-      corBase = '#CD7F32'; // Bronze
-      corDestaque = '#DDAA77'; // Mais claro para o brilho
+      medalClass = 'bronze-medal';
       texto = '3º';
-      animationDelay = '0.2s'; // Atraso para a terceira medalha
       break;
     default:
+      // Para posições além do top 3, retorna o formato original ou um estilo neutro
       return (
         <div
           style={{
@@ -41,55 +36,18 @@ const MedalhaAnimada = ({ posicao }) => {
       );
   }
 
+  // Define um atraso na animação para que as medalhas não se movam perfeitamente sincronizadas
+  const animationDelay = `${posicao * 0.15}s`;
+
   return (
-    <div
-      className="medal-container"
-      style={{ '--animation-delay': animationDelay }} // Passa o atraso via CSS custom property
-    >
-      <svg
-        className="medal-svg"
-        width="40"
-        height="40"
-        viewBox="0 0 40 40"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        {/* Círculo da medalha */}
-        <circle cx="20" cy="20" r="18" fill={corBase} stroke={corBase} strokeWidth="1" />
-        {/* Detalhe superior da fita */}
-        <path d="M15 2L25 2L20 8L15 2Z" fill={corBase} />
-        {/* Brilho da medalha - um gradiente que se move */}
-        <defs>
-          <linearGradient id={`shine-${posicao}`} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor={corBase} stopOpacity="0" />
-            <stop offset="20%" stopColor={corDestaque} stopOpacity="0.8" />
-            <stop offset="50%" stopColor={corDestaque} stopOpacity="1" />
-            <stop offset="80%" stopColor={corDestaque} stopOpacity="0.8" />
-            <stop offset="100%" stopColor={corBase} stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <rect
-          x="-10"
-          y="0"
-          width="60"
-          height="40"
-          fill={`url(#shine-${posicao})`}
-          className="shine-overlay"
-        />
-        {/* Texto da posição */}
-        <text
-          x="20"
-          y="25"
-          fill={corBase === '#FFD700' ? '#A0522D' : corBase === '#C0C0C0' ? '#4F4F4F' : '#F0F8FF'} // Cores de texto contrastantes
-          fontSize="16"
-          fontWeight="bold"
-          textAnchor="middle"
-          alignmentBaseline="middle"
-        >
-          {texto}
-        </text>
-      </svg>
-      {/* <span className="medal-text">{texto}</span> */}
+    <div className={`medal-wrapper ${medalClass}`} style={{ '--animation-delay': animationDelay }}>
+      <div className="medal-core">
+        <span className="medal-text">{texto}</span>
+        {/* Efeitos de brilho tipo estrela */}
+        <div className="star-shine star-shine-1"></div>
+        <div className="star-shine star-shine-2"></div>
+        <div className="star-shine star-shine-3"></div>
+      </div>
     </div>
   );
 };
@@ -99,6 +57,7 @@ const Ranking = ({ usuarios }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [dadosLeads, setLeads] = useState([]);
 
+  // Estado para filtro por mês/ano (formato yyyy-mm)
   const [dataInput, setDataInput] = useState(() => {
     const hoje = new Date();
     const ano = hoje.getFullYear();
@@ -108,22 +67,25 @@ const Ranking = ({ usuarios }) => {
 
   const [filtroData, setFiltroData] = useState(dataInput);
 
+  // Função para converter data no formato dd/mm/aaaa para yyyy-mm-dd
   const converterDataParaISO = (dataStr) => {
     if (!dataStr) return '';
     if (dataStr.includes('/')) {
       const partes = dataStr.split('/');
       if (partes.length === 3) {
+        // dd/mm/aaaa -> yyyy-mm-dd
         return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
       }
     }
+    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo yyyy-mm
     return dataStr.slice(0, 7);
   };
 
   const buscarClientesFechados = async () => {
-    setIsLoading(true);
+    setIsLoading(true); // Ativa o loader
     try {
       const respostaLeads = await fetch(
-        'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?v=pegar_clientes_fechados'
+        'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
       );
       const dados = await respostaLeads.json();
       setLeads(dados);
@@ -131,7 +93,7 @@ const Ranking = ({ usuarios }) => {
       console.error('Erro ao buscar dados:', error);
       setLeads([]);
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Desativa o loader
     }
   };
 
@@ -140,6 +102,7 @@ const Ranking = ({ usuarios }) => {
   }, []);
 
   if (!Array.isArray(usuarios) || !Array.isArray(dadosLeads)) {
+    // Mantém a mensagem de erro para dados mal carregados
     return <div style={{ padding: 20 }}>Erro: dados não carregados corretamente.</div>;
   }
 
@@ -173,6 +136,7 @@ const Ranking = ({ usuarios }) => {
   };
 
   const usuariosComContagem = ativos.map((usuario) => {
+    // Filtrar leads fechados do usuário com status "Fechado", seguradora preenchida e data dentro do filtro (yyyy-mm)
     const leadsUsuario = dadosLeads.filter((l) => {
       const responsavelOk = l.Responsavel === usuario.nome;
       const statusOk = l.Status === 'Fechado';
@@ -246,7 +210,7 @@ const Ranking = ({ usuarios }) => {
 
   return (
     <div style={{ padding: 20, position: 'relative' }}>
-      {/* Estilos CSS globais para as animações das medalhas */}
+      {/* Estilos CSS para as animações e medalhas */}
       <style>
         {`
           @keyframes spin {
@@ -261,26 +225,101 @@ const Ranking = ({ usuarios }) => {
             100% { transform: translateY(0px); }
           }
 
-          /* Animação de brilho (passando um "reflexo") */
-          @keyframes shine-sweep {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
+          /* Animação de rotação sutil para a medalha */
+          @keyframes rotateMedal {
+            0% { transform: rotateY(0deg); }
+            50% { transform: rotateY(5deg); }
+            100% { transform: rotateY(0deg); }
           }
 
-          .medal-container {
-            width: 40px;
-            height: 40px;
+          /* Animação de brilho tipo estrela */
+          @keyframes starTwinkle {
+            0%, 100% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: 1; transform: scale(1); }
+          }
+
+          .medal-wrapper {
+            width: 45px; /* Tamanho um pouco maior */
+            height: 45px;
             position: relative;
-            animation: float-medal 3s ease-in-out infinite var(--animation-delay); /* Usa a custom property */
-            transform-style: preserve-3d; /* Ajuda para algumas animações 3D */
+            animation: float-medal 3s ease-in-out infinite var(--animation-delay);
+            perspective: 1000px; /* Para a rotação 3D */
           }
 
-          .medal-svg {
-            display: block; /* Remove espaço extra de inline */
+          .medal-core {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden; /* Para conter os brilhos */
+            animation: rotateMedal 4s ease-in-out infinite var(--animation-delay);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), inset 0 0 15px rgba(255, 255, 255, 0.4);
           }
 
-          .shine-overlay {
-            animation: shine-sweep 2s linear infinite;
+          /* Estilos para as medalhas de Ouro, Prata, Bronze */
+          .gold-medal .medal-core {
+            background: linear-gradient(135deg, #FFD700 0%, #FFECB3 40%, #B8860B 100%);
+            border: 2px solid #DAA520;
+          }
+
+          .silver-medal .medal-core {
+            background: linear-gradient(135deg, #C0C0C0 0%, #E0E0E0 40%, #A9A9A9 100%);
+            border: 2px solid #808080;
+          }
+
+          .bronze-medal .medal-core {
+            background: linear-gradient(135deg, #CD7F32 0%, #D2B48C 40%, #A0522D 100%);
+            border: 2px solid #8B4513;
+          }
+
+          .medal-text {
+            position: relative;
+            z-index: 1; /* Garante que o texto fique acima do brilho */
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #333; /* Cor do texto padrão */
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+          }
+
+          .gold-medal .medal-text { color: #8B4513; } /* Marrom para ouro */
+          .silver-medal .medal-text { color: #2F4F4F; } /* Cinza escuro para prata */
+          .bronze-medal .medal-text { color: #FFFFFF; } /* Branco para bronze */
+
+
+          /* Estilos e posições para os brilhos tipo estrela */
+          .star-shine {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            opacity: 0;
+            animation: starTwinkle 2s ease-in-out infinite alternate;
+          }
+
+          .star-shine-1 {
+            width: 8px;
+            height: 8px;
+            top: 15%;
+            left: 20%;
+            animation-delay: 0.2s;
+          }
+
+          .star-shine-2 {
+            width: 6px;
+            height: 6px;
+            top: 60%;
+            left: 70%;
+            animation-delay: 0.7s;
+          }
+
+          .star-shine-3 {
+            width: 5px;
+            height: 5px;
+            top: 30%;
+            left: 80%;
+            animation-delay: 1.2s;
           }
         `}
       </style>
@@ -420,8 +459,8 @@ const Ranking = ({ usuarios }) => {
                     zIndex: 10,
                   }}
                 >
-                  {/* Usa o novo componente de Medalha Animada */}
-                  <MedalhaAnimada posicao={index} />
+                  {/* Usa o novo componente de Medalha Realística */}
+                  <MedalhaRealistica posicao={index} />
                 </div>
 
                 <div
