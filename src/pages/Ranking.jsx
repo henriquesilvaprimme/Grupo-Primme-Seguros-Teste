@@ -152,7 +152,7 @@ const Ranking = ({ usuarios }) => {
   });
 
   const getMedalha = (posicao) => {
-    const medalhas = ['🥇', '🥈', '🥉'];
+    const medalhas = ['🏆', '🥈', '🥉'];
     return medalhas[posicao] || `${posicao + 1}º`;
   };
 
