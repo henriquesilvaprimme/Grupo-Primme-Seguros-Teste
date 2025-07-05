@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const CriarLead = () => { // Removido 'adicionarLead' pois não é usado aqui no formulário de criação
+const CriarLead = () => {
   // Estados para os campos do formulário
   const [nomeLead, setNomeLead] = useState('');
   const [modeloVeiculo, setModeloVeiculo] = useState('');
@@ -29,18 +29,17 @@ const CriarLead = () => { // Removido 'adicionarLead' pois não é usado aqui no
       } catch (error) {
         console.error('Erro ao buscar nomes de responsáveis:', error);
         setMensagemFeedback('❌ Erro ao carregar a lista de responsáveis. Verifique o console e o Apps Script.');
-        // Opcional: manter um alert para erros críticos de carregamento inicial, mas tirei para focar no pedido
       }
     };
 
     buscarNomesResponsaveis();
-  }, [gasUrl]); // Adicionado gasUrl como dependência. O useEffect será re-executado se gasUrl mudar.
+  }, [gasUrl]);
 
   const handleCriar = async () => {
     setMensagemFeedback(''); // Limpa qualquer mensagem anterior
 
-    // Validação básica dos campos obrigatórios
-    if (!nomeLead || !modeloVeiculo || !anoModelo || !cidade || !!telefone || !tipoSeguro || !responsavel) {
+    // Validação corrigida dos campos obrigatórios
+    if (!nomeLead || !modeloVeiculo || !anoModelo || !cidade || !telefone || !tipoSeguro || !responsavel) {
       setMensagemFeedback('⚠️ Por favor, preencha todos os campos obrigatórios.');
       return;
     }
@@ -90,9 +89,6 @@ const CriarLead = () => { // Removido 'adicionarLead' pois não é usado aqui no
 
   const criarLeadFunc = async (lead) => {
     try {
-      // Usando o modo 'no-cors' para evitar problemas de CORS, como antes.
-      // Com 'no-cors', o cliente não pode ver o status HTTP da resposta, apenas se a requisição foi enviada.
-      // A validação de sucesso na escrita deve ser feita pelos logs do Apps Script.
       await fetch(`${gasUrl}?v=criar_lead`, {
         method: 'POST',
         mode: 'no-cors',
@@ -193,7 +189,6 @@ const CriarLead = () => { // Removido 'adicionarLead' pois não é usado aqui no
           className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
         >
           <option value="">Selecione o Responsável</option>
-          {/* Mapeia os nomes dos responsáveis para as opções do select */}
           {nomesResponsaveis.map((nome, index) => (
             <option key={index} value={nome}>
               {nome}
@@ -202,14 +197,14 @@ const CriarLead = () => { // Removido 'adicionarLead' pois não é usado aqui no
         </select>
       </div>
 
-      <div className="flex flex-col items-center"> {/* Centraliza o botão e a mensagem */}
+      <div className="flex flex-col items-center">
         <button
           onClick={handleCriar}
           className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition"
         >
           Criar Lead
         </button>
-        {mensagemFeedback && ( // Exibe a mensagem de feedback se existir
+        {mensagemFeedback && (
           <p className={`mt-4 font-semibold text-center ${mensagemFeedback.includes('✅') ? 'text-green-600' : 'text-red-600'}`}>
             {mensagemFeedback}
           </p>
