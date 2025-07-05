@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Adicionado useEffect
 import { useNavigate } from 'react-router-dom';
 
 const CriarLead = ({ adicionarLead }) => {
@@ -9,13 +9,37 @@ const CriarLead = ({ adicionarLead }) => {
   const [cidade, setCidade] = useState('');
   const [telefone, setTelefone] = useState('');
   const [tipoSeguro, setTipoSeguro] = useState('');
-  const [responsavel, setResponsavel] = useState(''); // Novo estado para o Responsável
+  const [responsavel, setResponsavel] = useState('');
+  const [nomesResponsaveis, setNomesResponsaveis] = useState([]); // Novo estado para os nomes dos responsáveis
 
   const navigate = useNavigate();
 
+  // URL do seu Google Apps Script (certifique-se de que é o URL de implantação do script)
+  // Substitua este URL pelo URL REAL de IMPLANTAÇÃO do seu SCRIPT GAS.
+  const gasUrl = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec'; 
+
+  // Função para buscar os nomes dos responsáveis ao carregar o componente
+  useEffect(() => {
+    const buscarNomesResponsaveis = async () => {
+      try {
+        const response = await fetch(`${gasUrl}?v=listar_nomes_usuarios`); // Chama a nova função do GAS
+        // No modo 'no-cors', a resposta precisa ser tratada de forma diferente se o GAS não retornar 200 OK.
+        // Se o GAS estiver configurado para retornar ContentService.MimeType.JSON, você pode parsear.
+        // Para 'no-cors' com GAS, geralmente o GAS precisa retornar diretamente o JSON e você confia que ele chegou.
+        // Vamos supor que o GAS retorna um JSON válido.
+        const data = await response.json(); // Tenta parsear a resposta como JSON
+        setNomesResponsaveis(data);
+      } catch (error) {
+        console.error('Erro ao buscar nomes de responsáveis:', error);
+        alert('Houve um erro ao carregar a lista de responsáveis.');
+      }
+    };
+
+    buscarNomesResponsaveis();
+  }, []); // O array vazio garante que isso execute apenas uma vez ao montar o componente
+
   const handleCriar = () => {
     // Validação básica dos campos obrigatórios
-    // Incluímos 'responsavel' na validação
     if (!nomeLead || !modeloVeiculo || !anoModelo || !cidade || !telefone || !tipoSeguro || !responsavel) {
       alert('Por favor, preencha todos os campos obrigatórios.');
       return;
@@ -35,7 +59,6 @@ const CriarLead = ({ adicionarLead }) => {
     });
 
     // Objeto lead com os nomes das chaves correspondentes às colunas do Sheets
-    // Adicionamos 'Responsavel' e definimos 'Status' como 'Fechado'
     const novoLead = {
       ID: idAleatorio,
       name: nomeLead,
@@ -43,10 +66,10 @@ const CriarLead = ({ adicionarLead }) => {
       vehicleYearModel: anoModelo,
       city: cidade,
       phone: telefone,
-      insurer: tipoSeguro, // Usando 'insurer' conforme suas colunas
-      Data: dataHoraAtual, // Coluna 'Data' no Sheets com hora, minuto e segundo
-      Responsavel: responsavel, // Nova coluna 'Responsavel'
-      Status: 'Fechado', // Status fixo como 'Fechado'
+      insurer: tipoSeguro,
+      Data: dataHoraAtual,
+      Responsavel: responsavel,
+      Status: 'Fechado',
     };
 
     // Chama a função para enviar o lead para o Google Apps Script
@@ -64,12 +87,8 @@ const CriarLead = ({ adicionarLead }) => {
   };
 
   const criarLeadFunc = async (lead) => {
-    // IMPORTANTE: Substitua ESTE URL pelo URL REAL de IMPLANTAÇÃO DO SEU SCRIPT GAS para criar leads.
-    // O Google Apps Script precisará ser atualizado para lidar com as novas colunas e a aba "Leads Fechados".
-    const gasUrl = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=criar_lead'; // Exemplo, o seu será diferente
-
     try {
-      const response = await fetch(gasUrl, {
+      const response = await fetch(`${gasUrl}?v=criar_lead`, { // Usando o gasUrl base e o parâmetro 'v'
         method: 'POST',
         mode: 'no-cors',
         headers: {
@@ -160,16 +179,21 @@ const CriarLead = ({ adicionarLead }) => {
         </select>
       </div>
 
-      {/* Novo campo: Responsável */}
+      {/* Campo Responsável agora é um select populado dinamicamente */}
       <div>
         <label className="block text-gray-700">Responsável</label>
-        <input
-          type="text"
+        <select
           value={responsavel}
           onChange={(e) => setResponsavel(e.target.value)}
           className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-          placeholder="Nome do responsável pelo fechamento"
-        />
+        >
+          <option value="">Selecione o Responsável</option>
+          {nomesResponsaveis.map((nome, index) => (
+            <option key={index} value={nome}>
+              {nome}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="flex justify-end">
