@@ -50,6 +50,7 @@ const TrofeuRealistico = ({ posicao }) => {
           <div className="star-shine star-shine-1"></div>
           <div className="star-shine star-shine-2"></div>
           <div className="star-shine star-shine-3"></div>
+          <div className="star-shine star-shine-4"></div> {/* Mais brilhos */}
         </div>
         <div className="trophy-stem"></div>
         <div className="trophy-base"></div>
@@ -63,7 +64,7 @@ const Ranking = ({ usuarios }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [dadosLeads, setLeads] = useState([]);
 
-  // Estado para filtro por mês/ano (formato yyyy-mm)
+  // Estado para filtro por mês/ano (formato YYYY-mm)
   const [dataInput, setDataInput] = useState(() => {
     const hoje = new Date();
     const ano = hoje.getFullYear();
@@ -73,17 +74,17 @@ const Ranking = ({ usuarios }) => {
 
   const [filtroData, setFiltroData] = useState(dataInput);
 
-  // Função para converter data no formato dd/mm/aaaa para yyyy-mm-dd
+  // Função para converter data no formato dd/mm/aaaa para YYYY-mm-dd
   const converterDataParaISO = (dataStr) => {
     if (!dataStr) return '';
     if (dataStr.includes('/')) {
       const partes = dataStr.split('/');
       if (partes.length === 3) {
-        // dd/mm/aaaa -> yyyy-mm-dd
+        // dd/mm/aaaa -> YYYY-mm-dd
         return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
       }
     }
-    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo yyyy-mm
+    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo YYYY-mm
     return dataStr.slice(0, 7);
   };
 
@@ -107,10 +108,7 @@ const Ranking = ({ usuarios }) => {
     buscarClientesFechados();
   }, []);
 
-  // ************ CORREÇÃO AQUI ************
-  // O erro estava em 'ArrayY.isArray(dadosLeads)'. O correto é 'Array.isArray(dadosLeads)'.
   if (!Array.isArray(usuarios) || !Array.isArray(dadosLeads)) {
-    // Mantém a mensagem de erro para dados mal carregados
     return <div style={{ padding: 20 }}>Erro: dados não carregados corretamente.</div>;
   }
 
@@ -247,8 +245,8 @@ const Ranking = ({ usuarios }) => {
           }
 
           .trophy-container {
-            width: 50px; /* Largura total do troféu */
-            height: 70px; /* Altura total do troféu */
+            width: 55px; /* Largura total do troféu */
+            height: 75px; /* Altura total do troféu */
             position: relative;
             animation: float-trophy 3s ease-in-out infinite var(--animation-delay);
             perspective: 1000px; /* Para a rotação 3D */
@@ -270,27 +268,31 @@ const Ranking = ({ usuarios }) => {
           }
 
           .trophy-base {
-            width: 50px; /* Mais largo */
-            height: 10px; /* Mais alto */
+            width: 55px; /* Mais largo */
+            height: 12px; /* Mais alto */
             border-radius: 5px 5px 0 0; /* Base sólida */
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
             position: relative;
             z-index: 1;
+            /* Detalhes de realismo na base */
+            background-image: radial-gradient(circle at 50% 10%, rgba(255,255,255,0.3) 0%, transparent 70%);
           }
 
           .trophy-stem {
-            width: 15px; /* Mais robusto */
-            height: 25px; /* Mais alto */
+            width: 18px; /* Mais robusto */
+            height: 30px; /* Mais alto */
             border-radius: 5px; /* Mais arredondado */
             box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.3);
             position: relative;
             z-index: 2;
             margin-bottom: -2px; /* Pequeno ajuste para sobrepor */
+            /* Detalhes de realismo na haste */
+            background-image: linear-gradient(to right, rgba(255,255,255,0.1) 0%, transparent 20%, transparent 80%, rgba(255,255,255,0.1) 100%);
           }
 
           .trophy-cup {
-            width: 50px; /* Largura da taça */
-            height: 35px; /* Altura da taça */
+            width: 55px; /* Largura da taça */
+            height: 38px; /* Altura da taça */
             border-radius: 50% 50% 0 0 / 100% 100% 0 0; /* Forma de taça */
             box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.5), inset 0 -8px 15px rgba(255, 255, 255, 0.5);
             position: relative;
@@ -300,6 +302,8 @@ const Ranking = ({ usuarios }) => {
             overflow: hidden;
             z-index: 3;
             margin-bottom: -2px; /* Pequeno ajuste para sobrepor */
+            /* Detalhes de realismo na taça */
+            background-image: radial-gradient(circle at 50% 20%, rgba(255,255,255,0.4) 0%, transparent 70%);
           }
 
           /* Alças do troféu (pseudo-elementos para simplificar o HTML) */
@@ -307,25 +311,26 @@ const Ranking = ({ usuarios }) => {
           .trophy-cup::after {
             content: '';
             position: absolute;
-            width: 10px; /* Largura da alça */
-            height: 25px; /* Altura da alça */
-            border: 3px solid; /* Cor da borda será a do troféu */
+            width: 12px; /* Largura da alça */
+            height: 30px; /* Altura da alça */
+            border: 4px solid; /* Cor da borda será a do troféu */
             border-radius: 50%;
-            top: 5px;
+            top: 8px; /* Ajuste para melhor posicionamento */
             transform: translateY(-50%);
             z-index: 0;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2); /* Sombra interna para volume */
           }
 
           .trophy-cup::before {
-            left: -8px; /* Posição da alça esquerda */
+            left: -10px; /* Posição da alça esquerda */
             border-right: none;
-            transform: rotate(30deg); /* Posição angular */
+            transform: rotate(35deg); /* Posição angular */
           }
 
           .trophy-cup::after {
-            right: -8px; /* Posição da alça direita */
+            right: -10px; /* Posição da alça direita */
             border-left: none;
-            transform: rotate(-30deg); /* Posição angular */
+            transform: rotate(-35deg); /* Posição angular */
           }
 
 
@@ -335,7 +340,8 @@ const Ranking = ({ usuarios }) => {
           .gold-trophy .trophy-cup,
           .gold-trophy .trophy-cup::before,
           .gold-trophy .trophy-cup::after {
-            background: linear-gradient(135deg, #FFD700 0%, #FFECB3 40%, #B8860B 100%);
+            background-color: #FFD700; /* Cor base para gradientes */
+            background-image: linear-gradient(135deg, #FFD700 0%, #FFECB3 40%, #B8860B 100%);
             border-color: #DAA520; /* Cor da borda */
           }
           .gold-trophy .trophy-text { color: #8B4513; } /* Marrom para ouro */
@@ -346,7 +352,8 @@ const Ranking = ({ usuarios }) => {
           .silver-trophy .trophy-cup,
           .silver-trophy .trophy-cup::before,
           .silver-trophy .trophy-cup::after {
-            background: linear-gradient(135deg, #C0C0C0 0%, #E0E0E0 40%, #A9A9A9 100%);
+            background-color: #C0C0C0;
+            background-image: linear-gradient(135deg, #C0C0C0 0%, #E0E0E0 40%, #A9A9A9 100%);
             border-color: #808080;
           }
           .silver-trophy .trophy-text { color: #2F4F4F; } /* Cinza escuro para prata */
@@ -357,7 +364,8 @@ const Ranking = ({ usuarios }) => {
           .bronze-trophy .trophy-cup,
           .bronze-trophy .trophy-cup::before,
           .bronze-trophy .trophy-cup::after {
-            background: linear-gradient(135deg, #CD7F32 0%, #D2B48C 40%, #A0522D 100%);
+            background-color: #CD7F32;
+            background-image: linear-gradient(135deg, #CD7F32 0%, #D2B48C 40%, #A0522D 100%);
             border-color: #8B4513;
           }
           .bronze-trophy .trophy-text { color: #FFFFFF; } /* Branco para bronze */
@@ -373,34 +381,24 @@ const Ranking = ({ usuarios }) => {
           /* Estilos e posições para os brilhos tipo estrela */
           .star-shine {
             position: absolute;
-            background: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.9); /* Mais opaco */
             border-radius: 50%;
             opacity: 0;
             animation: starTwinkle 2s ease-in-out infinite alternate;
+            box-shadow: 0 0 8px rgba(255,255,255,0.8); /* Brilho em volta da estrela */
           }
 
           .star-shine-1 {
-            width: 6px;
-            height: 6px;
-            top: 20%;
-            left: 15%;
-            animation-delay: 0.2s;
+            width: 7px; height: 7px; top: 15%; left: 10%; animation-delay: 0.2s;
           }
-
           .star-shine-2 {
-            width: 5px;
-            height: 5px;
-            top: 50%;
-            left: 70%;
-            animation-delay: 0.7s;
+            width: 6px; height: 6px; top: 40%; left: 80%; animation-delay: 0.7s;
           }
-
           .star-shine-3 {
-            width: 4px;
-            height: 4px;
-            top: 70%;
-            left: 30%;
-            animation-delay: 1.2s;
+            width: 5px; height: 5px; top: 75%; left: 25%; animation-delay: 1.2s;
+          }
+          .star-shine-4 {
+            width: 6px; height: 6px; top: 60%; left: 50%; animation-delay: 0.9s;
           }
         `}
       </style>
