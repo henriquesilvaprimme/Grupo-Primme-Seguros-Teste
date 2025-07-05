@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const CriarLead = ({ adicionarLead }) => {
+const CriarLead = () => { // Removido 'adicionarLead' pois não é usado aqui
   // Estados para os campos do formulário
   const [nomeLead, setNomeLead] = useState('');
   const [modeloVeiculo, setModeloVeiculo] = useState('');
@@ -11,31 +11,50 @@ const CriarLead = ({ adicionarLead }) => {
   const [tipoSeguro, setTipoSeguro] = useState('');
   const [responsavel, setResponsavel] = useState('');
   const [nomesResponsaveis, setNomesResponsaveis] = useState([]);
-  const [mensagemSucesso, setMensagemSucesso] = useState(''); // Novo estado para a mensagem de sucesso
+  const [mensagemSucesso, setMensagemSucesso] = useState('');
 
   const navigate = useNavigate();
 
-  // URL do seu Google Apps Script (certifique-se de que é o URL de implantação do script)
-  // Substitua este URL pelo URL REAL de IMPLANTAÇÃO do seu SCRIPT GAS.
-  const gasUrl = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec'; 
+  // ATENÇÃO: SUBSTITUA ESTE URL PELA URL REAL DA SUA IMPLANTAÇÃO MAIS RECENTE DO GOOGLE APPS SCRIPT
+  const gasUrl = 'https://script.google.com/macros/s/SEU_ID_DE_IMPLANTACAO_AQUI/exec';
 
   // Função para buscar os nomes dos responsáveis ao carregar o componente
   useEffect(() => {
     const buscarNomesResponsaveis = async () => {
       try {
+        console.log('Buscando nomes de responsáveis da URL:', `${gasUrl}?v=listar_nomes_usuarios`);
         const response = await fetch(`${gasUrl}?v=listar_nomes_usuarios`);
-        const data = await response.json();
-        setNomesResponsaveis(data);
+        
+        // Verifica se a resposta está OK (status 200)
+        // No modo 'no-cors', a resposta real não é visível.
+        // No entanto, se o Apps Script estiver configurado corretamente e respondendo JSON,
+        // o .json() vai tentar parsear mesmo com 'no-cors'.
+        // O ideal para debug seria testar sem 'no-cors' temporariamente (e configurar CORS no GAS, se possível)
+        // ou verificar os logs de execução do Apps Script diretamente.
+        
+        const data = await response.json(); // Tenta parsear a resposta como JSON
+        console.log('Nomes de responsáveis recebidos:', data);
+        
+        // Se 'data' não for um array ou estiver vazio, você pode querer lidar com isso
+        if (Array.isArray(data) && data.length > 0) {
+          setNomesResponsaveis(data);
+        } else {
+          console.warn('Nenhuma lista de responsáveis válida recebida. Verifique o Google Apps Script.');
+          setNomesResponsaveis([]); // Garante que é um array vazio para não quebrar o map
+        }
+        
       } catch (error) {
         console.error('Erro ao buscar nomes de responsáveis:', error);
-        alert('Houve um erro ao carregar a lista de responsáveis.'); // Manter este alert para erro de carregamento
+        // Alerta para o usuário sobre o erro no carregamento
+        alert('Houve um erro ao carregar a lista de responsáveis. Verifique os logs do console para mais detalhes.');
+        setNomesResponsaveis([]); // Garante que é um array vazio em caso de erro
       }
     };
 
-    buscarNomesResponsaveis();
-  }, []);
+    buscarNomesResponponsaveis();
+  }, [gasUrl]); // Adicionado gasUrl como dependência para re-executar se a URL mudar
 
-  const handleCriar = () => {
+  const handleCriar = async () => { // Adicionado 'async' aqui para aguardar criarLeadFunc
     setMensagemSucesso(''); // Limpa a mensagem anterior ao tentar criar um novo lead
 
     // Validação básica dos campos obrigatórios
@@ -68,10 +87,9 @@ const CriarLead = ({ adicionarLead }) => {
       Status: 'Fechado',
     };
 
-    criarLeadFunc(novoLead);
+    await criarLeadFunc(novoLead); // Aguarda a conclusão da função de criação
 
-    // Feedback para o usuário e limpeza do formulário
-    setMensagemSucesso('✅ Lead criado com sucesso!'); // Define a mensagem de sucesso
+    // Limpeza do formulário e feedback para o usuário
     setNomeLead('');
     setModeloVeiculo('');
     setAnoModelo('');
@@ -79,6 +97,7 @@ const CriarLead = ({ adicionarLead }) => {
     setTelefone('');
     setTipoSeguro('');
     setResponsavel('');
+    setMensagemSucesso('✅ Lead criado com sucesso!'); // Define a mensagem de sucesso após a tentativa de criação
   };
 
   const criarLeadFunc = async (lead) => {
@@ -95,10 +114,15 @@ const CriarLead = ({ adicionarLead }) => {
       console.log('Requisição de criação de lead enviada (modo no-cors).');
       console.log('Verifique os logs de execução do Google Apps Script para confirmar o sucesso.');
 
+      // Como estamos em 'no-cors', não podemos ler a resposta real (response.ok, response.status)
+      // Apenas a ausência de um erro no fetch indica que a requisição foi enviada.
+      // A confirmação real de sucesso ou falha na escrita deve vir dos logs do Google Apps Script.
+
     } catch (error) {
       console.error('Erro ao enviar lead para o Google Sheets:', error);
       // Aqui você pode definir uma mensagem de erro se a criação falhar
       setMensagemSucesso('❌ Erro ao criar o lead. Tente novamente.');
+      throw error; // Re-lança o erro para que handleCriar possa capturá-lo se necessário
     }
   };
 
@@ -184,11 +208,16 @@ const CriarLead = ({ adicionarLead }) => {
           className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
         >
           <option value="">Selecione o Responsável</option>
-          {nomesResponsaveis.map((nome, index) => (
-            <option key={index} value={nome}>
-              {nome}
-            </option>
-          ))}
+          {/* Renderiza as opções apenas se nomesResponsaveis não estiver vazio */}
+          {nomesResponsaveis.length > 0 ? (
+            nomesResponsaveis.map((nome, index) => (
+              <option key={index} value={nome}>
+                {nome}
+              </option>
+            ))
+          ) : (
+            <option value="" disabled>Carregando ou nenhum responsável encontrado...</option>
+          )}
         </select>
       </div>
 
