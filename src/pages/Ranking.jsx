@@ -1,21 +1,21 @@
 import React, { useEffect, useState } from 'react';
 
-// Componente para renderizar a medalha realista
-const MedalhaRealistica = ({ posicao }) => {
-  let medalClass = '';
+// Componente para renderizar o troféu realista
+const TrofeuRealistico = ({ posicao }) => {
+  let trophyClass = '';
   let texto = '';
 
   switch (posicao) {
     case 0: // Ouro
-      medalClass = 'gold-medal';
+      trophyClass = 'gold-trophy';
       texto = '1º';
       break;
     case 1: // Prata
-      medalClass = 'silver-medal';
+      trophyClass = 'silver-trophy';
       texto = '2º';
       break;
     case 2: // Bronze
-      medalClass = 'bronze-medal';
+      trophyClass = 'bronze-trophy';
       texto = '3º';
       break;
     default:
@@ -36,13 +36,15 @@ const MedalhaRealistica = ({ posicao }) => {
       );
   }
 
-  // Define um atraso na animação para que as medalhas não se movam perfeitamente sincronizadas
+  // Define um atraso na animação para que os troféus não se movam perfeitamente sincronizados
   const animationDelay = `${posicao * 0.15}s`;
 
   return (
-    <div className={`medal-wrapper ${medalClass}`} style={{ '--animation-delay': animationDelay }}>
-      <div className="medal-core">
-        <span className="medal-text">{texto}</span>
+    <div className={`trophy-wrapper ${trophyClass}`} style={{ '--animation-delay': animationDelay }}>
+      <div className="trophy-base"></div>
+      <div className="trophy-stem"></div>
+      <div className="trophy-cup">
+        <span className="trophy-text">{texto}</span>
         {/* Efeitos de brilho tipo estrela */}
         <div className="star-shine star-shine-1"></div>
         <div className="star-shine star-shine-2"></div>
@@ -57,7 +59,7 @@ const Ranking = ({ usuarios }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [dadosLeads, setLeads] = useState([]);
 
-  // Estado para filtro por mês/ano (formato yyyy-mm)
+  // Estado para filtro por mês/ano (formato YYYY-mm)
   const [dataInput, setDataInput] = useState(() => {
     const hoje = new Date();
     const ano = hoje.getFullYear();
@@ -67,17 +69,17 @@ const Ranking = ({ usuarios }) => {
 
   const [filtroData, setFiltroData] = useState(dataInput);
 
-  // Função para converter data no formato dd/mm/aaaa para yyyy-mm-dd
+  // Função para converter data no formato dd/mm/aaaa para YYYY-mm-dd
   const converterDataParaISO = (dataStr) => {
     if (!dataStr) return '';
     if (dataStr.includes('/')) {
       const partes = dataStr.split('/');
       if (partes.length === 3) {
-        // dd/mm/aaaa -> yyyy-mm-dd
+        // dd/mm/aaaa -> YYYY-mm-dd
         return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
       }
     }
-    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo yyyy-mm
+    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo YYYY-mm
     return dataStr.slice(0, 7);
   };
 
@@ -210,7 +212,7 @@ const Ranking = ({ usuarios }) => {
 
   return (
     <div style={{ padding: 20, position: 'relative' }}>
-      {/* Estilos CSS para as animações e medalhas */}
+      {/* Estilos CSS para as animações e troféus */}
       <style>
         {`
           @keyframes spin {
@@ -218,15 +220,15 @@ const Ranking = ({ usuarios }) => {
             100% { transform: rotate(360deg); }
           }
 
-          /* Animação de flutuação para a medalha */
-          @keyframes float-medal {
+          /* Animação de flutuação para o troféu */
+          @keyframes float-trophy {
             0% { transform: translateY(0px); }
             50% { transform: translateY(-5px); }
             100% { transform: translateY(0px); }
           }
 
-          /* Animação de rotação sutil para a medalha */
-          @keyframes rotateMedal {
+          /* Animação de rotação sutil para o troféu */
+          @keyframes rotateTrophy {
             0% { transform: rotateY(0deg); }
             50% { transform: rotateY(5deg); }
             100% { transform: rotateY(0deg); }
@@ -238,56 +240,84 @@ const Ranking = ({ usuarios }) => {
             50% { opacity: 1; transform: scale(1); }
           }
 
-          .medal-wrapper {
-            width: 45px; /* Tamanho um pouco maior */
-            height: 45px;
+          .trophy-wrapper {
+            width: 45px; /* Largura total do troféu */
+            height: 60px; /* Altura total do troféu */
             position: relative;
-            animation: float-medal 3s ease-in-out infinite var(--animation-delay);
+            animation: float-trophy 3s ease-in-out infinite var(--animation-delay);
             perspective: 1000px; /* Para a rotação 3D */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end; /* Alinha a base para baixo */
           }
 
-          .medal-core {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
+          .trophy-base {
+            width: 40px;
+            height: 8px;
+            border-radius: 0 0 5px 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 1;
+          }
+
+          .trophy-stem {
+            width: 10px;
+            height: 15px;
+            border-radius: 2px 2px 0 0;
+            box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.2);
+            position: relative;
+            z-index: 2;
+          }
+
+          .trophy-cup {
+            width: 45px;
+            height: 30px;
+            border-radius: 50% 50% 0 0 / 100% 100% 0 0; /* Forma de taça */
+            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.4), inset 0 -5px 10px rgba(255, 255, 255, 0.3);
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            position: relative;
-            overflow: hidden; /* Para conter os brilhos */
-            animation: rotateMedal 4s ease-in-out infinite var(--animation-delay);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), inset 0 0 15px rgba(255, 255, 255, 0.4);
+            overflow: hidden;
+            z-index: 3;
+            animation: rotateTrophy 4s ease-in-out infinite var(--animation-delay);
           }
 
-          /* Estilos para as medalhas de Ouro, Prata, Bronze */
-          .gold-medal .medal-core {
+          /* Cores para Ouro */
+          .gold-trophy .trophy-base,
+          .gold-trophy .trophy-stem,
+          .gold-trophy .trophy-cup {
             background: linear-gradient(135deg, #FFD700 0%, #FFECB3 40%, #B8860B 100%);
-            border: 2px solid #DAA520;
+            border: 1px solid #DAA520;
           }
+          .gold-trophy .trophy-text { color: #8B4513; } /* Marrom para ouro */
 
-          .silver-medal .medal-core {
+          /* Cores para Prata */
+          .silver-trophy .trophy-base,
+          .silver-trophy .trophy-stem,
+          .silver-trophy .trophy-cup {
             background: linear-gradient(135deg, #C0C0C0 0%, #E0E0E0 40%, #A9A9A9 100%);
-            border: 2px solid #808080;
+            border: 1px solid #808080;
           }
+          .silver-trophy .trophy-text { color: #2F4F4F; } /* Cinza escuro para prata */
 
-          .bronze-medal .medal-core {
+          /* Cores para Bronze */
+          .bronze-trophy .trophy-base,
+          .bronze-trophy .trophy-stem,
+          .bronze-trophy .trophy-cup {
             background: linear-gradient(135deg, #CD7F32 0%, #D2B48C 40%, #A0522D 100%);
-            border: 2px solid #8B4513;
+            border: 1px solid #8B4513;
           }
+          .bronze-trophy .trophy-text { color: #FFFFFF; } /* Branco para bronze */
 
-          .medal-text {
+          .trophy-text {
             position: relative;
             z-index: 1; /* Garante que o texto fique acima do brilho */
-            font-size: 1.1rem;
+            font-size: 0.9rem; /* Ajustado para caber na taça */
             font-weight: bold;
-            color: #333; /* Cor do texto padrão */
             text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
           }
-
-          .gold-medal .medal-text { color: #8B4513; } /* Marrom para ouro */
-          .silver-medal .medal-text { color: #2F4F4F; } /* Cinza escuro para prata */
-          .bronze-medal .medal-text { color: #FFFFFF; } /* Branco para bronze */
-
 
           /* Estilos e posições para os brilhos tipo estrela */
           .star-shine {
@@ -299,26 +329,26 @@ const Ranking = ({ usuarios }) => {
           }
 
           .star-shine-1 {
-            width: 8px;
-            height: 8px;
-            top: 15%;
-            left: 20%;
+            width: 6px;
+            height: 6px;
+            top: 20%;
+            left: 15%;
             animation-delay: 0.2s;
           }
 
           .star-shine-2 {
-            width: 6px;
-            height: 6px;
-            top: 60%;
+            width: 5px;
+            height: 5px;
+            top: 50%;
             left: 70%;
             animation-delay: 0.7s;
           }
 
           .star-shine-3 {
-            width: 5px;
-            height: 5px;
-            top: 30%;
-            left: 80%;
+            width: 4px;
+            height: 4px;
+            top: 70%;
+            left: 30%;
             animation-delay: 1.2s;
           }
         `}
@@ -459,8 +489,8 @@ const Ranking = ({ usuarios }) => {
                     zIndex: 10,
                   }}
                 >
-                  {/* Usa o novo componente de Medalha Realística */}
-                  <MedalhaRealistica posicao={index} />
+                  {/* Usa o novo componente de Troféu Realístico */}
+                  <TrofeuRealistico posicao={index} />
                 </div>
 
                 <div
