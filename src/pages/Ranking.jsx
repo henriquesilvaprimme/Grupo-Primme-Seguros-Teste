@@ -42,7 +42,12 @@ const TrofeuRealistico = ({ posicao }) => {
   return (
     <div className={`trophy-container`} style={{ '--animation-delay': animationDelay }}>
       <div className={`trophy-main ${trophyClass}`}>
+        {/* Taça do troféu */}
         <div className="trophy-cup">
+          <div className="trophy-cup-top"></div>
+          <div className="trophy-cup-middle"></div>
+          <div className="trophy-cup-bottom"></div>
+          {/* Alças do troféu */}
           <div className="trophy-handle left"></div>
           <div className="trophy-handle right"></div>
           <span className="trophy-text">{texto}</span>
@@ -50,9 +55,13 @@ const TrofeuRealistico = ({ posicao }) => {
           <div className="star-shine star-shine-1"></div>
           <div className="star-shine star-shine-2"></div>
           <div className="star-shine star-shine-3"></div>
-          <div className="star-shine star-shine-4"></div> {/* Mais brilhos */}
+          <div className="star-shine star-shine-4"></div>
         </div>
-        <div className="trophy-stem"></div>
+        {/* Haste do troféu */}
+        <div className="trophy-stem">
+          <div className="trophy-stem-ring"></div> {/* Detalhe do anel na haste */}
+        </div>
+        {/* Base do troféu */}
         <div className="trophy-base"></div>
       </div>
     </div>
@@ -91,9 +100,9 @@ const Ranking = ({ usuarios }) => {
   const buscarClientesFechados = async () => {
     setIsLoading(true); // Ativa o loader
     try {
-      const respostaLeads = await fetch(
-        'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
-      );
+      // ** ATENÇÃO: Substitua esta URL pela URL da sua implementação do Google Apps Script **
+      const gasUrl = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados';
+      const respostaLeads = await fetch(gasUrl);
       const dados = await respostaLeads.json();
       setLeads(dados);
     } catch (error) {
@@ -234,7 +243,7 @@ const Ranking = ({ usuarios }) => {
           /* Animação de rotação sutil para o troféu no eixo Y */
           @keyframes rotateTrophyY {
             0% { transform: rotateY(0deg); }
-            50% { transform: rotateY(10deg); } /* Mais movimento para o brilho */
+            50% { transform: rotateY(10deg); }
             100% { transform: rotateY(0deg); }
           }
 
@@ -245,13 +254,13 @@ const Ranking = ({ usuarios }) => {
           }
 
           .trophy-container {
-            width: 55px; /* Largura total do troféu */
-            height: 75px; /* Altura total do troféu */
+            width: 55px;
+            height: 80px; /* Aumentado para acomodar o novo design */
             position: relative;
             animation: float-trophy 3s ease-in-out infinite var(--animation-delay);
-            perspective: 1000px; /* Para a rotação 3D */
+            perspective: 1000px;
             display: flex;
-            align-items: flex-end; /* Alinha o troféu à base */
+            align-items: flex-end;
             justify-content: center;
           }
 
@@ -261,145 +270,181 @@ const Ranking = ({ usuarios }) => {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-end; /* Empilha de baixo para cima */
-            position: relative; /* Para a rotação 3D do conjunto */
+            justify-content: flex-end;
+            position: relative;
             transform-style: preserve-3d;
             animation: rotateTrophyY 4s ease-in-out infinite var(--animation-delay);
           }
 
+          /* BASE DO TROFÉU */
           .trophy-base {
-            width: 55px; /* Mais largo */
-            height: 12px; /* Mais alto */
-            border-radius: 5px 5px 0 0; /* Base sólida */
+            width: 60px; /* Mais larga */
+            height: 12px;
+            border-radius: 5px 5px 0 0;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
             position: relative;
             z-index: 1;
-            /* Detalhes de realismo na base */
+            /* Reflexos na base */
             background-image: radial-gradient(circle at 50% 10%, rgba(255,255,255,0.3) 0%, transparent 70%);
           }
 
+          /* HASTE DO TROFÉU */
           .trophy-stem {
-            width: 18px; /* Mais robusto */
-            height: 30px; /* Mais alto */
-            border-radius: 5px; /* Mais arredondado */
+            width: 16px; /* Mais fina */
+            height: 25px; /* Altura ajustada */
+            border-radius: 3px;
             box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.3);
             position: relative;
             z-index: 2;
-            margin-bottom: -2px; /* Pequeno ajuste para sobrepor */
-            /* Detalhes de realismo na haste */
+            margin-bottom: -2px;
+            overflow: hidden; /* Para conter o anel */
             background-image: linear-gradient(to right, rgba(255,255,255,0.1) 0%, transparent 20%, transparent 80%, rgba(255,255,255,0.1) 100%);
           }
 
+          .trophy-stem-ring { /* Anel na haste */
+            position: absolute;
+            top: 5px; /* Posição do anel */
+            left: 0;
+            right: 0;
+            height: 4px;
+            border-radius: 2px;
+            opacity: 0.8;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+          }
+
+          /* TAÇA DO TROFÉU */
           .trophy-cup {
-            width: 55px; /* Largura da taça */
-            height: 38px; /* Altura da taça */
-            border-radius: 50% 50% 0 0 / 100% 100% 0 0; /* Forma de taça */
-            box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.5), inset 0 -8px 15px rgba(255, 255, 255, 0.5);
+            width: 55px;
+            height: 45px; /* Aumentado para a forma alongada */
             position: relative;
+            z-index: 3;
+            margin-bottom: -2px;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
-            z-index: 3;
-            margin-bottom: -2px; /* Pequeno ajuste para sobrepor */
-            /* Detalhes de realismo na taça */
-            background-image: radial-gradient(circle at 50% 20%, rgba(255,255,255,0.4) 0%, transparent 70%);
+            overflow: visible; /* Para alças e brilhos */
           }
 
-          /* Alças do troféu (pseudo-elementos para simplificar o HTML) */
-          .trophy-cup::before,
-          .trophy-cup::after {
-            content: '';
-            position: absolute;
-            width: 12px; /* Largura da alça */
-            height: 30px; /* Altura da alça */
-            border: 4px solid; /* Cor da borda será a do troféu */
-            border-radius: 50%;
-            top: 8px; /* Ajuste para melhor posicionamento */
-            transform: translateY(-50%);
-            z-index: 0;
-            box-shadow: inset 0 0 5px rgba(0,0,0,0.2); /* Sombra interna para volume */
-          }
-
-          .trophy-cup::before {
-            left: -10px; /* Posição da alça esquerda */
-            border-right: none;
-            transform: rotate(35deg); /* Posição angular */
-          }
-
-          .trophy-cup::after {
-            right: -10px; /* Posição da alça direita */
-            border-left: none;
-            transform: rotate(-35deg); /* Posição angular */
-          }
-
-
-          /* Cores para Ouro */
-          .gold-trophy .trophy-base,
-          .gold-trophy .trophy-stem,
-          .gold-trophy .trophy-cup,
-          .gold-trophy .trophy-cup::before,
-          .gold-trophy .trophy-cup::after {
-            background-color: #FFD700; /* Cor base para gradientes */
-            background-image: linear-gradient(135deg, #FFD700 0%, #FFECB3 40%, #B8860B 100%);
-            border-color: #DAA520; /* Cor da borda */
-          }
-          .gold-trophy .trophy-text { color: #8B4513; } /* Marrom para ouro */
-
-          /* Cores para Prata */
-          .silver-trophy .trophy-base,
-          .silver-trophy .trophy-stem,
-          .silver-trophy .trophy-cup,
-          .silver-trophy .trophy-cup::before,
-          .silver-trophy .trophy-cup::after {
-            background-color: #C0C0C0;
-            background-image: linear-gradient(135deg, #C0C0C0 0%, #E0E0E0 40%, #A9A9A9 100%);
-            border-color: #808080;
-          }
-          .silver-trophy .trophy-text { color: #2F4F4F; } /* Cinza escuro para prata */
-
-          /* Cores para Bronze */
-          .bronze-trophy .trophy-base,
-          .bronze-trophy .trophy-stem,
-          .bronze-trophy .trophy-cup,
-          .bronze-trophy .trophy-cup::before,
-          .bronze-trophy .trophy-cup::after {
-            background-color: #CD7F32;
-            background-image: linear-gradient(135deg, #CD7F32 0%, #D2B48C 40%, #A0522D 100%);
-            border-color: #8B4513;
-          }
-          .bronze-trophy .trophy-text { color: #FFFFFF; } /* Branco para bronze */
-
-          .trophy-text {
+          .trophy-cup-top {
+            width: 100%;
+            height: 15px;
+            border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+            box-shadow: inset 0 -5px 10px rgba(255,255,255,0.4);
             position: relative;
-            z-index: 4; /* Garante que o texto fique acima do brilho e alças */
-            font-size: 0.9rem; /* Ajustado para caber na taça */
+            z-index: 2;
+          }
+
+          .trophy-cup-middle {
+            width: 85%; /* Mais estreito no meio */
+            height: 20px;
+            border-radius: 0; /* Reto no meio */
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
+            position: relative;
+            z-index: 1;
+            margin-top: -5px; /* Sobrepõe levemente */
+          }
+
+          .trophy-cup-bottom {
+            width: 70%; /* Mais estreito na parte de baixo da taça */
+            height: 15px;
+            border-radius: 0 0 50% 50% / 0 0 100% 100%;
+            box-shadow: inset 0 5px 10px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 0;
+            margin-top: -5px; /* Sobrepõe levemente */
+          }
+
+          /* ALÇAS DO TROFÉU */
+          .trophy-handle {
+            position: absolute;
+            width: 15px; /* Largura da alça */
+            height: 40px; /* Altura da alça */
+            border: 3px solid; /* A cor da borda virá das classes de cor */
+            border-radius: 50%;
+            top: 15px; /* Posição mais baixa na taça */
+            z-index: 4; /* Ficam acima da taça */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+          }
+
+          .trophy-handle.left {
+            left: -10px; /* Posição para a esquerda */
+            border-right: none; /* Remove borda da direita para a alça "abrir" */
+            transform: rotate(20deg); /* Curvatura */
+          }
+
+          .trophy-handle.right {
+            right: -10px; /* Posição para a direita */
+            border-left: none; /* Remove borda da esquerda */
+            transform: rotate(-20deg); /* Curvatura */
+          }
+
+          /* TEXTO DA POSIÇÃO */
+          .trophy-text {
+            position: absolute;
+            z-index: 5; /* Garante que o texto fique acima de tudo */
+            font-size: 0.9rem;
             font-weight: bold;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
           }
 
-          /* Estilos e posições para os brilhos tipo estrela */
+          /* CORES - OURO */
+          .gold-trophy .trophy-base,
+          .gold-trophy .trophy-stem,
+          .gold-trophy .trophy-stem-ring,
+          .gold-trophy .trophy-cup-top,
+          .gold-trophy .trophy-cup-middle,
+          .gold-trophy .trophy-cup-bottom,
+          .gold-trophy .trophy-handle {
+            background-color: #FFD700; /* Cor base para fallback */
+            background-image: linear-gradient(135deg, #FFD700 0%, #FFECB3 40%, #B8860B 100%);
+            border-color: #DAA520;
+          }
+          .gold-trophy .trophy-text { color: #8B4513; }
+
+          /* CORES - PRATA */
+          .silver-trophy .trophy-base,
+          .silver-trophy .trophy-stem,
+          .silver-trophy .trophy-stem-ring,
+          .silver-trophy .trophy-cup-top,
+          .silver-trophy .trophy-cup-middle,
+          .silver-trophy .trophy-cup-bottom,
+          .silver-trophy .trophy-handle {
+            background-color: #C0C0C0;
+            background-image: linear-gradient(135deg, #C0C0C0 0%, #E0E0E0 40%, #A9A9A9 100%);
+            border-color: #808080;
+          }
+          .silver-trophy .trophy-text { color: #2F4F4F; }
+
+          /* CORES - BRONZE */
+          .bronze-trophy .trophy-base,
+          .bronze-trophy .trophy-stem,
+          .bronze-trophy .trophy-stem-ring,
+          .bronze-trophy .trophy-cup-top,
+          .bronze-trophy .trophy-cup-middle,
+          .bronze-trophy .trophy-cup-bottom,
+          .bronze-trophy .trophy-handle {
+            background-color: #CD7F32;
+            background-image: linear-gradient(135deg, #CD7F32 0%, #D2B48C 40%, #A0522D 100%);
+            border-color: #8B4513;
+          }
+          .bronze-trophy .trophy-text { color: #FFFFFF; }
+
+          /* BRILHOS ESTELARES */
           .star-shine {
             position: absolute;
-            background: rgba(255, 255, 255, 0.9); /* Mais opaco */
+            background: rgba(255, 255, 255, 0.9);
             border-radius: 50%;
             opacity: 0;
             animation: starTwinkle 2s ease-in-out infinite alternate;
-            box-shadow: 0 0 8px rgba(255,255,255,0.8); /* Brilho em volta da estrela */
+            box-shadow: 0 0 8px rgba(255,255,255,0.8);
           }
 
-          .star-shine-1 {
-            width: 7px; height: 7px; top: 15%; left: 10%; animation-delay: 0.2s;
-          }
-          .star-shine-2 {
-            width: 6px; height: 6px; top: 40%; left: 80%; animation-delay: 0.7s;
-          }
-          .star-shine-3 {
-            width: 5px; height: 5px; top: 75%; left: 25%; animation-delay: 1.2s;
-          }
-          .star-shine-4 {
-            width: 6px; height: 6px; top: 60%; left: 50%; animation-delay: 0.9s;
-          }
+          /* Posições dos brilhos ajustadas para o novo design da taça */
+          .star-shine-1 { width: 7px; height: 7px; top: 10%; left: 15%; animation-delay: 0.2s; }
+          .star-shine-2 { width: 6px; height: 6px; top: 30%; left: 80%; animation-delay: 0.7s; }
+          .star-shine-3 { width: 5px; height: 5px; top: 60%; left: 30%; animation-delay: 1.2s; }
+          .star-shine-4 { width: 6px; height: 6px; top: 80%; left: 60%; animation-delay: 0.9s; }
         `}
       </style>
 
