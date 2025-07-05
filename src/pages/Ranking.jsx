@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
 const Ranking = ({ usuarios }) => {
-  const [isLoading, setIsLoading] = useState(true);
+  const [carregando, setCarregando] = useState(true);
   const [dadosLeads, setLeads] = useState([]);
 
-  // Estado para filtro por mês/ano (formato YYYY-MM)
+  // Estado para filtro por mês/ano (formato yyyy-mm)
   const [dataInput, setDataInput] = useState(() => {
     const hoje = new Date();
     const ano = hoje.getFullYear();
@@ -14,33 +14,33 @@ const Ranking = ({ usuarios }) => {
 
   const [filtroData, setFiltroData] = useState(dataInput);
 
-  // Função para converter data no formato dd/mm/aaaa para YYYY-MM-DD
+  // Função para converter data no formato dd/mm/aaaa para yyyy-mm-dd
   const converterDataParaISO = (dataStr) => {
     if (!dataStr) return '';
     if (dataStr.includes('/')) {
       const partes = dataStr.split('/');
       if (partes.length === 3) {
-        // dd/mm/aaaa -> YYYY-MM-DD
-        return `${partes[2]}-${partes[1]}-${partes[0]}`;
+        // dd/mm/aaaa -> yyyy-mm-dd
+        return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
       }
     }
-    return dataStr; // Retorna como está se já for YYYY-MM-DD ou outro formato
+    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo yyyy-mm
+    return dataStr.slice(0, 7);
   };
 
   const buscarClientesFechados = async () => {
-    setIsLoading(true); // Ativa o loader
+    setCarregando(true);
     try {
-      const response = await fetch('https://raw.githubusercontent.com/reinaldoperes/leads/main/leads.json');
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const dados = await response.json();
+      const respostaLeads = await fetch(
+        'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=pegar_clientes_fechados'
+      );
+      const dados = await respostaLeads.json();
       setLeads(dados);
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
       setLeads([]);
     } finally {
-      setIsLoading(false); // Desativa o loader
+      setCarregando(false);
     }
   };
 
@@ -82,7 +82,7 @@ const Ranking = ({ usuarios }) => {
   };
 
   const usuariosComContagem = ativos.map((usuario) => {
-    // Filtrar leads fechados do usuário com status "Fechado", seguradora preenchida e data dentro do filtro (YYYY-MM)
+    // Filtrar leads fechados do usuário com status "Fechado", seguradora preenchida e data dentro do filtro (yyyy-mm)
     const leadsUsuario = dadosLeads.filter((l) => {
       const responsavelOk = l.Responsavel === usuario.nome;
       const statusOk = l.Status === 'Fechado';
@@ -150,132 +150,113 @@ const Ranking = ({ usuarios }) => {
     return b.demais - a.demais;
   });
 
+  const getMedalha = (posicao) => {
+    const medalhas = ['🥇', '🥈', '🥉'];
+    return medalhas[posicao] || `${posicao + 1}º`;
+  };
+
   const aplicarFiltroData = () => {
     setFiltroData(dataInput);
   };
 
   return (
-    <div style={{ padding: 20, position: 'relative' }}>
-      {/* Estilos CSS para o loader */}
-      <style>
-        {`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-          .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 2s linear infinite;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            margin-top: -20px;
-            margin-left: -20px;
-            z-index: 1000;
-          }
-          .overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 999;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-          }
-        `}
-      </style>
+    <div style={{ padding: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <h1 style={{ margin: 0 }}>Ranking de Usuários</h1>
 
-      {isLoading && (
-        <div className="overlay">
-          <div className="loader"></div>
-        </div>
-      )}
-
-      <h1 style={{ marginBottom: 20, textAlign: 'center', color: '#333' }}>
-        Ranking de Vendas
-      </h1>
-
-      <div style={{ marginBottom: 20, textAlign: 'center' }}>
-        <label htmlFor="data-filtro" style={{ marginRight: 10, fontWeight: 'bold' }}>
-          Filtrar por Mês/Ano:
-        </label>
-        <input
-          type="month"
-          id="data-filtro"
-          value={dataInput}
-          onChange={(e) => setDataInput(e.target.value)}
-          style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
-        />
         <button
-          onClick={aplicarFiltroData}
-          style={{
-            marginLeft: 10,
-            padding: '8px 15px',
-            backgroundColor: '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
+          title="Clique para atualizar os dados"
+          onClick={() => {
+            buscarClientesFechados();
           }}
         >
-          Aplicar
+          🔄
         </button>
       </div>
 
+      {/* Filtro data: canto direito */}
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-          gap: 20,
-          maxWidth: 1200,
-          margin: '0 auto',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          minWidth: '230px',
+          justifyContent: 'flex-end',
+          marginTop: '8px',
+          marginBottom: '24px',
         }}
       >
-        {rankingOrdenado.map((usuario, index) => (
-          <div
-            key={usuario.id}
-            style={{
-              backgroundColor: '#fff',
-              borderRadius: 10,
-              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-              padding: 20,
-              textAlign: 'center',
-              position: 'relative',
-              border:
-                index === 0
-                  ? '3px solid gold'
-                  : index === 1
-                  ? '3px solid silver'
-                  : index === 2
-                  ? '3px solid #cd7f32' // Bronze
-                  : 'none',
-              overflow: 'hidden', // Para conter o brilho
-            }}
-          >
-            <div
-              style={{
-                position: 'absolute',
-                top: '12px',
-                right: '12px',
-                zIndex: 10,
-                fontSize: '50px', // Ajuste o tamanho do emoji conforme necessário
-                lineHeight: '1', // Garante que o emoji fique bem posicionado
-              }}
-            >
-              {index === 0 && '🏆'} {/* Troféu de Ouro para o 1º */}
-              {index === 1 && '🥈'} {/* Medalha de Prata para o 2º */}
-              {index === 2 && '🥉'} {/* Medalha de Bronze para o 3º */}
-              {index > 2 && (
+        <button
+          onClick={aplicarFiltroData}
+          style={{
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            padding: '6px 14px',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            marginRight: '8px',
+          }}
+        >
+          Filtrar
+        </button>
+        <input
+          type="month"
+          value={dataInput}
+          onChange={(e) => setDataInput(e.target.value)}
+          style={{
+            padding: '6px 10px',
+            borderRadius: '6px',
+            border: '1px solid #ccc',
+            cursor: 'pointer',
+            minWidth: '140px',
+          }}
+          title="Filtrar leads pela data (mês/ano)"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') aplicarFiltroData();
+          }}
+        />
+      </div>
+
+      {carregando ? (
+        <p>Carregando dados...</p>
+      ) : rankingOrdenado.length === 0 ? (
+        <p>Nenhum usuário ativo com leads fechados para o período selecionado.</p>
+      ) : (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(600px, 1fr))',
+            gap: '24px',
+          }}
+        >
+          {rankingOrdenado.map((usuario, index) => {
+            const contadores = [
+              { label: 'Vendas', count: usuario.vendas, color: '#000' },
+              { label: 'Porto Seguro', count: usuario.porto, color: '#1E90FF' },
+              { label: 'Itau Seguros', count: usuario.itau, color: '#FF6600' },
+              { label: 'Azul Seguros', count: usuario.azul, color: '#003366' },
+              { label: 'Demais Seguradoras', count: usuario.demais, color: '#2E8B57' },
+            ];
+
+            return (
+              <div
+                key={usuario.id}
+                style={{
+                  position: 'relative',
+                  border: '1px solid #ccc',
+                  borderRadius: '12px',
+                  padding: '24px',
+                  backgroundColor: '#fff',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                }}
+              >
                 <div
                   style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '12px',
                     backgroundColor: '#333',
                     color: '#fff',
                     borderRadius: '8px',
@@ -284,51 +265,116 @@ const Ranking = ({ usuarios }) => {
                     fontWeight: 'bold',
                   }}
                 >
-                  {index + 1}º
+                  {getMedalha(index)}
                 </div>
-              )}
-            </div>
 
-            <h2 style={{ color: '#007bff', marginBottom: 10 }}>
-              {usuario.nome}
-            </h2>
-            <p style={{ fontSize: '1.2rem', color: '#555' }}>
-              <strong style={{ color: '#333' }}>Vendas Fechadas:</strong>{' '}
-              {usuario.vendas}
-            </p>
-            <p style={{ fontSize: '1.2rem', color: '#555' }}>
-              <strong style={{ color: '#333' }}>Prêmio Líquido:</strong>{' '}
-              {formatarMoeda(usuario.premioLiquido)}
-            </p>
-            <p style={{ fontSize: '1.2rem', color: '#555' }}>
-              <strong style={{ color: '#333' }}>Comissão Média:</strong>{' '}
-              {formatarComissao(usuario.comissao)}
-            </p>
-            <p style={{ fontSize: '1.2rem', color: '#555' }}>
-              <strong style={{ color: '#333' }}>Parcelamento Médio:</strong>{' '}
-              {formatarParcelamento(usuario.parcelamento)}
-            </p>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginBottom: '24px',
+                    gap: '20px',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      backgroundColor: '#f0f0f0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '32px',
+                      color: '#888',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {usuario.nome?.charAt(0)?.toUpperCase() || '?'}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '1.4rem',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    {usuario.nome || 'Sem Nome'}
+                  </div>
+                </div>
 
-            <div style={{ marginTop: 15, borderTop: '1px solid #eee', paddingTop: 15 }}>
-              <h3 style={{ color: '#333', marginBottom: 10 }}>Vendas por Seguradora:</h3>
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                <li style={{ marginBottom: 5 }}>
-                  Porto Seguro: <strong style={{ color: '#007bff' }}>{usuario.porto}</strong>
-                </li>
-                <li style={{ marginBottom: 5 }}>
-                  Azul Seguros: <strong style={{ color: '#007bff' }}>{usuario.azul}</strong>
-                </li>
-                <li style={{ marginBottom: 5 }}>
-                  Itaú Seguros: <strong style={{ color: '#007bff' }}>{usuario.itau}</strong>
-                </li>
-                <li style={{ marginBottom: 5 }}>
-                  Demais Seguradoras: <strong style={{ color: '#007bff' }}>{usuario.demais}</strong>
-                </li>
-              </ul>
-            </div>
-          </div>
-        ))}
-      </div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${contadores.length}, 1fr)`,
+                    textAlign: 'center',
+                    borderTop: '1px solid #eee',
+                    borderBottom: '1px solid #eee',
+                  }}
+                >
+                  {contadores.map((item, idx) => (
+                    <div
+                      key={item.label}
+                      style={{
+                        padding: '12px 8px',
+                        borderLeft: idx === 0 ? 'none' : '1px solid #eee',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontWeight: '600',
+                          fontSize: '0.9rem',
+                          color: item.color,
+                        }}
+                      >
+                        {item.label}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '1.3rem',
+                          marginTop: '6px',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        {item.count}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div
+                  style={{
+                    textAlign: 'center',
+                    borderTop: '1px solid #eee',
+                    paddingTop: '12px',
+                    color: '#555',
+                    fontWeight: '600',
+                  }}
+                >
+                  <div style={{ marginBottom: '8px' }}>
+                    <span>Prêmio Líquido: </span>
+                    <span style={{ fontWeight: 'bold' }}>
+                      {formatarMoeda(usuario.premioLiquido)}
+                    </span>
+                  </div>
+                  <div style={{ marginBottom: '8px' }}>
+                    <span>Comissão: </span>
+                    <span style={{ fontWeight: 'bold' }}>
+                      {formatarComissao(usuario.comissao)}
+                    </span>
+                  </div>
+                  <div>
+                    <span>Parcelamento: </span>
+                    <span style={{ fontWeight: 'bold' }}>
+                      {formatarParcelamento(usuario.parcelamento)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
