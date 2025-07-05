@@ -45,7 +45,7 @@ const App = () => {
         const response = await fetch(GOOGLE_SHEETS_SCRIPT_URL );
         const data = await response.json();
 
-         console.log(data)
+          console.log(data)
 
         if (Array.isArray(data)) {
 
@@ -108,7 +108,7 @@ const App = () => {
     return () => clearInterval(interval);
   }, [leadSelecionado]);
   // FIM - sincronização leads
-   
+    
 
   const fetchLeadsFechadosFromSheet = async () => {
     try {
@@ -219,6 +219,19 @@ const App = () => {
     setUsuarios((prev) => [...prev, { ...usuario, id: prev.length + 1 }]);
   };
 
+  // Funções para adicionar e atualizar leads no estado local, se necessário.
+  // Criaremos uma função para *adicionar* um lead que pode ser passada para CriarLead.
+  const adicionarNovoLead = (novoLead) => {
+    setLeads((prevLeads) => {
+      // Verifica se o lead já existe para evitar duplicatas ao sincronizar
+      if (!prevLeads.some(lead => lead.ID === novoLead.ID)) {
+        return [novoLead, ...prevLeads]; // Adiciona o novo lead no topo da lista
+      }
+      return prevLeads;
+    });
+    // Opcional: Chamar fetchLeadsFromSheet() aqui para re-sincronizar imediatamente.
+    // fetchLeadsFromSheet(); 
+  };
 
 
   const atualizarStatusLeadAntigo = (id, novoStatus, phone) => {
@@ -346,7 +359,7 @@ const App = () => {
 
 
     // Faz a chamada para o Apps Script via fetch POST
-   fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_seguradora', {
+    fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_seguradora', {
         method: 'POST',
         mode: 'no-cors',
         body:JSON.stringify({
@@ -603,6 +616,11 @@ const App = () => {
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
                 />} />
+          {/* Nova rota para CriarLead */}
+          <Route 
+            path="/criar-lead" 
+            element={<CriarLead adicionarLead={adicionarNovoLead} />} 
+          />
           {isAdmin && (
             <>
               <Route path="/criar-usuario" element={<CriarUsuario adicionarUsuario={adicionarUsuario} />} />
