@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
 const Ranking = ({ usuarios }) => {
-  const [isLoading, setIsLoading] = useState(true); // Renomeado para isLoading para consistência
+  const [isLoading, setIsLoading] = useState(true);
   const [dadosLeads, setLeads] = useState([]);
 
-  // Estado para filtro por mês/ano (formato YYYY-mm)
   const [dataInput, setDataInput] = useState(() => {
     const hoje = new Date();
     const ano = hoje.getFullYear();
@@ -14,22 +13,19 @@ const Ranking = ({ usuarios }) => {
 
   const [filtroData, setFiltroData] = useState(dataInput);
 
-  // Função para converter data no formato dd/mm/aaaa para YYYY-mm-dd
   const converterDataParaISO = (dataStr) => {
     if (!dataStr) return '';
     if (dataStr.includes('/')) {
       const partes = dataStr.split('/');
       if (partes.length === 3) {
-        // dd/mm/aaaa -> YYYY-mm-dd
         return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
       }
     }
-    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo YYYY-mm
     return dataStr.slice(0, 7);
   };
 
   const buscarClientesFechados = async () => {
-    setIsLoading(true); // Ativa o loader
+    setIsLoading(true);
     try {
       const respostaLeads = await fetch(
         'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
@@ -40,7 +36,7 @@ const Ranking = ({ usuarios }) => {
       console.error('Erro ao buscar dados:', error);
       setLeads([]);
     } finally {
-      setIsLoading(false); // Desativa o loader
+      setIsLoading(false);
     }
   };
 
@@ -49,7 +45,6 @@ const Ranking = ({ usuarios }) => {
   }, []);
 
   if (!Array.isArray(usuarios) || !Array.isArray(dadosLeads)) {
-    // Mantém a mensagem de erro para dados mal carregados
     return <div style={{ padding: 20 }}>Erro: dados não carregados corretamente.</div>;
   }
 
@@ -83,7 +78,6 @@ const Ranking = ({ usuarios }) => {
   };
 
   const usuariosComContagem = ativos.map((usuario) => {
-    // Filtrar leads fechados do usuário com status "Fechado", seguradora preenchida e data dentro do filtro (yyyy-mm)
     const leadsUsuario = dadosLeads.filter((l) => {
       const responsavelOk = l.Responsavel === usuario.nome;
       const statusOk = l.Status === 'Fechado';
@@ -152,8 +146,69 @@ const Ranking = ({ usuarios }) => {
   });
 
   const getMedalha = (posicao) => {
-    const medalhas = ['🥇', '🥈', '🥉'];
-    return medalhas[posicao] || `${posicao + 1}º`;
+    let color = '';
+    let shadow = '';
+    let text = '';
+
+    switch (posicao) {
+      case 0: // Ouro
+        color = '#FFD700'; // Gold
+        shadow = '0 0 15px #FFD700, 0 0 25px #FFD700';
+        text = '1º';
+        break;
+      case 1: // Prata
+        color = '#C0C0C0'; // Silver
+        shadow = '0 0 15px #C0C0C0, 0 0 25px #C0C0C0';
+        text = '2º';
+        break;
+      case 2: // Bronze
+        color = '#CD7F32'; // Bronze
+        shadow = '0 0 15px #CD7F32, 0 0 25px #CD7F32';
+        text = '3º';
+        break;
+      default:
+        return (
+          <div
+            style={{
+              backgroundColor: '#333',
+              color: '#fff',
+              borderRadius: '8px',
+              padding: '4px 10px',
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+            }}
+          >
+            {posicao + 1}º
+          </div>
+        );
+    }
+
+    return (
+      <div
+        className={`medal medal-${posicao}`}
+        style={{
+          backgroundColor: color,
+          boxShadow: shadow,
+          animation: `shine 1.5s infinite alternate, float 3s ease-in-out infinite`,
+          position: 'relative',
+          overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: '50%', // Para a forma da medalha
+          width: '40px', // Tamanho da medalha
+          height: '40px',
+          fontSize: '1rem',
+          fontWeight: 'bold',
+          color: '#333', // Cor do texto dentro da medalha
+          border: `2px solid ${color === '#FFD700' ? '#FFC400' : color === '#C0C0C0' ? '#A9A9A9' : '#B87333'}`, // Borda mais escura
+        }}
+      >
+        {text}
+        {/* Efeito de brilho "passando" */}
+        <div className="shine-effect"></div>
+      </div>
+    );
   };
 
   const aplicarFiltroData = () => {
@@ -162,6 +217,53 @@ const Ranking = ({ usuarios }) => {
 
   return (
     <div style={{ padding: 20, position: 'relative' }}>
+      {/* Estilos CSS para as animações */}
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+
+          @keyframes shine {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+          }
+
+          @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+          }
+
+          .medal {
+            position: relative;
+            overflow: hidden;
+          }
+
+          .shine-effect {
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 200%;
+            height: 100%;
+            background: linear-gradient(
+              to right,
+              rgba(255, 255, 255, 0) 0%,
+              rgba(255, 255, 255, 0.4) 50%,
+              rgba(255, 255, 255, 0) 100%
+            );
+            transform: skewX(-20deg);
+            animation: shine-sweep 2s infinite linear;
+          }
+
+          @keyframes shine-sweep {
+            0% { left: -100%; }
+            100% { left: 100%; }
+          }
+        `}
+      </style>
+
       {/* Loader de carregamento */}
       {isLoading && (
         <div
@@ -188,14 +290,6 @@ const Ranking = ({ usuarios }) => {
               animation: 'spin 1s linear infinite',
             }}
           ></div>
-          <style>
-            {`
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-            `}
-          </style>
         </div>
       )}
 
@@ -207,8 +301,17 @@ const Ranking = ({ usuarios }) => {
           onClick={() => {
             buscarClientesFechados();
           }}
+          style={{
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            padding: '6px 14px',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
         >
-          🔄
+          Atualizar
         </button>
       </div>
 
@@ -257,7 +360,7 @@ const Ranking = ({ usuarios }) => {
         />
       </div>
 
-      {isLoading ? null : rankingOrdenado.length === 0 ? ( // Renderiza o loader ou a mensagem de "nenhum dado"
+      {isLoading ? null : rankingOrdenado.length === 0 ? (
         <p>Nenhum usuário ativo com leads fechados para o período selecionado.</p>
       ) : (
         <div
@@ -293,12 +396,7 @@ const Ranking = ({ usuarios }) => {
                     position: 'absolute',
                     top: '12px',
                     right: '12px',
-                    backgroundColor: '#333',
-                    color: '#fff',
-                    borderRadius: '8px',
-                    padding: '4px 10px',
-                    fontSize: '1.1rem',
-                    fontWeight: 'bold',
+                    zIndex: 10, // Garante que a medalha fique por cima
                   }}
                 >
                   {getMedalha(index)}
@@ -328,91 +426,3 @@ const Ranking = ({ usuarios }) => {
                   >
                     {usuario.nome?.charAt(0)?.toUpperCase() || '?'}
                   </div>
-                  <div
-                    style={{
-                      fontSize: '1.4rem',
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    {usuario.nome || 'Sem Nome'}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: `repeat(${contadores.length}, 1fr)`,
-                    textAlign: 'center',
-                    borderTop: '1px solid #eee',
-                    borderBottom: '1px solid #eee',
-                  }}
-                >
-                  {contadores.map((item, idx) => (
-                    <div
-                      key={item.label}
-                      style={{
-                        padding: '12px 8px',
-                        borderLeft: idx === 0 ? 'none' : '1px solid #eee',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontWeight: '600',
-                          fontSize: '0.9rem',
-                          color: item.color,
-                        }}
-                      >
-                        {item.label}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: '1.3rem',
-                          marginTop: '6px',
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        {item.count}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div
-                  style={{
-                    textAlign: 'center',
-                    borderTop: '1px solid #eee',
-                    paddingTop: '12px',
-                    color: '#555',
-                    fontWeight: '600',
-                  }}
-                >
-                  <div style={{ marginBottom: '8px' }}>
-                    <span>Prêmio Líquido: </span>
-                    <span style={{ fontWeight: 'bold' }}>
-                      {formatarMoeda(usuario.premioLiquido)}
-                    </span>
-                  </div>
-                  <div style={{ marginBottom: '8px' }}>
-                    <span>Comissão: </span>
-                    <span style={{ fontWeight: 'bold' }}>
-                      {formatarComissao(usuario.comissao)}
-                    </span>
-                  </div>
-                  <div>
-                    <span>Parcelamento: </span>
-                    <span style={{ fontWeight: 'bold' }}>
-                      {formatarParcelamento(usuario.parcelamento)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default Ranking;
