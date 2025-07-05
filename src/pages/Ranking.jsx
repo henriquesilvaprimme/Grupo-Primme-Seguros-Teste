@@ -19,7 +19,7 @@ const TrofeuRealistico = ({ posicao }) => {
       texto = '3º';
       break;
     default:
-      // Para posições além do top 3, retorna o formato original ou um estilo neutro
+      // Para posições além do top 3, retorna um estilo neutro
       return (
         <div
           style={{
@@ -40,15 +40,19 @@ const TrofeuRealistico = ({ posicao }) => {
   const animationDelay = `${posicao * 0.15}s`;
 
   return (
-    <div className={`trophy-wrapper ${trophyClass}`} style={{ '--animation-delay': animationDelay }}>
-      <div className="trophy-base"></div>
-      <div className="trophy-stem"></div>
-      <div className="trophy-cup">
-        <span className="trophy-text">{texto}</span>
-        {/* Efeitos de brilho tipo estrela */}
-        <div className="star-shine star-shine-1"></div>
-        <div className="star-shine star-shine-2"></div>
-        <div className="star-shine star-shine-3"></div>
+    <div className={`trophy-container`} style={{ '--animation-delay': animationDelay }}>
+      <div className={`trophy-main ${trophyClass}`}>
+        <div className="trophy-cup">
+          <div className="trophy-handle left"></div>
+          <div className="trophy-handle right"></div>
+          <span className="trophy-text">{texto}</span>
+          {/* Efeitos de brilho tipo estrela */}
+          <div className="star-shine star-shine-1"></div>
+          <div className="star-shine star-shine-2"></div>
+          <div className="star-shine star-shine-3"></div>
+        </div>
+        <div className="trophy-stem"></div>
+        <div className="trophy-base"></div>
       </div>
     </div>
   );
@@ -103,7 +107,7 @@ const Ranking = ({ usuarios }) => {
     buscarClientesFechados();
   }, []);
 
-  if (!Array.isArray(usuarios) || !Array.isArray(dadosLeads)) {
+  if (!Array.isArray(usuarios) || !ArrayY.isArray(dadosLeads)) {
     // Mantém a mensagem de erro para dados mal carregados
     return <div style={{ padding: 20 }}>Erro: dados não carregados corretamente.</div>;
   }
@@ -227,10 +231,10 @@ const Ranking = ({ usuarios }) => {
             100% { transform: translateY(0px); }
           }
 
-          /* Animação de rotação sutil para o troféu */
-          @keyframes rotateTrophy {
+          /* Animação de rotação sutil para o troféu no eixo Y */
+          @keyframes rotateTrophyY {
             0% { transform: rotateY(0deg); }
-            50% { transform: rotateY(5deg); }
+            50% { transform: rotateY(10deg); } /* Mais movimento para o brilho */
             100% { transform: rotateY(0deg); }
           }
 
@@ -240,80 +244,125 @@ const Ranking = ({ usuarios }) => {
             50% { opacity: 1; transform: scale(1); }
           }
 
-          .trophy-wrapper {
-            width: 45px; /* Largura total do troféu */
-            height: 60px; /* Altura total do troféu */
+          .trophy-container {
+            width: 50px; /* Largura total do troféu */
+            height: 70px; /* Altura total do troféu */
             position: relative;
             animation: float-trophy 3s ease-in-out infinite var(--animation-delay);
             perspective: 1000px; /* Para a rotação 3D */
             display: flex;
+            align-items: flex-end; /* Alinha o troféu à base */
+            justify-content: center;
+          }
+
+          .trophy-main {
+            width: 100%;
+            height: 100%;
+            display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-end; /* Alinha a base para baixo */
+            justify-content: flex-end; /* Empilha de baixo para cima */
+            position: relative; /* Para a rotação 3D do conjunto */
+            transform-style: preserve-3d;
+            animation: rotateTrophyY 4s ease-in-out infinite var(--animation-delay);
           }
 
           .trophy-base {
-            width: 40px;
-            height: 8px;
-            border-radius: 0 0 5px 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            width: 50px; /* Mais largo */
+            height: 10px; /* Mais alto */
+            border-radius: 5px 5px 0 0; /* Base sólida */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
             position: relative;
             z-index: 1;
           }
 
           .trophy-stem {
-            width: 10px;
-            height: 15px;
-            border-radius: 2px 2px 0 0;
-            box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.2);
+            width: 15px; /* Mais robusto */
+            height: 25px; /* Mais alto */
+            border-radius: 5px; /* Mais arredondado */
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.3);
             position: relative;
             z-index: 2;
+            margin-bottom: -2px; /* Pequeno ajuste para sobrepor */
           }
 
           .trophy-cup {
-            width: 45px;
-            height: 30px;
+            width: 50px; /* Largura da taça */
+            height: 35px; /* Altura da taça */
             border-radius: 50% 50% 0 0 / 100% 100% 0 0; /* Forma de taça */
-            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.4), inset 0 -5px 10px rgba(255, 255, 255, 0.3);
+            box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.5), inset 0 -8px 15px rgba(255, 255, 255, 0.5);
             position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
             z-index: 3;
-            animation: rotateTrophy 4s ease-in-out infinite var(--animation-delay);
+            margin-bottom: -2px; /* Pequeno ajuste para sobrepor */
           }
+
+          /* Alças do troféu (pseudo-elementos para simplificar o HTML) */
+          .trophy-cup::before,
+          .trophy-cup::after {
+            content: '';
+            position: absolute;
+            width: 10px; /* Largura da alça */
+            height: 25px; /* Altura da alça */
+            border: 3px solid; /* Cor da borda será a do troféu */
+            border-radius: 50%;
+            top: 5px;
+            transform: translateY(-50%);
+            z-index: 0;
+          }
+
+          .trophy-cup::before {
+            left: -8px; /* Posição da alça esquerda */
+            border-right: none;
+            transform: rotate(30deg); /* Posição angular */
+          }
+
+          .trophy-cup::after {
+            right: -8px; /* Posição da alça direita */
+            border-left: none;
+            transform: rotate(-30deg); /* Posição angular */
+          }
+
 
           /* Cores para Ouro */
           .gold-trophy .trophy-base,
           .gold-trophy .trophy-stem,
-          .gold-trophy .trophy-cup {
+          .gold-trophy .trophy-cup,
+          .gold-trophy .trophy-cup::before,
+          .gold-trophy .trophy-cup::after {
             background: linear-gradient(135deg, #FFD700 0%, #FFECB3 40%, #B8860B 100%);
-            border: 1px solid #DAA520;
+            border-color: #DAA520; /* Cor da borda */
           }
           .gold-trophy .trophy-text { color: #8B4513; } /* Marrom para ouro */
 
           /* Cores para Prata */
           .silver-trophy .trophy-base,
           .silver-trophy .trophy-stem,
-          .silver-trophy .trophy-cup {
+          .silver-trophy .trophy-cup,
+          .silver-trophy .trophy-cup::before,
+          .silver-trophy .trophy-cup::after {
             background: linear-gradient(135deg, #C0C0C0 0%, #E0E0E0 40%, #A9A9A9 100%);
-            border: 1px solid #808080;
+            border-color: #808080;
           }
           .silver-trophy .trophy-text { color: #2F4F4F; } /* Cinza escuro para prata */
 
           /* Cores para Bronze */
           .bronze-trophy .trophy-base,
           .bronze-trophy .trophy-stem,
-          .bronze-trophy .trophy-cup {
+          .bronze-trophy .trophy-cup,
+          .bronze-trophy .trophy-cup::before,
+          .bronze-trophy .trophy-cup::after {
             background: linear-gradient(135deg, #CD7F32 0%, #D2B48C 40%, #A0522D 100%);
-            border: 1px solid #8B4513;
+            border-color: #8B4513;
           }
           .bronze-trophy .trophy-text { color: #FFFFFF; } /* Branco para bronze */
 
           .trophy-text {
             position: relative;
-            z-index: 1; /* Garante que o texto fique acima do brilho */
+            z-index: 4; /* Garante que o texto fique acima do brilho e alças */
             font-size: 0.9rem; /* Ajustado para caber na taça */
             font-weight: bold;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
@@ -489,7 +538,7 @@ const Ranking = ({ usuarios }) => {
                     zIndex: 10,
                   }}
                 >
-                  {/* Usa o novo componente de Troféu Realístico */}
+                  {/* Usa o componente de Troféu Realístico */}
                   <TrofeuRealistico posicao={index} />
                 </div>
 
