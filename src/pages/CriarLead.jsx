@@ -1,448 +1,210 @@
-const IDSPREADSHEET = '1zW0nwLL6H1QjNqXSCPDHmhyFdEfl0_ts_PrT1_lreMc'
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-function doPost(e) {
-  try {
-    var agora = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss')
+const CriarLead = ({ adicionarLead }) => {
+  // Estados para os campos do formulário
+  const [nomeLead, setNomeLead] = useState('');
+  const [modeloVeiculo, setModeloVeiculo] = useState('');
+  const [anoModelo, setAnoModelo] = useState('');
+  const [cidade, setCidade] = useState('');
+  const [telefone, setTelefone] = useState('');
+  const [tipoSeguro, setTipoSeguro] = useState('');
+  const [responsavel, setResponsavel] = useState('');
+  const [nomesResponsaveis, setNomesResponsaveis] = useState([]);
+  const [mensagemSucesso, setMensagemSucesso] = useState(''); // Novo estado para a mensagem de sucesso
 
-    // Abre a planilha pelo ID
-    var planilha = SpreadsheetApp.openById(IDSPREADSHEET);
+  const navigate = useNavigate();
 
-    // quando for alterar o status, vammos cair nesse caminho aqui, e redirecionar os clientes para as paginas correspondentes
-    if (e.parameter.v == 'alterar_status') {
+  // URL do seu Google Apps Script (certifique-se de que é o URL de implantação do script)
+  // Substitua este URL pelo URL REAL de IMPLANTAÇÃO do seu SCRIPT GAS.
+  const gasUrl = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec'; 
 
-
-      var dados = JSON.parse(e.postData.contents);
-
-      var aba = planilha.getSheetByName("Leads"); // Coloque o nome da aba aqui
-
-      var todosLeads = aba.getRange("A2:J").getValues();
-
-      // vamos pegar a posição do lead pelo telefone
-      var data = todosLeads.map(function(r) { return r[5].trim(); });
-      var newdataLead = data.indexOf(dados.phone.trim());
-
-      if (newdataLead != -1) {
-
-        const positionLead = newdataLead + 2
-        aba.getRange(positionLead, 10).setValue(dados.status)
-
-        // se fechado
-        if (dados.status == 'Fechado') {
-
-          var getLead = aba.getRange(positionLead, 1, 1, 10).getValues()
-          getLead[0][7] = agora
-
-          var phone = getLead[0][5];
-          if (phone.toString().includes('+')) {
-            getLead[0][5] = "'" + phone;
-          }
-
-          planilha.getSheetByName("Leads Fechados").appendRow(getLead[0])
-
-          //aba.deleteRow(positionLead)   //.getRange(dados.lead, 1, 1, 10).de
-
-        } else if (dados.status == 'Perdido') {
-
-          var getLead = aba.getRange(positionLead, 1, 1, 10).getValues()
-          getLead[0][7] = agora
-          planilha.getSheetByName("Leads Perdidos").appendRow(getLead[0])
-
-          //aba.deleteRow(positionLead)   //.getRange(dados.lead, 1, 1, 10).de
-
-        } else {
-
-          aba.getRange(positionLead, 10).setValue(dados.status)
-
-        }
-
-        aba.getRange(positionLead, 11).setValue(agora)
-
+  // Função para buscar os nomes dos responsáveis ao carregar o componente
+  useEffect(() => {
+    const buscarNomesResponsaveis = async () => {
+      try {
+        const response = await fetch(`${gasUrl}?v=listar_nomes_usuarios`);
+        const data = await response.json();
+        setNomesResponsaveis(data);
+      } catch (error) {
+        console.error('Erro ao buscar nomes de responsáveis:', error);
+        alert('Houve um erro ao carregar a lista de responsáveis.'); // Manter este alert para erro de carregamento
       }
-
-
-
-      // quando o assunto for alterar atribuição...
-    } else if (e.parameter.v == 'alterar_atribuido') {
-
-      var dados = JSON.parse(e.postData.contents);
-
-      var aba = planilha.getSheetByName("Leads"); // Coloque o nome da aba aqui
-
-      var nomeUsuarioSheet = planilha.getSheetByName("Usuarios").getRange("A2:G").getValues()
-
-      var data = nomeUsuarioSheet.map(function(r) { return parseInt(r[0]); });
-      var newdata = data.indexOf(parseInt(dados.usuarioId));
-
-      // caso encontrar o usuario, vamos iserir no lead correspondente
-      if (newdata != -1) {
-        // vamos salvar o usuario correto...
-        aba.getRange(dados.id, 9).setValue(nomeUsuarioSheet[newdata][2])
-        aba.getRange(dados.id, 11).setValue(agora)
-      }
-
-    } else if (e.parameter.v == 'alterar_seguradora') {
-
-      var dados = JSON.parse(e.postData.contents);
-
-      // SpreadsheetApp.openById("1nE8xVrsuVvpU2ALpcVhvqHmQ6XpRINFpv_SHz9v-ZQQ").getSheetByName("Página1").appendRow([JSON.stringify(e)])
-
-      const sheetFechados = planilha.getSheetByName("Leads Fechados").getRange("A2:N").getValues()
-
-      var dataget = sheetFechados.map(function(r) { return r[0].trim(); });
-      var newdata = dataget.indexOf(dados.lead.ID);
-
-      // caso encontrar o usuario, vamos iserir no lead correspondente
-      if (newdata != -1) {
-        const positionLead = newdata + 2
-        // vamos salvar o usuario correto...
-
-        let valorFormatado = (dados.lead.PremioLiquido / 100).toFixed(2).replace('.', ',');
-
-        planilha.getSheetByName("Leads Fechados").getRange(positionLead, 11).setValue(dados.lead.Seguradora)
-        planilha.getSheetByName("Leads Fechados").getRange(positionLead, 12).setValue(valorFormatado)
-        planilha.getSheetByName("Leads Fechados").getRange(positionLead, 13).setValue(dados.lead.Comissao)
-        planilha.getSheetByName("Leads Fechados").getRange(positionLead, 14).setValue(dados.lead.Parcelamento)
-
-      }
-
-      // vamos criar um usuario
-    } else if (e.parameter.v == 'criar_usuario') {
-
-      var dados = JSON.parse(e.postData.contents);
-
-      var aba = planilha.getSheetByName("Usuarios").appendRow([
-        dados.id,
-        dados.usuario,
-        dados.nome,
-        dados.email,
-        dados.senha,
-        dados.status,
-        dados.tipo
-      ])
-    } else if (e.parameter.v == 'alterar_usuario') {
-
-      var dados = JSON.parse(e.postData.contents);
-
-      var nomeUsuarioSheet = planilha.getSheetByName("Usuarios").getRange("A2:G").getValues()
-
-      var data = nomeUsuarioSheet.map(function(r) { return parseInt(r[0]); });
-      var newdata = data.indexOf(parseInt(dados.usuario.id));
-
-      // caso encontrar o usuario, vamos iserir no lead correspondente
-      if (newdata != -1) {
-        const positionLead = newdata + 2
-        if (dados.usuario.tipo != null) {
-          if (dados.usuario.tipo == 'Usuário Comum') {
-            planilha.getSheetByName("Usuarios").getRange(positionLead, 7).setValue('Usuario')
-          } else {
-            planilha.getSheetByName("Usuarios").getRange(positionLead, 7).setValue(dados.usuario.tipo)
-          }
-        }
-        if (dados.usuario.status != null) {
-          planilha.getSheetByName("Usuarios").getRange(positionLead, 6).setValue(dados.usuario.status)
-        }
-        if (dados.usuario.status != null) {
-          planilha.getSheetByName("Usuarios").getRange(positionLead, 8).setValue(dados.usuario.status)
-        }
-      }
-    } else if (e.parameter.v == 'criar_lead') {
-      var dados = JSON.parse(e.postData.contents);
-
-      var abaDestino = planilha.getSheetByName("Leads Fechados");
-
-      if (!abaDestino) {
-        Logger.log("Erro: A aba 'Leads Fechados' não foi encontrada.");
-        return ContentService.createTextOutput("Erro: Aba 'Leads Fechados' não encontrada.").setMimeType(ContentService.MimeType.TEXT);
-      }
-
-      var novaLinhaLeadFechado = [
-        dados.ID,
-        dados.name,
-        dados.vehicleModel,
-        dados.vehicleYearModel,
-        dados.city,
-        dados.phone,
-        dados.insurer,
-        dados.Data,
-        dados.Responsavel,
-        dados.Status
-      ];
-
-      abaDestino.appendRow(novaLinhaLeadFechado);
-
-      Logger.log("Novo lead criado com sucesso na aba 'Leads Fechados'. ID: " + dados.ID);
-      return ContentService.createTextOutput("Success: Lead criado com sucesso em 'Leads Fechados'.").setMimeType(ContentService.MimeType.TEXT);
-    }
-  } catch (erro) {
-    Logger.log("Erro na função doPost: " + erro.toString());
-    return ContentService.createTextOutput("Erro: " + erro).setMimeType(ContentService.MimeType.TEXT);
-  }
-}
-
-function doGet(e) {
-  const IDSPREADSHEET = '1zW0nwLL6H1QjNqXSCPDHmhyFdEfl0_ts_PrT1_lreMc'
-
-  if (e.parameter.v == 'pegar_usuario') {
-    var planilha = SpreadsheetApp.openById(IDSPREADSHEET);
-    var aba = planilha.getSheetByName("Usuarios");
-    var dados = aba.getDataRange().getValues();
-
-    var cabecalho = dados[0];
-    var resultado = [];
-
-    for (var i = 1; i < dados.length; i++) {
-      var linha = {};
-      for (var j = 0; j < cabecalho.length; j++) {
-        linha[cabecalho[j]] = String(dados[i][j]);
-      }
-      resultado.push(linha);
-    }
-
-
-    var resposta = JSON.stringify(resultado);
-
-    return ContentService
-      .createTextOutput(resposta)
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } else if (e.parameter.v == 'pegar_clientes_fechados') {
-
-    const resultado = joinUsersClosed()
-
-    var resposta = JSON.stringify(resultado);
-
-    return ContentService
-      .createTextOutput(resposta)
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } else if (e.parameter.v == 'getLeads') {
-
-    const resultado = gerarJSONPersonalizado()
-
-    var resposta = JSON.stringify(resultado);
-
-    return ContentService
-      .createTextOutput(resposta)
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } else if (e.parameter.v == 'listar_nomes_usuarios') {
-    var planilha = SpreadsheetApp.openById(IDSPREADSHEET);
-    var abaUsuarios = planilha.getSheetByName("Usuarios");
-
-    if (!abaUsuarios) {
-      Logger.log("Erro: Aba 'Usuarios' não encontrada.");
-      return ContentService.createTextOutput("Erro: Aba 'Usuarios' não encontrada.").setMimeType(ContentService.MimeType.TEXT);
-    }
-
-    // A correção está nesta linha: garantindo que pegamos o intervalo correto
-    // Se "nome" é a 3ª coluna, ela é a coluna C. Se o cabeçalho estiver na linha 1, os dados começam na linha 2.
-    // getRange(linhaInicial, colunaInicial, numLinhas, numColunas)
-    // Então, para a coluna C a partir da linha 2 até a última linha:
-    var dadosUsuarios = abaUsuarios.getRange(2, 3, abaUsuarios.getLastRow() - 1, 1).getValues(); // Linha 2, Coluna 3 (C), todas as linhas restantes, 1 coluna
-
-    var nomesUsuarios = [];
-    if (dadosUsuarios) {
-      // Filtra valores vazios e mapeia para uma lista simples de nomes
-      nomesUsuarios = dadosUsuarios.map(function(row) {
-        // row é uma array com um único elemento (a célula da coluna C)
-        return row[0] ? String(row[0]).trim() : null; // Converte para string e remove espaços
-      }).filter(function(name) {
-        return name !== null && name !== ""; // Remove nulls e strings vazias
-      });
-    }
-
-    var resposta = JSON.stringify(nomesUsuarios);
-    return ContentService
-      .createTextOutput(resposta)
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-function gerarJSONPersonalizado() {
-
-  var sheet = SpreadsheetApp.openById(IDSPREADSHEET).getSheetByName("Leads"); // sua aba
-  var dataRange = sheet.getDataRange();
-  var values = dataRange.getValues();
-
-  var jsonList = [];
-
-  for (var i = 1; i < values.length; i++) {
-    var row = values[i];
-
-    var editadoValue = row[10] ? row[10] : row[7];
-
-    var editadoValue = row[10] ? formatarDataManual(row[10]) : formatarDataManual(row[7]);
-
-    var rowNumber = i + 1
-
-    var obj = {
-      "id": rowNumber,
-      "name": row[1],
-      "vehiclemodel": row[2],
-      "vehicleyearmodel": row[3],
-      "city": row[4],
-      "phone": row[5],
-      "insurancetype": row[6],
-      "data": formatarDataManual(row[7]),
-      "responsavel": row[8],
-      "status": row[9],
-      "editado": editadoValue
     };
 
-    jsonList.push(obj);
-  }
+    buscarNomesResponsaveis();
+  }, []);
 
-  Logger.log(JSON.stringify(jsonList, null, 2)); // log formatado
-  return jsonList;
-}
+  const handleCriar = () => {
+    setMensagemSucesso(''); // Limpa a mensagem anterior ao tentar criar um novo lead
 
-function formatarDataManual(valor) {
-  if (!(valor instanceof Date)) return null;
-
-  var ano = valor.getFullYear();
-  var mes = String(valor.getMonth() + 1).padStart(2, '0');
-  var dia = String(valor.getDate()).padStart(2, '0');
-  var hora = String(valor.getHours()).padStart(2, '0');
-  var minuto = String(valor.getMinutes()).padStart(2, '0');
-  var segundo = String(valor.getSeconds()).padStart(2, '0');
-
-  return `${ano}-${mes}-${dia}T${hora}:${minuto}:${segundo}.000Z`;
-}
-
-function joinUsersClosed() {
-  const planilha = SpreadsheetApp.openById(IDSPREADSHEET);
-
-  var abaUsers = planilha.getSheetByName("Usuarios");
-  var dadosUsers = abaUsers.getDataRange().getValues();
-
-  var abaLeads = planilha.getSheetByName("Leads Fechados");
-  var dadosLeads = abaLeads.getDataRange().getValues();
-
-  var colunasUsers = dadosUsers[0];
-  var colunasLeads = dadosLeads[0];
-
-  dadosUsers.shift();
-  dadosLeads.shift();
-
-  var mapaUsuarios = {};
-  dadosUsers.forEach(function(user) {
-    var id = user[2];
-    mapaUsuarios[id] = user;
-  });
-
-  var dadosCombinados = dadosLeads.map(function(lead) {
-    var idUsuario = lead[8];
-    var dadosUsuario = mapaUsuarios[idUsuario] || [];
-
-    // Formatando datas nas colunas 7 (índice 6) e 10 (índice 9) se tiverem valor
-    if (lead[7]) {
-      lead[7] = formatarDataManual(lead[7]);
+    // Validação básica dos campos obrigatórios
+    if (!nomeLead || !modeloVeiculo || !anoModelo || !cidade || !telefone || !tipoSeguro || !responsavel) {
+      alert('Por favor, preencha todos os campos obrigatórios.');
+      return;
     }
 
-    var objLead = {};
-    colunasLeads.forEach(function(coluna, i) {
-      objLead[coluna] = lead[i];
+    const idAleatorio = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
+    const dataHoraAtual = new Date().toLocaleString('pt-BR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
     });
 
-    colunasUsers.forEach(function(coluna, i) {
-      objLead[coluna] = dadosUsuario[i] || "";
-    });
+    const novoLead = {
+      ID: idAleatorio,
+      name: nomeLead,
+      vehicleModel: modeloVeiculo,
+      vehicleYearModel: anoModelo,
+      city: cidade,
+      phone: telefone,
+      insurer: tipoSeguro,
+      Data: dataHoraAtual,
+      Responsavel: responsavel,
+      Status: 'Fechado',
+    };
 
-    return objLead;
-  });
+    criarLeadFunc(novoLead);
 
-  return dadosCombinados;
-}
+    // Feedback para o usuário e limpeza do formulário
+    setMensagemSucesso('✅ Lead criado com sucesso!'); // Define a mensagem de sucesso
+    setNomeLead('');
+    setModeloVeiculo('');
+    setAnoModelo('');
+    setCidade('');
+    setTelefone('');
+    setTipoSeguro('');
+    setResponsavel('');
+  };
 
-function filterDadosByUser() {
+  const criarLeadFunc = async (lead) => {
+    try {
+      const response = await fetch(`${gasUrl}?v=criar_lead`, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(lead),
+      });
 
-  const planilha = SpreadsheetApp.openById(IDSPREADSHEET);
-  // vamos pegar os usuarios ativos....
+      console.log('Requisição de criação de lead enviada (modo no-cors).');
+      console.log('Verifique os logs de execução do Google Apps Script para confirmar o sucesso.');
 
-  var abaUsers = planilha.getSheetByName("Usuarios");
-  var dadosUsers = abaUsers.getDataRange().getValues();
+    } catch (error) {
+      console.error('Erro ao enviar lead para o Google Sheets:', error);
+      // Aqui você pode definir uma mensagem de erro se a criação falhar
+      setMensagemSucesso('❌ Erro ao criar o lead. Tente novamente.');
+    }
+  };
 
-  // pegando usuarios ativo e que não são admin
-  var usuariosFiltrados = dadosUsers.filter(function(linha, index) {
-    // Ignorar o cabeçalho na primeira linha
-    if (index === 0) return false;
+  return (
+    <div className="p-6 max-w-xl mx-auto bg-white rounded-xl shadow-md space-y-6">
+      <h2 className="text-3xl font-bold text-blue-700 mb-4 text-center">Criar Novo Lead</h2>
 
-    var status = linha[5]; // Coluna 6
-    var tipo = linha[6];   // Coluna 7
+      <div>
+        <label className="block text-gray-700">Nome do Cliente</label>
+        <input
+          type="text"
+          value={nomeLead}
+          onChange={(e) => setNomeLead(e.target.value)}
+          className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+          placeholder="Nome completo do lead"
+        />
+      </div>
 
-    return status === 'Ativo' && tipo !== 'Admin';
-  });
+      <div>
+        <label className="block text-gray-700">Modelo do Veículo</label>
+        <input
+          type="text"
+          value={modeloVeiculo}
+          onChange={(e) => setModeloVeiculo(e.target.value)}
+          className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+          placeholder="Ex: Fiat Palio, Honda Civic"
+        />
+      </div>
 
-  var abaLeads = planilha.getSheetByName("Leads Fechados");
-  var dadosLeads = abaLeads.getDataRange().getValues();
+      <div>
+        <label className="block text-gray-700">Ano/Modelo</label>
+        <input
+          type="text"
+          value={anoModelo}
+          onChange={(e) => setAnoModelo(e.target.value)}
+          className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+          placeholder="Ex: 2020/2021"
+        />
+      </div>
 
+      <div>
+        <label className="block text-gray-700">Cidade</label>
+        <input
+          type="text"
+          value={cidade}
+          onChange={(e) => setCidade(e.target.value)}
+          className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+          placeholder="Cidade do cliente"
+        />
+      </div>
 
-  var resultado = [];
+      <div>
+        <label className="block text-gray-700">Telefone</label>
+        <input
+          type="tel"
+          value={telefone}
+          onChange={(e) => setTelefone(e.target.value)}
+          className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+          placeholder="Ex: (XX) XXXXX-XXXX"
+        />
+      </div>
 
-  usuariosFiltrados.forEach(function(nomeUsuario) {
-    var leadsDoUsuario = dadosLeads.filter(function(lead) {
-      return lead[8] === nomeUsuario[2];
-    });
+      <div>
+        <label className="block text-gray-700">Tipo de Seguro</label>
+        <select
+          value={tipoSeguro}
+          onChange={(e) => setTipoSeguro(e.target.value)}
+          className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+        >
+          <option value="">Selecione um tipo</option>
+          <option value="Novo">Novo</option>
+          <option value="Renovacao">Renovação</option>
+          <option value="Indicacao">Indicação</option>
+        </select>
+      </div>
 
-    // Contagem por seguradora
-    var contagemSeguradoras = {};
-    var somaPremioLiquido = 0;
-    var somaComissao = 0;
-    var somaParcelamento = 0;
-    var qtdParcelamento = 0;
-    var qtdLeads = leadsDoUsuario.length;
+      {/* Campo Responsável agora é um select populado dinamicamente */}
+      <div>
+        <label className="block text-gray-700">Responsável</label>
+        <select
+          value={responsavel}
+          onChange={(e) => setResponsavel(e.target.value)}
+          className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+        >
+          <option value="">Selecione o Responsável</option>
+          {nomesResponsaveis.map((nome, index) => (
+            <option key={index} value={nome}>
+              {nome}
+            </option>
+          ))}
+        </select>
+      </div>
 
-    leadsDoUsuario.forEach(function(lead) {
-      var seguradora = lead[10] || "";
-      if (seguradora == 'Porto Seguro') {
-        seguradora = 'porto'
-      } else if (seguradora == 'Itau Seguros') {
-        seguradora = 'itau'
-      } else if (seguradora == 'Azul Seguros') {
-        seguradora = 'azul'
-      } else if (seguradora == "Demais Seguradoras") {
-        seguradora = 'demais'
-      }
-      if (!contagemSeguradoras[seguradora]) {
-        contagemSeguradoras[seguradora] = 0;
-      }
-      contagemSeguradoras[seguradora]++;
+      <div className="flex flex-col items-center">
+        <button
+          onClick={handleCriar}
+          className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition"
+        >
+          Criar Lead
+        </button>
+        {mensagemSucesso && (
+          <p className="mt-4 text-green-600 font-semibold text-center">{mensagemSucesso}</p>
+        )}
+      </div>
+    </div>
+  );
+};
 
-      // Soma prêmio líquido (coluna 12)
-      var premio = parseFloat(lead[11]) || 0;
-      somaPremioLiquido += premio;
-
-      // Soma comissão (coluna 13)
-      var comissao = parseFloat(lead[12]) || 0;
-      somaComissao += comissao;
-
-      // Soma parcelamento (coluna 14)
-      var parcelamentoStr = lead[13];
-      if (parcelamentoStr) {
-        var parcelamento = parseInt(parcelamentoStr.toString().replace("x", ""), 10);
-        if (!isNaN(parcelamento)) {
-          somaParcelamento += parcelamento;
-          qtdParcelamento++;
-        }
-      }
-    });
-
-    var mediaComissao = qtdLeads > 0 ? somaComissao / qtdLeads : 0;
-    var mediaParcelamento = qtdParcelamento > 0 ? somaParcelamento / qtdParcelamento : 0;
-
-    resultado.push({
-      usuario: nomeUsuario[2],
-      vendas: qtdLeads,
-      seguradoras: contagemSeguradoras,
-      premioLiquido: somaPremioLiquido.toFixed(2),
-      comissao: mediaComissao.toFixed(2),
-      parcelamento: mediaParcelamento.toFixed(2)
-    });
-  });
-
-  // Exibir no log
-  Logger.log(resultado);
-
-  return resultado
-
-}
+export default CriarLead;
