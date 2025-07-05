@@ -1,79 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
-// Componente para renderizar o troféu realista
-const TrofeuRealistico = ({ posicao }) => {
-  let trophyClass = '';
-  let texto = '';
-
-  switch (posicao) {
-    case 0: // Ouro
-      trophyClass = 'gold-trophy';
-      texto = '1º';
-      break;
-    case 1: // Prata
-      trophyClass = 'silver-trophy';
-      texto = '2º';
-      break;
-    case 2: // Bronze
-      trophyClass = 'bronze-trophy';
-      texto = '3º';
-      break;
-    default:
-      // Para posições além do top 3, retorna um estilo neutro
-      return (
-        <div
-          style={{
-            backgroundColor: '#333',
-            color: '#fff',
-            borderRadius: '8px',
-            padding: '4px 10px',
-            fontSize: '1.1rem',
-            fontWeight: 'bold',
-          }}
-        >
-          {posicao + 1}º
-        </div>
-      );
-  }
-
-  // Define um atraso na animação para que os troféus não se movam perfeitamente sincronizados
-  const animationDelay = `${posicao * 0.15}s`;
-
-  return (
-    <div className={`trophy-container`} style={{ '--animation-delay': animationDelay }}>
-      <div className={`trophy-main ${trophyClass}`}>
-        {/* Taça do troféu */}
-        <div className="trophy-cup">
-          <div className="trophy-cup-top"></div>
-          <div className="trophy-cup-middle"></div>
-          <div className="trophy-cup-bottom"></div>
-          {/* Alças do troféu */}
-          <div className="trophy-handle left"></div>
-          <div className="trophy-handle right"></div>
-          <span className="trophy-text">{texto}</span>
-          {/* Efeitos de brilho tipo estrela */}
-          <div className="star-shine star-shine-1"></div>
-          <div className="star-shine star-shine-2"></div>
-          <div className="star-shine star-shine-3"></div>
-          <div className="star-shine star-shine-4"></div>
-        </div>
-        {/* Haste do troféu */}
-        <div className="trophy-stem">
-          <div className="trophy-stem-ring"></div> {/* Detalhe do anel na haste */}
-        </div>
-        {/* Base do troféu */}
-        <div className="trophy-base"></div>
-      </div>
-    </div>
-  );
-};
-
-
 const Ranking = ({ usuarios }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [dadosLeads, setLeads] = useState([]);
 
-  // Estado para filtro por mês/ano (formato YYYY-mm)
+  // Estado para filtro por mês/ano (formato YYYY-MM)
   const [dataInput, setDataInput] = useState(() => {
     const hoje = new Date();
     const ano = hoje.getFullYear();
@@ -83,27 +14,27 @@ const Ranking = ({ usuarios }) => {
 
   const [filtroData, setFiltroData] = useState(dataInput);
 
-  // Função para converter data no formato dd/mm/aaaa para YYYY-mm-dd
+  // Função para converter data no formato dd/mm/aaaa para YYYY-MM-DD
   const converterDataParaISO = (dataStr) => {
     if (!dataStr) return '';
     if (dataStr.includes('/')) {
       const partes = dataStr.split('/');
       if (partes.length === 3) {
-        // dd/mm/aaaa -> YYYY-mm-dd
-        return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
+        // dd/mm/aaaa -> YYYY-MM-DD
+        return `${partes[2]}-${partes[1]}-${partes[0]}`;
       }
     }
-    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo YYYY-mm
-    return dataStr.slice(0, 7);
+    return dataStr; // Retorna como está se já for YYYY-MM-DD ou outro formato
   };
 
   const buscarClientesFechados = async () => {
     setIsLoading(true); // Ativa o loader
     try {
-      // ** ATENÇÃO: Substitua esta URL pela URL da sua implementação do Google Apps Script **
-      const gasUrl = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados';
-      const respostaLeads = await fetch(gasUrl);
-      const dados = await respostaLeads.json();
+      const response = await fetch('https://raw.githubusercontent.com/reinaldoperes/leads/main/leads.json');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const dados = await response.json();
       setLeads(dados);
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
@@ -151,7 +82,7 @@ const Ranking = ({ usuarios }) => {
   };
 
   const usuariosComContagem = ativos.map((usuario) => {
-    // Filtrar leads fechados do usuário com status "Fechado", seguradora preenchida e data dentro do filtro (yyyy-mm)
+    // Filtrar leads fechados do usuário com status "Fechado", seguradora preenchida e data dentro do filtro (YYYY-MM)
     const leadsUsuario = dadosLeads.filter((l) => {
       const responsavelOk = l.Responsavel === usuario.nome;
       const statusOk = l.Status === 'Fechado';
@@ -225,475 +156,179 @@ const Ranking = ({ usuarios }) => {
 
   return (
     <div style={{ padding: 20, position: 'relative' }}>
-      {/* Estilos CSS para as animações e troféus */}
+      {/* Estilos CSS para o loader */}
       <style>
         {`
           @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
           }
-
-          /* Animação de flutuação para o troféu */
-          @keyframes float-trophy {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-5px); }
-            100% { transform: translateY(0px); }
+          .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: -20px;
+            margin-left: -20px;
+            z-index: 1000;
           }
-
-          /* Animação de rotação sutil para o troféu no eixo Y */
-          @keyframes rotateTrophyY {
-            0% { transform: rotateY(0deg); }
-            50% { transform: rotateY(10deg); }
-            100% { transform: rotateY(0deg); }
-          }
-
-          /* Animação de brilho tipo estrela */
-          @keyframes starTwinkle {
-            0%, 100% { opacity: 0; transform: scale(0.5); }
-            50% { opacity: 1; transform: scale(1); }
-          }
-
-          .trophy-container {
-            width: 55px;
-            height: 80px; /* Aumentado para acomodar o novo design */
-            position: relative;
-            animation: float-trophy 3s ease-in-out infinite var(--animation-delay);
-            perspective: 1000px;
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-          }
-
-          .trophy-main {
+          .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-end;
-            position: relative;
-            transform-style: preserve-3d;
-            animation: rotateTrophyY 4s ease-in-out infinite var(--animation-delay);
-          }
-
-          /* BASE DO TROFÉU */
-          .trophy-base {
-            width: 60px; /* Mais larga */
-            height: 12px;
-            border-radius: 5px 5px 0 0;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-            position: relative;
-            z-index: 1;
-            /* Reflexos na base */
-            background-image: radial-gradient(circle at 50% 10%, rgba(255,255,255,0.3) 0%, transparent 70%);
-          }
-
-          /* HASTE DO TROFÉU */
-          .trophy-stem {
-            width: 16px; /* Mais fina */
-            height: 25px; /* Altura ajustada */
-            border-radius: 3px;
-            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.3);
-            position: relative;
-            z-index: 2;
-            margin-bottom: -2px;
-            overflow: hidden; /* Para conter o anel */
-            background-image: linear-gradient(to right, rgba(255,255,255,0.1) 0%, transparent 20%, transparent 80%, rgba(255,255,255,0.1) 100%);
-          }
-
-          .trophy-stem-ring { /* Anel na haste */
-            position: absolute;
-            top: 5px; /* Posição do anel */
-            left: 0;
-            right: 0;
-            height: 4px;
-            border-radius: 2px;
-            opacity: 0.8;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-          }
-
-          /* TAÇA DO TROFÉU */
-          .trophy-cup {
-            width: 55px;
-            height: 45px; /* Aumentado para a forma alongada */
-            position: relative;
-            z-index: 3;
-            margin-bottom: -2px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
             justify-content: center;
-            overflow: visible; /* Para alças e brilhos */
+            align-items: center;
           }
-
-          .trophy-cup-top {
-            width: 100%;
-            height: 15px;
-            border-radius: 50% 50% 0 0 / 100% 100% 0 0;
-            box-shadow: inset 0 -5px 10px rgba(255,255,255,0.4);
-            position: relative;
-            z-index: 2;
-          }
-
-          .trophy-cup-middle {
-            width: 85%; /* Mais estreito no meio */
-            height: 20px;
-            border-radius: 0; /* Reto no meio */
-            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
-            position: relative;
-            z-index: 1;
-            margin-top: -5px; /* Sobrepõe levemente */
-          }
-
-          .trophy-cup-bottom {
-            width: 70%; /* Mais estreito na parte de baixo da taça */
-            height: 15px;
-            border-radius: 0 0 50% 50% / 0 0 100% 100%;
-            box-shadow: inset 0 5px 10px rgba(0,0,0,0.3);
-            position: relative;
-            z-index: 0;
-            margin-top: -5px; /* Sobrepõe levemente */
-          }
-
-          /* ALÇAS DO TROFÉU */
-          .trophy-handle {
-            position: absolute;
-            width: 15px; /* Largura da alça */
-            height: 40px; /* Altura da alça */
-            border: 3px solid; /* A cor da borda virá das classes de cor */
-            border-radius: 50%;
-            top: 15px; /* Posição mais baixa na taça */
-            z-index: 4; /* Ficam acima da taça */
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-          }
-
-          .trophy-handle.left {
-            left: -10px; /* Posição para a esquerda */
-            border-right: none; /* Remove borda da direita para a alça "abrir" */
-            transform: rotate(20deg); /* Curvatura */
-          }
-
-          .trophy-handle.right {
-            right: -10px; /* Posição para a direita */
-            border-left: none; /* Remove borda da esquerda */
-            transform: rotate(-20deg); /* Curvatura */
-          }
-
-          /* TEXTO DA POSIÇÃO */
-          .trophy-text {
-            position: absolute;
-            z-index: 5; /* Garante que o texto fique acima de tudo */
-            font-size: 0.9rem;
-            font-weight: bold;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-          }
-
-          /* CORES - OURO */
-          .gold-trophy .trophy-base,
-          .gold-trophy .trophy-stem,
-          .gold-trophy .trophy-stem-ring,
-          .gold-trophy .trophy-cup-top,
-          .gold-trophy .trophy-cup-middle,
-          .gold-trophy .trophy-cup-bottom,
-          .gold-trophy .trophy-handle {
-            background-color: #FFD700; /* Cor base para fallback */
-            background-image: linear-gradient(135deg, #FFD700 0%, #FFECB3 40%, #B8860B 100%);
-            border-color: #DAA520;
-          }
-          .gold-trophy .trophy-text { color: #8B4513; }
-
-          /* CORES - PRATA */
-          .silver-trophy .trophy-base,
-          .silver-trophy .trophy-stem,
-          .silver-trophy .trophy-stem-ring,
-          .silver-trophy .trophy-cup-top,
-          .silver-trophy .trophy-cup-middle,
-          .silver-trophy .trophy-cup-bottom,
-          .silver-trophy .trophy-handle {
-            background-color: #C0C0C0;
-            background-image: linear-gradient(135deg, #C0C0C0 0%, #E0E0E0 40%, #A9A9A9 100%);
-            border-color: #808080;
-          }
-          .silver-trophy .trophy-text { color: #2F4F4F; }
-
-          /* CORES - BRONZE */
-          .bronze-trophy .trophy-base,
-          .bronze-trophy .trophy-stem,
-          .bronze-trophy .trophy-stem-ring,
-          .bronze-trophy .trophy-cup-top,
-          .bronze-trophy .trophy-cup-middle,
-          .bronze-trophy .trophy-cup-bottom,
-          .bronze-trophy .trophy-handle {
-            background-color: #CD7F32;
-            background-image: linear-gradient(135deg, #CD7F32 0%, #D2B48C 40%, #A0522D 100%);
-            border-color: #8B4513;
-          }
-          .bronze-trophy .trophy-text { color: #FFFFFF; }
-
-          /* BRILHOS ESTELARES */
-          .star-shine {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 50%;
-            opacity: 0;
-            animation: starTwinkle 2s ease-in-out infinite alternate;
-            box-shadow: 0 0 8px rgba(255,255,255,0.8);
-          }
-
-          /* Posições dos brilhos ajustadas para o novo design da taça */
-          .star-shine-1 { width: 7px; height: 7px; top: 10%; left: 15%; animation-delay: 0.2s; }
-          .star-shine-2 { width: 6px; height: 6px; top: 30%; left: 80%; animation-delay: 0.7s; }
-          .star-shine-3 { width: 5px; height: 5px; top: 60%; left: 30%; animation-delay: 1.2s; }
-          .star-shine-4 { width: 6px; height: 6px; top: 80%; left: 60%; animation-delay: 0.9s; }
         `}
       </style>
 
-      {/* Loader de carregamento */}
       {isLoading && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'rgba(255, 255, 255, 0.8)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 9999,
-          }}
-        >
-          <div
-            style={{
-              border: '8px solid #f3f3f3',
-              borderTop: '8px solid #3498db',
-              borderRadius: '50%',
-              width: '50px',
-              height: '50px',
-              animation: 'spin 1s linear infinite',
-            }}
-          ></div>
+        <div className="overlay">
+          <div className="loader"></div>
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <h1 style={{ margin: 0 }}>Ranking de Usuários</h1>
+      <h1 style={{ marginBottom: 20, textAlign: 'center', color: '#333' }}>
+        Ranking de Vendas
+      </h1>
 
-        <button
-          title="Clique para atualizar os dados"
-          onClick={() => {
-            buscarClientesFechados();
-          }}
-          style={{
-            backgroundColor: '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            padding: '6px 14px',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          Atualizar
-        </button>
-      </div>
-
-      {/* Filtro data: canto direito */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          minWidth: '230px',
-          justifyContent: 'flex-end',
-          marginTop: '8px',
-          marginBottom: '24px',
-        }}
-      >
+      <div style={{ marginBottom: 20, textAlign: 'center' }}>
+        <label htmlFor="data-filtro" style={{ marginRight: 10, fontWeight: 'bold' }}>
+          Filtrar por Mês/Ano:
+        </label>
+        <input
+          type="month"
+          id="data-filtro"
+          value={dataInput}
+          onChange={(e) => setDataInput(e.target.value)}
+          style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+        />
         <button
           onClick={aplicarFiltroData}
           style={{
+            marginLeft: 10,
+            padding: '8px 15px',
             backgroundColor: '#007bff',
             color: 'white',
             border: 'none',
-            borderRadius: '6px',
-            padding: '6px 14px',
+            borderRadius: '5px',
             cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            marginRight: '8px',
+            fontWeight: 'bold',
           }}
         >
-          Filtrar
+          Aplicar
         </button>
-        <input
-          type="month"
-          value={dataInput}
-          onChange={(e) => setDataInput(e.target.value)}
-          style={{
-            padding: '6px 10px',
-            borderRadius: '6px',
-            border: '1px solid #ccc',
-            cursor: 'pointer',
-            minWidth: '140px',
-          }}
-          title="Filtrar leads pela data (mês/ano)"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') aplicarFiltroData();
-          }}
-        />
       </div>
 
-      {isLoading ? null : rankingOrdenado.length === 0 ? (
-        <p>Nenhum usuário ativo com leads fechados para o período selecionado.</p>
-      ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(600px, 1fr))',
-            gap: '24px',
-          }}
-        >
-          {rankingOrdenado.map((usuario, index) => {
-            const contadores = [
-              { label: 'Vendas', count: usuario.vendas, color: '#000' },
-              { label: 'Porto Seguro', count: usuario.porto, color: '#1E90FF' },
-              { label: 'Itau Seguros', count: usuario.itau, color: '#FF6600' },
-              { label: 'Azul Seguros', count: usuario.azul, color: '#003366' },
-              { label: 'Demais Seguradoras', count: usuario.demais, color: '#2E8B57' },
-            ];
-
-            return (
-              <div
-                key={usuario.id}
-                style={{
-                  position: 'relative',
-                  border: '1px solid #ccc',
-                  borderRadius: '12px',
-                  padding: '24px',
-                  backgroundColor: '#fff',
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-                }}
-              >
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+          gap: 20,
+          maxWidth: 1200,
+          margin: '0 auto',
+        }}
+      >
+        {rankingOrdenado.map((usuario, index) => (
+          <div
+            key={usuario.id}
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 10,
+              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+              padding: 20,
+              textAlign: 'center',
+              position: 'relative',
+              border:
+                index === 0
+                  ? '3px solid gold'
+                  : index === 1
+                  ? '3px solid silver'
+                  : index === 2
+                  ? '3px solid #cd7f32' // Bronze
+                  : 'none',
+              overflow: 'hidden', // Para conter o brilho
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                zIndex: 10,
+                fontSize: '50px', // Ajuste o tamanho do emoji conforme necessário
+                lineHeight: '1', // Garante que o emoji fique bem posicionado
+              }}
+            >
+              {index === 0 && '🏆'} {/* Troféu de Ouro para o 1º */}
+              {index === 1 && '🥈'} {/* Medalha de Prata para o 2º */}
+              {index === 2 && '🥉'} {/* Medalha de Bronze para o 3º */}
+              {index > 2 && (
                 <div
                   style={{
-                    position: 'absolute',
-                    top: '12px',
-                    right: '12px',
-                    zIndex: 10,
+                    backgroundColor: '#333',
+                    color: '#fff',
+                    borderRadius: '8px',
+                    padding: '4px 10px',
+                    fontSize: '1.1rem',
+                    fontWeight: 'bold',
                   }}
                 >
-                  {/* Usa o componente de Troféu Realístico */}
-                  <TrofeuRealistico posicao={index} />
+                  {index + 1}º
                 </div>
+              )}
+            </div>
 
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    marginBottom: '24px',
-                    gap: '20px',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '80px',
-                      height: '80px',
-                      borderRadius: '50%',
-                      backgroundColor: '#f0f0f0',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '32px',
-                      color: '#888',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {usuario.nome?.charAt(0)?.toUpperCase() || '?'}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '1.4rem',
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    {usuario.nome || 'Sem Nome'}
-                  </div>
-                </div>
+            <h2 style={{ color: '#007bff', marginBottom: 10 }}>
+              {usuario.nome}
+            </h2>
+            <p style={{ fontSize: '1.2rem', color: '#555' }}>
+              <strong style={{ color: '#333' }}>Vendas Fechadas:</strong>{' '}
+              {usuario.vendas}
+            </p>
+            <p style={{ fontSize: '1.2rem', color: '#555' }}>
+              <strong style={{ color: '#333' }}>Prêmio Líquido:</strong>{' '}
+              {formatarMoeda(usuario.premioLiquido)}
+            </p>
+            <p style={{ fontSize: '1.2rem', color: '#555' }}>
+              <strong style={{ color: '#333' }}>Comissão Média:</strong>{' '}
+              {formatarComissao(usuario.comissao)}
+            </p>
+            <p style={{ fontSize: '1.2rem', color: '#555' }}>
+              <strong style={{ color: '#333' }}>Parcelamento Médio:</strong>{' '}
+              {formatarParcelamento(usuario.parcelamento)}
+            </p>
 
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: `repeat(${contadores.length}, 1fr)`,
-                    textAlign: 'center',
-                    borderTop: '1px solid #eee',
-                    borderBottom: '1px solid #eee',
-                  }}
-                >
-                  {contadores.map((item, idx) => (
-                    <div
-                      key={item.label}
-                      style={{
-                        padding: '12px 8px',
-                        borderLeft: idx === 0 ? 'none' : '1px solid #eee',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontWeight: '600',
-                          fontSize: '0.9rem',
-                          color: item.color,
-                        }}
-                      >
-                        {item.label}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: '1.3rem',
-                          marginTop: '6px',
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        {item.count}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div
-                  style={{
-                    textAlign: 'center',
-                    borderTop: '1px solid #eee',
-                    paddingTop: '12px',
-                    color: '#555',
-                    fontWeight: '600',
-                  }}
-                >
-                  <div style={{ marginBottom: '8px' }}>
-                    <span>Prêmio Líquido: </span>
-                    <span style={{ fontWeight: 'bold' }}>
-                      {formatarMoeda(usuario.premioLiquido)}
-                    </span>
-                  </div>
-                  <div style={{ marginBottom: '8px' }}>
-                    <span>Comissão: </span>
-                    <span style={{ fontWeight: 'bold' }}>
-                      {formatarComissao(usuario.comissao)}
-                    </span>
-                  </div>
-                  <div>
-                    <span>Parcelamento: </span>
-                    <span style={{ fontWeight: 'bold' }}>
-                      {formatarParcelamento(usuario.parcelamento)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+            <div style={{ marginTop: 15, borderTop: '1px solid #eee', paddingTop: 15 }}>
+              <h3 style={{ color: '#333', marginBottom: 10 }}>Vendas por Seguradora:</h3>
+              <ul style={{ listStyle: 'none', padding: 0 }}>
+                <li style={{ marginBottom: 5 }}>
+                  Porto Seguro: <strong style={{ color: '#007bff' }}>{usuario.porto}</strong>
+                </li>
+                <li style={{ marginBottom: 5 }}>
+                  Azul Seguros: <strong style={{ color: '#007bff' }}>{usuario.azul}</strong>
+                </li>
+                <li style={{ marginBottom: 5 }}>
+                  Itaú Seguros: <strong style={{ color: '#007bff' }}>{usuario.itau}</strong>
+                </li>
+                <li style={{ marginBottom: 5 }}>
+                  Demais Seguradoras: <strong style={{ color: '#007bff' }}>{usuario.demais}</strong>
+                </li>
+              </ul>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
