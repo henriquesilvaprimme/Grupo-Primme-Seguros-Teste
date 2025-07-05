@@ -63,7 +63,7 @@ const Ranking = ({ usuarios }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [dadosLeads, setLeads] = useState([]);
 
-  // Estado para filtro por mês/ano (formato YYYY-mm)
+  // Estado para filtro por mês/ano (formato yyyy-mm)
   const [dataInput, setDataInput] = useState(() => {
     const hoje = new Date();
     const ano = hoje.getFullYear();
@@ -73,17 +73,17 @@ const Ranking = ({ usuarios }) => {
 
   const [filtroData, setFiltroData] = useState(dataInput);
 
-  // Função para converter data no formato dd/mm/aaaa para YYYY-mm-dd
+  // Função para converter data no formato dd/mm/aaaa para yyyy-mm-dd
   const converterDataParaISO = (dataStr) => {
     if (!dataStr) return '';
     if (dataStr.includes('/')) {
       const partes = dataStr.split('/');
       if (partes.length === 3) {
-        // dd/mm/aaaa -> YYYY-mm-dd
+        // dd/mm/aaaa -> yyyy-mm-dd
         return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
       }
     }
-    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo YYYY-mm
+    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo yyyy-mm
     return dataStr.slice(0, 7);
   };
 
@@ -107,7 +107,9 @@ const Ranking = ({ usuarios }) => {
     buscarClientesFechados();
   }, []);
 
-  if (!Array.isArray(usuarios) || !ArrayY.isArray(dadosLeads)) {
+  // ************ CORREÇÃO AQUI ************
+  // O erro estava em 'ArrayY.isArray(dadosLeads)'. O correto é 'Array.isArray(dadosLeads)'.
+  if (!Array.isArray(usuarios) || !Array.isArray(dadosLeads)) {
     // Mantém a mensagem de erro para dados mal carregados
     return <div style={{ padding: 20 }}>Erro: dados não carregados corretamente.</div>;
   }
