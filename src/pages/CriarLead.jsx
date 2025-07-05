@@ -8,23 +8,34 @@ const CriarLead = ({ adicionarLead }) => {
   const [anoModelo, setAnoModelo] = useState('');
   const [cidade, setCidade] = useState('');
   const [telefone, setTelefone] = useState('');
-  const [tipoSeguro, setTipoSeguro] = useState(''); // Estado para o select
+  const [tipoSeguro, setTipoSeguro] = useState('');
+  const [responsavel, setResponsavel] = useState(''); // Novo estado para o Responsável
 
   const navigate = useNavigate();
 
   const handleCriar = () => {
     // Validação básica dos campos obrigatórios
-    if (!nomeLead || !modeloVeiculo || !anoModelo || !cidade || !telefone || !tipoSeguro) {
+    // Incluímos 'responsavel' na validação
+    if (!nomeLead || !modeloVeiculo || !anoModelo || !cidade || !telefone || !tipoSeguro || !responsavel) {
       alert('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
 
-    // Geração do ID aleatório (usando timestamp para garantir unicidade)
-    const idAleatorio = Date.now().toString(); 
-    // Data atual formatada para a planilha
-    const dataAtual = new Date().toLocaleDateString('pt-BR'); 
+    // Geração do ID aleatório mais robusto
+    const idAleatorio = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
+    // Data e hora atual formatada com horas, minutos e segundos
+    const dataHoraAtual = new Date().toLocaleString('pt-BR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
 
     // Objeto lead com os nomes das chaves correspondentes às colunas do Sheets
+    // Adicionamos 'Responsavel' e definimos 'Status' como 'Fechado'
     const novoLead = {
       ID: idAleatorio,
       name: nomeLead,
@@ -32,51 +43,41 @@ const CriarLead = ({ adicionarLead }) => {
       vehicleYearModel: anoModelo,
       city: cidade,
       phone: telefone,
-      insuranceType: tipoSeguro,
-      data: dataAtual, // Coluna 'data' no Sheets
+      insurer: tipoSeguro, // Usando 'insurer' conforme suas colunas
+      Data: dataHoraAtual, // Coluna 'Data' no Sheets com hora, minuto e segundo
+      Responsavel: responsavel, // Nova coluna 'Responsavel'
+      Status: 'Fechado', // Status fixo como 'Fechado'
     };
 
     // Chama a função para enviar o lead para o Google Apps Script
     criarLeadFunc(novoLead);
 
-    // Opcional: Adiciona o lead localmente na sua aplicação (se houver uma lista)
-    // if (adicionarLead) {
-    //   adicionarLead(novoLead);
-    // }
-    
     // Feedback para o usuário e limpeza do formulário
-    alert('Lead criado com sucesso! Verifique a planilha.');
+    alert('Lead criado com sucesso! Verifique a planilha na aba "Leads Fechados".');
     setNomeLead('');
     setModeloVeiculo('');
     setAnoModelo('');
     setCidade('');
     setTelefone('');
     setTipoSeguro('');
-    
-    // Opcional: Navegar para uma página de leads após a criação
-    // navigate('/leads'); 
+    setResponsavel(''); // Limpa o campo Responsável
   };
 
   const criarLeadFunc = async (lead) => {
     // IMPORTANTE: Substitua ESTE URL pelo URL REAL de IMPLANTAÇÃO DO SEU SCRIPT GAS para criar leads.
-    // Certifique-se de que o parâmetro 'v' (ou outro que você use) corresponda à função no seu GAS.
+    // O Google Apps Script precisará ser atualizado para lidar com as novas colunas e a aba "Leads Fechados".
     const gasUrl = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=criar_lead'; // Exemplo, o seu será diferente
-    
+
     try {
       const response = await fetch(gasUrl, {
         method: 'POST',
-        // 'no-cors' impede a leitura da resposta, mas a requisição é enviada.
-        // O GAS precisará retornar um sucesso HTTP 200 OK implicitamente para que funcione.
-        mode: 'no-cors', 
+        mode: 'no-cors',
         headers: {
           'Content-Type': 'application/json',
-          // Não inclua 'Access-Control-Allow-Origin' aqui, isso é para o lado do servidor (GAS).
         },
         body: JSON.stringify(lead),
       });
 
-      // No modo 'no-cors', 'response.ok' será sempre true e 'response.status' será 0.
-      // Você não poderá inspecionar o corpo da resposta aqui.
       console.log('Requisição de criação de lead enviada (modo no-cors).');
       console.log('Verifique os logs de execução do Google Apps Script para confirmar o sucesso.');
 
@@ -88,7 +89,7 @@ const CriarLead = ({ adicionarLead }) => {
 
   return (
     <div className="p-6 max-w-xl mx-auto bg-white rounded-xl shadow-md space-y-6">
-      <h2 className="text-3xl font-bold text-blue-700 mb-4">Criar Novo Lead de Seguro</h2>
+      <h2 className="text-3xl font-bold text-blue-700 mb-4">Criar Novo Lead Fechado</h2>
 
       <div>
         <label className="block text-gray-700">Nome do Cliente</label>
@@ -137,7 +138,7 @@ const CriarLead = ({ adicionarLead }) => {
       <div>
         <label className="block text-gray-700">Telefone</label>
         <input
-          type="tel" // Tipo 'tel' para melhor usabilidade em celulares
+          type="tel"
           value={telefone}
           onChange={(e) => setTelefone(e.target.value)}
           className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -159,12 +160,24 @@ const CriarLead = ({ adicionarLead }) => {
         </select>
       </div>
 
+      {/* Novo campo: Responsável */}
+      <div>
+        <label className="block text-gray-700">Responsável</label>
+        <input
+          type="text"
+          value={responsavel}
+          onChange={(e) => setResponsavel(e.target.value)}
+          className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+          placeholder="Nome do responsável pelo fechamento"
+        />
+      </div>
+
       <div className="flex justify-end">
         <button
           onClick={handleCriar}
           className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition"
         >
-          Criar Lead
+          Criar Lead Fechado
         </button>
       </div>
     </div>
