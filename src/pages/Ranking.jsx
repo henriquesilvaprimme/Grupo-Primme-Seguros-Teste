@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
 const Ranking = ({ usuarios }) => {
-  const [carregando, setCarregando] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); // Renomeado para isLoading para consistência
   const [dadosLeads, setLeads] = useState([]);
 
-  // Estado para filtro por mês/ano (formato yyyy-mm)
+  // Estado para filtro por mês/ano (formato YYYY-mm)
   const [dataInput, setDataInput] = useState(() => {
     const hoje = new Date();
     const ano = hoje.getFullYear();
@@ -14,22 +14,22 @@ const Ranking = ({ usuarios }) => {
 
   const [filtroData, setFiltroData] = useState(dataInput);
 
-  // Função para converter data no formato dd/mm/aaaa para yyyy-mm-dd
+  // Função para converter data no formato dd/mm/aaaa para YYYY-mm-dd
   const converterDataParaISO = (dataStr) => {
     if (!dataStr) return '';
     if (dataStr.includes('/')) {
       const partes = dataStr.split('/');
       if (partes.length === 3) {
-        // dd/mm/aaaa -> yyyy-mm-dd
+        // dd/mm/aaaa -> YYYY-mm-dd
         return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
       }
     }
-    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo yyyy-mm
+    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo YYYY-mm
     return dataStr.slice(0, 7);
   };
 
   const buscarClientesFechados = async () => {
-    setCarregando(true);
+    setIsLoading(true); // Ativa o loader
     try {
       const respostaLeads = await fetch(
         'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
@@ -40,7 +40,7 @@ const Ranking = ({ usuarios }) => {
       console.error('Erro ao buscar dados:', error);
       setLeads([]);
     } finally {
-      setCarregando(false);
+      setIsLoading(false); // Desativa o loader
     }
   };
 
@@ -49,6 +49,7 @@ const Ranking = ({ usuarios }) => {
   }, []);
 
   if (!Array.isArray(usuarios) || !Array.isArray(dadosLeads)) {
+    // Mantém a mensagem de erro para dados mal carregados
     return <div style={{ padding: 20 }}>Erro: dados não carregados corretamente.</div>;
   }
 
@@ -160,7 +161,44 @@ const Ranking = ({ usuarios }) => {
   };
 
   return (
-    <div style={{ padding: 20 }}>
+    <div style={{ padding: 20, position: 'relative' }}>
+      {/* Loader de carregamento */}
+      {isLoading && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div
+            style={{
+              border: '8px solid #f3f3f3',
+              borderTop: '8px solid #3498db',
+              borderRadius: '50%',
+              width: '50px',
+              height: '50px',
+              animation: 'spin 1s linear infinite',
+            }}
+          ></div>
+          <style>
+            {`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}
+          </style>
+        </div>
+      )}
+
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <h1 style={{ margin: 0 }}>Ranking de Usuários</h1>
 
@@ -219,9 +257,7 @@ const Ranking = ({ usuarios }) => {
         />
       </div>
 
-      {carregando ? (
-        <p>Carregando dados...</p>
-      ) : rankingOrdenado.length === 0 ? (
+      {isLoading ? null : rankingOrdenado.length === 0 ? ( // Renderiza o loader ou a mensagem de "nenhum dado"
         <p>Nenhum usuário ativo com leads fechados para o período selecionado.</p>
       ) : (
         <div
