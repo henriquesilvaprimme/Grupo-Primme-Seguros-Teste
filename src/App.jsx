@@ -557,8 +557,13 @@ const App = () => {
           />} />
           <Route
             path="/criar-lead"
-            // O comentário foi movido para uma linha separada para evitar erro de sintaxe.
-            element={<CriarLead adicionarLead={adicionarNovoLead} />}
+            element={
+              <CriarLead
+                adicionarLead={adicionarNovoLead}
+                // --- NOVO: Passando os nomes dos usuários ativos para o CriarLead ---
+                usuariosAtivos={usuarios.filter(u => u.status === 'Ativo').map(u => u.nome)}
+              />
+            }
           />
           {isAdmin && (
             <>
