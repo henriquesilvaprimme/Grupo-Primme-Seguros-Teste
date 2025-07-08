@@ -8,13 +8,15 @@ import LeadsFechados from './LeadsFechados';
 import LeadsPerdidos from './LeadsPerdidos';
 import BuscarLead from './BuscarLead';
 import CriarUsuario from './pages/CriarUsuario';
-import Usuarios from './pages/Usuarios';
+import Usuarios from './pages/Usuarios'; // Certifique-se de que este caminho está correto
 import Ranking from './pages/Ranking';
 import CriarLead from './pages/CriarLead';
 
-const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=getLeads';
-const GOOGLE_SHEETS_USERS = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
-const GOOGLE_SHEETS_LEADS_FECHADOS = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
+// *** IMPORTANTE: Substitua este URL pelo URL DE IMPLANTAÇÃO do seu Web App Google Apps Script. ***
+// Você encontra isso em seu projeto Apps Script > Implementar > Nova implantação ou Gerenciar implantações.
+// Deve ser algo como 'https://script.google.com/macros/s/SEU_ID_DE_IMPLANTACAO_UNICO_AQUI/exec'
+const BASE_GAS_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
+
 
 const App = () => {
   const navigate = useNavigate();
@@ -40,15 +42,20 @@ const App = () => {
     if (!dataString) return '';
     try {
       let dateObj;
-      const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})$/); // Formato YYYY-MM-DD
-      const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); // Formato DD/MM/YYYY
-
-      if (partesHifen) {
-        dateObj = new Date(dataString + 'T00:00:00'); // Adiciona T00:00:00 para evitar fuso horário
-      } else if (partesBarra) {
-        dateObj = new Date(`${partesBarra[3]}-${partesBarra[2]}-${partesBarra[1]}T00:00:00`);
+      // Tenta parsear formato ISO (YYYY-MM-DDTHH:mm:ss.000Z) ou YYYY-MM-DD
+      if (dataString.includes('T')) {
+        dateObj = new Date(dataString);
       } else {
-        dateObj = new Date(dataString); // Última tentativa de parsear
+        const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})$/); // Formato YYYY-MM-DD
+        const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); // Formato DD/MM/YYYY
+
+        if (partesHifen) {
+          dateObj = new Date(dataString + 'T00:00:00'); // Adiciona T00:00:00 para evitar fuso horário
+        } else if (partesBarra) {
+          dateObj = new Date(`${partesBarra[3]}-${partesBarra[2]}-${partesBarra[1]}T00:00:00`);
+        } else {
+          dateObj = new Date(dataString); // Última tentativa de parsear
+        }
       }
 
       if (isNaN(dateObj.getTime())) {
@@ -75,7 +82,7 @@ const App = () => {
 
   const fetchLeadsFromSheet = async () => {
     try {
-      const response = await fetch(GOOGLE_SHEETS_SCRIPT_URL);
+      const response = await fetch(`${BASE_GAS_URL}?v=getLeads`);
       const data = await response.json();
 
       console.log("Dados de Leads Recebidos do GAS:", data);
@@ -90,8 +97,8 @@ const App = () => {
         const formattedLeads = sortedData.map((item, index) => ({
           id: item.id ? Number(item.id) : index + 1,
           name: item.name || item.Name || '',
-          vehicleModel: item.vehiclemodel || item.vehicleModel || '', // Usando `vehicleModel` consistentemente
-          vehicleYearModel: item.vehicleyearmodel || item.vehicleYearModel || '', // Usando `vehicleYearModel` consistentemente
+          vehicleModel: item.vehiclemodel || item.vehicleModel || '',
+          vehicleYearModel: item.vehicleyearmodel || item.vehicleYearModel || '',
           city: item.city || '',
           phone: item.phone || item.Telefone || '',
           insuranceType: item.insurancetype || item.insuranceType || '',
@@ -139,7 +146,7 @@ const App = () => {
 
   const fetchLeadsFechadosFromSheet = async () => {
     try {
-      const response = await fetch(GOOGLE_SHEETS_LEADS_FECHADOS)
+      const response = await fetch(`${BASE_GAS_URL}?v=pegar_clientes_fechados`)
       const data = await response.json();
 
       console.log("Dados de Leads Fechados Recebidos do GAS:", data);
@@ -147,6 +154,8 @@ const App = () => {
       const formattedData = data.map(item => ({
         ...item,
         // VigenciaFinal já vem no formato YYYY-MM-DD do GAS, então não precisamos formatar aqui
+        // Mas podemos garantir que esteja no formato certo se o Sheets estiver enviando diferente
+        VigenciaFinal: item.VigenciaFinal ? formatarDataParaExibicao(item.VigenciaFinal) : ''
       }));
       setLeadsFechados(formattedData);
 
@@ -171,12 +180,14 @@ const App = () => {
   useEffect(() => {
     const fetchUsuariosFromSheet = async () => {
       try {
-        const response = await fetch(GOOGLE_SHEETS_USERS + '?v=pegar_usuario');
+        const response = await fetch(`${BASE_GAS_URL}?v=pegar_usuario`);
         const data = await response.json();
 
         if (Array.isArray(data)) {
-          const formattedUsuarios = data.map((item, index) => ({
-            id: item.id || '',
+          const formattedUsuarios = data.map((item) => ({
+            // Certifique-se de que 'ID' (maiúsculo) é como a coluna é chamada no Sheets
+            // e que é o identificador único usado no GAS para 'alterar_usuario'.
+            id: item.ID || '',
             usuario: item.usuario || '',
             nome: item.nome || '',
             email: item.email || '',
@@ -207,7 +218,10 @@ const App = () => {
   const [ultimoFechadoId, setUltimoFechadoId] = useState(null);
 
   const adicionarUsuario = (usuario) => {
-    setUsuarios((prev) => [...prev, { ...usuario, id: prev.length + 1 }]);
+    // Ao adicionar um novo usuário, o ID deve ser gerenciado pelo Sheets/GAS
+    // ou você pode gerar um UUID temporário até que o Sheets retorne um ID.
+    // Por simplicidade, estou usando prev.length + 1, mas o ideal é que o GAS retorne o ID.
+    setUsuarios((prev) => [...prev, { ...usuario, id: String(prev.length + 1) }]); // Converte para string para consistência
   };
 
   const adicionarNovoLead = (novoLead) => {
@@ -259,8 +273,8 @@ const App = () => {
             const novoLeadFechado = {
               ID: leadParaAdicionar.id || crypto.randomUUID(),
               name: leadParaAdicionar.name,
-              vehicleModel: leadParaAdicionar.vehicleModel, // Corrigido: usando a propriedade mapeada
-              vehicleYearModel: leadParaAdicionar.vehicleYearModel, // Corrigido: usando a propriedade mapeada
+              vehicleModel: leadParaAdicionar.vehicleModel,
+              vehicleYearModel: leadParaAdicionar.vehicleYearModel,
               city: leadParaAdicionar.city,
               phone: leadParaAdicionar.phone,
               insurer: leadParaAdicionar.insurancetype || leadParaAdicionar.insuranceType || "",
@@ -272,15 +286,7 @@ const App = () => {
               Comissao: leadParaAdicionar.comissao || "",
               Parcelamento: leadParaAdicionar.parcelamento || "",
               VigenciaFinal: leadParaAdicionar.VigenciaFinal || "",
-              id: leadParaAdicionar.id || null,
-              usuario: leadParaAdicionar.usuario || "",
-              nome: leadParaAdicionar.nome || "",
-              email: leadParaAdicionar.email || "",
-              senha: leadParaAdicionar.senha || "", // <<-- CORREÇÃO AQUI!
-              status: leadParaAdicionar.status || "Ativo",
-              tipo: leadParaAdicionar.tipo || "Usuario",
-              "Ativo/Inativo": leadParaAdicionar["Ativo/Inativo"] || "Ativo",
-              confirmado: true
+              // Removidas propriedades de usuário que não pertencem a leads (como senha, status de usuário, tipo de usuário)
             };
             return [...prev, novoLeadFechado];
           }
@@ -309,7 +315,6 @@ const App = () => {
     VigenciaFinal: "",
   })
 
-  // === MUDANÇA CRÍTICA AQUI: ENVIANDO 'vigenciaFinal' no FORMATO YYYY-MM-DD ===
   const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal) => {
     const lead = leadsFechados.find((lead) => lead.ID == id);
 
@@ -322,8 +327,7 @@ const App = () => {
     lead.PremioLiquido = premio;
     lead.Comissao = comissao;
     lead.Parcelamento = parcelamento;
-    // AQUI É O PONTO CRÍTICO: VigenciaFinal já deve vir como YYYY-MM-DD do input date
-    lead.VigenciaFinal = vigenciaFinal || '';
+    lead.VigenciaFinal = vigenciaFinal || ''; // Já deve vir como YYYY-MM-DD do input date
 
     setLeadsFechados((prev) => {
       const atualizados = prev.map((l) =>
@@ -334,22 +338,21 @@ const App = () => {
           PremioLiquido: premio,
           Comissao: comissao,
           Parcelamento: parcelamento,
-          VigenciaFinal: vigenciaFinal || '' // ATUALIZANDO ESTADO LOCAL COM O VALOR YYYY-MM-DD
+          VigenciaFinal: vigenciaFinal || ''
         } : l
       );
       return atualizados;
     });
 
     try {
-      // Use o URL do seu script com a função alterar_seguradora
-      fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_seguradora', {
+      fetch(`${BASE_GAS_URL}?v=alterar_seguradora`, { // Usando BASE_GAS_URL
         method: 'POST',
-        mode: 'no-cors', // Mantenha no-cors se você está enviando do navegador para o GAS diretamente
+        mode: 'no-cors',
         body: JSON.stringify({
           lead: lead // O objeto 'lead' já contém VigenciaFinal no formato YYYY-MM-DD
         }),
         headers: {
-          'Content-Type': 'application/json', // É uma boa prática, mesmo com no-cors pode ajudar a clareza
+          'Content-Type': 'application/json',
         },
       });
     } catch (error) {
@@ -389,39 +392,53 @@ const App = () => {
   };
 
   const atualizarStatusUsuario = (id, novoStatus = null, novoTipo = null) => {
-    const usuario = usuarios.find((usuario) => usuario.id === id);
-    if (!usuario) return;
+    const usuario = usuarios.find((user) => user.id === id);
+    if (!usuario) {
+      console.warn(`Usuário com ID ${id} não encontrado para atualização.`);
+      return;
+    }
 
-    if (novoStatus !== null) usuario.status = novoStatus;
-    if (novoTipo !== null) usuario.tipo = novoTipo;
+    // Cria uma cópia do usuário para enviar, garantindo que todos os campos esperados pelo GAS estejam presentes
+    const usuarioParaEnviar = {
+      id: usuario.id,
+      usuario: usuario.usuario,
+      nome: usuario.nome,
+      email: usuario.email,
+      senha: usuario.senha, // Importante enviar a senha atual (mesmo que não alterada)
+      status: novoStatus !== null ? novoStatus : usuario.status, // Usa o novo status ou o existente
+      tipo: novoTipo !== null ? novoTipo : usuario.tipo, // Usa o novo tipo ou o existente
+    };
 
     try {
-      fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_usuario', {
+      fetch(`${BASE_GAS_URL}?v=alterar_usuario`, {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify({
-          usuario: usuario
+          usuario: usuarioParaEnviar // Envia o objeto de usuário completo e atualizado
         }),
         headers: {
           'Content-Type': 'application/json',
         },
       });
+      // Atualiza o estado local apenas se a chamada fetch foi bem-sucedida (ou não deu erro)
+      setUsuarios((prev) =>
+        prev.map((user) =>
+          user.id === id
+            ? {
+                ...user,
+                ...(novoStatus !== null ? { status: novoStatus } : {}),
+                ...(novoTipo !== null ? { tipo: novoTipo } : {}),
+              }
+            : user
+        )
+      );
+      console.log(`Usuário ID ${id} atualizado para Status: ${usuarioParaEnviar.status}, Tipo: ${usuarioParaEnviar.tipo}`);
     } catch (error) {
-      console.error('Erro ao enviar lead:', error);
+      console.error('Erro ao enviar atualização de usuário:', error);
+      alert('Erro ao atualizar usuário. Verifique o console para mais detalhes.');
     }
-
-    setUsuarios((prev) =>
-      prev.map((usuario) =>
-        usuario.id === id
-          ? {
-              ...usuario,
-              ...(novoStatus !== null ? { status: novoStatus } : {}),
-              ...(novoTipo !== null ? { tipo: novoTipo } : {}),
-            }
-          : usuario
-      )
-    );
   };
+
 
   const onAbrirLead = (lead) => {
     setLeadSelecionado(lead);
@@ -544,14 +561,14 @@ const App = () => {
                 leads={isAdmin ? leadsFechados : leadsFechados.filter((lead) => lead.Responsavel === usuarioLogado.nome)}
                 usuarios={usuarios}
                 onUpdateInsurer={atualizarSeguradoraLead}
-                onConfirmInsurer={confirmarSeguradoraLead} // Esta função agora aceita VigenciaFinal
+                onConfirmInsurer={confirmarSeguradoraLead}
                 onUpdateDetalhes={atualizarDetalhesLeadFechado}
                 fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
                 isAdmin={isAdmin}
                 ultimoFechadoId={ultimoFechadoId}
                 onAbrirLead={onAbrirLead}
                 leadSelecionado={leadSelecionado}
-                formatarDataParaExibicao={formatarDataParaExibicao} // Passa a função para o LeadsFechados
+                formatarDataParaExibicao={formatarDataParaExibicao}
               />
             }
           />
@@ -585,11 +602,10 @@ const App = () => {
                 element={
                   <Usuarios
                     leads={isAdmin ? leads : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)}
-
                     usuarios={usuarios}
                     fetchLeadsFromSheet={fetchLeadsFromSheet}
                     fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
-                    atualizarStatusUsuario={atualizarStatusUsuario}
+                    atualizarStatusUsuario={atualizarStatusUsuario} // Passando a função atualizada
                   />
                 }
               />
@@ -606,48 +622,5 @@ const App = () => {
     </div>
   );
 };
-
-// Nova função para formatar a data de YYYY-MM-DD para DD/Mês/AA para exibição
-// Esta função é APENAS para exibição, NUNCA para enviar ao GAS.
-const formatarDataParaDDMMYYYY = (dataString) => {
-  if (!dataString) return '';
-
-  try {
-    let dateObj;
-    // Tenta reconhecer o formato YYYY-MM-DD (que o GAS enviaria)
-    const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (partesHifen) {
-      dateObj = new Date(`${partesHifen[1]}-${partesHifen[2]}-${partesHifen[3]}T00:00:00`); // Cria com YYYY-MM-DD
-    } else {
-      // Se não for YYYY-MM-DD, tenta parsear DD/MM/YYYY (do Sheets como texto)
-      const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-      if (partesBarra) {
-        dateObj = new Date(`${partesBarra[3]}-${partesBarra[2]}-${partesBarra[1]}T00:00:00`);
-      } else {
-        // Última tentativa de parsear qualquer formato válido
-        dateObj = new Date(dataString);
-      }
-    }
-
-    if (isNaN(dateObj.getTime())) {
-      console.warn('formatarDataParaDDMMYYYY: Data inválida detectada:', dataString);
-      return dataString; // Retorna a string original se inválido
-    }
-
-    const dia = String(dateObj.getDate()).padStart(2, '0');
-    const mesIndex = dateObj.getMonth();
-    const ano = dateObj.getFullYear();
-    const nomeMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-                       "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-    const mesExtenso = nomeMeses[mesIndex];
-    const anoCurto = String(ano).substring(2);
-
-    return `${dia}/${mesExtenso}/${anoCurto}`; // Ex: 08/Junho/25
-  } catch (e) {
-    console.error("Erro na função formatarDataParaDDMMYYYY:", e);
-    return dataString; // Em caso de erro, retorna a string original
-  }
-};
-
 
 export default App;
