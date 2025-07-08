@@ -98,22 +98,29 @@ const App = () => {
 
   const fetchUsuariosFromSheet = useCallback(async () => {
     try {
-      const response = await fetch(API_ENDPOINTS.GET_USUARIOS, {
-        // --- AQUI ESTÁ A MUDANÇA PARA NO-CORS ---
-        mode: 'no-cors'
-        // --- FIM DA MUDANÇA ---
-      });
+      // --- REMOVIDO: mode: 'no-cors' para permitir a leitura da resposta JSON ---
+      const response = await fetch(API_ENDPOINTS.GET_USUARIOS);
+      const data = await response.json(); // Agora esta linha funcionará se o GAS enviar CORS headers
+      console.log("Dados de usuários recebidos do GAS:", data); // Log para depuração
 
-      // ATENÇÃO: Com 'no-cors', o navegador não permite que o JavaScript leia o corpo da resposta.
-      // A linha 'const data = await response.json();' VAI FALHAR ou retornar um erro.
-      // Consequentemente, 'usuarios' ficará vazio, e o login não funcionará.
-      // Para fins de demonstração do 'no-cors', o código abaixo é ajustado para não tentar ler o JSON.
-      console.log("Requisição de usuários feita com 'no-cors'. Resposta opaca, dados não acessíveis no frontend.");
-      setUsuarios([]); // Define como vazio, pois os dados reais não podem ser lidos.
-      console.warn("Login não funcionará com 'no-cors' pois os dados de usuário não podem ser lidos.");
-
+      if (Array.isArray(data)) {
+        const formattedUsuarios = data.map((item) => ({
+          id: item.ID || item.id || '',
+          usuario: item.usuario || '',
+          nome: item.nome || '',
+          email: item.email || '',
+          senha: item.senha || '',
+          status: item.status || 'Ativo',
+          tipo: item.tipo || 'Usuario',
+        }));
+        setUsuarios(formattedUsuarios);
+        console.log("Usuários formatados e definidos:", formattedUsuarios); // Log para depuração
+      } else {
+        setUsuarios([]);
+        console.warn("Dados de usuários não são um array:", data);
+      }
     } catch (error) {
-      console.error('Erro ao buscar usuários do Google Sheets (com no-cors):', error);
+      console.error('Erro ao buscar usuários do Google Sheets:', error);
       setUsuarios([]);
     }
   }, []);
@@ -155,7 +162,6 @@ const App = () => {
           'Content-Type': 'text/plain;charset=utf-8',
         },
         body: JSON.stringify(newUser),
-        // mode: 'no-cors' // Não aplicado aqui, pois você precisa da resposta para 'status: success'
       });
 
       const data = await response.json();
@@ -236,7 +242,6 @@ const App = () => {
           'Content-Type': 'text/plain;charset=utf-8',
         },
         body: JSON.stringify({ phone: phone, status: novoStatus }),
-        // mode: 'no-cors' // Não aplicado aqui
       });
 
       const data = await response.json();
@@ -305,7 +310,6 @@ const App = () => {
           'Content-Type': 'text/plain;charset=utf-8',
         },
         body: JSON.stringify({ lead: updatedLeadData }),
-        // mode: 'no-cors' // Não aplicado aqui
       });
 
       const data = await response.json();
@@ -360,7 +364,6 @@ const App = () => {
           'Content-Type': 'text/plain;charset=utf-8',
         },
         body: JSON.stringify({ id: leadId, usuarioId: responsavelId }),
-        // mode: 'no-cors' // Não aplicado aqui
       });
 
       const data = await response.json();
@@ -421,7 +424,6 @@ const App = () => {
           'Content-Type': 'text/plain;charset=utf-8',
         },
         body: JSON.stringify(updateData),
-        // mode: 'no-cors' // Não aplicado aqui
       });
 
       const data = await response.json();
@@ -470,8 +472,6 @@ const App = () => {
   // --- Lógica de Login ---
   const handleLogin = () => {
     console.log("Tentando login com:", loginInput, senhaInput);
-    // ATENÇÃO: Com 'no-cors' em fetchUsuariosFromSheet, 'usuarios' estará vazio ou inacessível.
-    // O login NÃO funcionará com esta configuração.
     console.log("Usuários disponíveis para comparação:", usuarios);
 
     const usuarioEncontrado = usuarios.find(
