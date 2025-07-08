@@ -8,9 +8,10 @@ const CriarLead = ({ adicionarLead }) => {
   const [anoModelo, setAnoModelo] = useState('');
   const [cidade, setCidade] = useState('');
   const [telefone, setTelefone] = useState('');
-  const [tipoSeguro, setTipoSeguro] = useState('');
+  const [tipoSeguro, setTipoSeguro] = useState(''); // Estado para o tipo de seguro
   const [responsavel, setResponsavel] = useState(''); // Estado para o responsável selecionado
   const [usuariosAtivos, setUsuariosAtivos] = useState([]); // Estado para armazenar os usuários ativos
+  const [mensagemSucesso, setMensagemSucesso] = useState(''); // Novo estado para a mensagem de sucesso
 
   const navigate = useNavigate();
 
@@ -21,39 +22,35 @@ const CriarLead = ({ adicionarLead }) => {
         // ATENÇÃO: SUBSTITUA ESTE URL PELA URL DO SEU GOOGLE APPS SCRIPT REAL.
         // É a URL do aplicativo da web (Web App URL) após a implantação do seu script GAS.
         // Exemplo: 'https://script.google.com/macros/s/SEU_ID_DO_SCRIPT/exec?v=listar_usuarios_ativos'
-        // Use a mesma URL que você testou para depurar no navegador.
         const YOUR_GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=listar_usuarios_ativos'; 
 
         const response = await fetch(YOUR_GAS_WEB_APP_URL);
         
-        // Verifica se a resposta da rede foi bem-sucedida
         if (!response.ok) {
-          // Tenta ler o erro do corpo da resposta, se disponível
           const errorText = await response.text();
           throw new Error(`Erro na rede ou no script: ${response.status} - ${errorText}`);
         }
 
-        const data = await response.json(); // Parsea o JSON retornado pelo Google Apps Script
-        
-        // O GAS retorna um array de objetos { id: '...', nome: '...' }
-        // Se o seu GAS retornar um formato diferente, ajuste aqui.
+        const data = await response.json();
         setUsuariosAtivos(data || []); 
 
       } catch (error) {
         console.error('Erro ao buscar usuários ativos:', error);
-        // Em caso de erro, você pode definir uma mensagem para o usuário ou uma lista vazia
-        setUsuariosAtivos([]); // Garante que a lista fique vazia em caso de falha
-        alert('Não foi possível carregar a lista de responsáveis. Verifique a conexão ou o script.');
+        setUsuariosAtivos([]);
+        setMensagemSucesso('Não foi possível carregar a lista de responsáveis. Verifique a conexão ou o script.');
       }
     };
 
     fetchUsuariosAtivos();
-  }, []); // O array vazio garante que esta função seja executada apenas uma vez ao montar o componente
+  }, []);
 
   const handleCriar = () => {
+    // Limpa a mensagem de sucesso anterior ao tentar criar um novo lead
+    setMensagemSucesso(''); 
+
     // Validação dos campos obrigatórios
     if (!nome || !modeloVeiculo || !anoModelo || !cidade || !telefone || !tipoSeguro || !responsavel) {
-      alert('Por favor, preencha todos os campos obrigatórios.');
+      setMensagemSucesso('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
 
@@ -71,39 +68,33 @@ const CriarLead = ({ adicionarLead }) => {
     };
 
     criarLeadFunc(novoLead);
-
-    // Se você tiver uma função para adicionar o lead ao estado global/local
-    // adicionarLead(novoLead); // Comentei pois não há `adicionarLead` definido no seu snippet
-
-    // navigate('/leads'); // Redirecionar para a página de leads (opcional, dependendo do fluxo)
   };
 
   const criarLeadFunc = async (lead) => {
     try {
-      // Ajuste o URL para o seu script do Google Apps Script que lida com leads
-      // Certifique-se de que este endpoint está configurado para receber os novos campos
-      // É a URL do aplicativo da web (Web App URL) após a implantação do seu script GAS.
-      const YOUR_GAS_WEB_APP_URL_FOR_LEADS = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=criar_lead'; // URL de exemplo, ajuste para o seu!
+      const YOUR_GAS_WEB_APP_URL_FOR_LEADS = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=criar_lead'; 
 
-      const response = await fetch(YOUR_GAS_WEB_APP_URL_FOR_LEADS, {
+      await fetch(YOUR_GAS_WEB_APP_URL_FOR_LEADS, {
         method: 'POST',
-        mode: 'no-cors', // Importante para evitar erros de CORS em requisições POST para GAS
+        mode: 'no-cors', 
         body: JSON.stringify(lead),
         headers: {
           'Content-Type': 'application/json',
         },
       });
-      // Com 'no-cors', o response.ok sempre será true e não poderemos ler o corpo da resposta.
-      // A confirmação real da sucesso vem do próprio Google Sheet.
       console.log('Lead enviado. Verifique seu Google Sheet.');
-      alert('Lead criado com sucesso!');
+      // Define a mensagem de sucesso sem usar alert
+      setMensagemSucesso('✅ Lead criado com sucesso!'); 
 
-      // Redireciona somente após o envio bem-sucedido
-      navigate('/leads'); 
+      // Opcional: Redirecionar após um breve atraso para o usuário ver a mensagem
+      setTimeout(() => {
+        navigate('/leads'); 
+      }, 1500); // Redireciona após 1.5 segundos
 
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
-      alert('Houve um erro ao criar o lead. Tente novamente.');
+      // Define a mensagem de erro
+      setMensagemSucesso('Houve um erro ao criar o lead. Tente novamente.');
     }
   };
 
@@ -163,12 +154,16 @@ const CriarLead = ({ adicionarLead }) => {
 
       <div>
         <label className="block text-gray-700">Tipo de Seguro</label>
-        <input
-          type="text"
+        <select
           value={tipoSeguro}
           onChange={(e) => setTipoSeguro(e.target.value)}
           className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-        />
+        >
+          <option value="">Em branco</option> {/* Opção "Em branco" */}
+          <option value="Novo">Novo</option>
+          <option value="Renovacao">Renovação</option>
+          <option value="Indicacao">Indicação</option>
+        </select>
       </div>
 
       <div>
@@ -179,7 +174,6 @@ const CriarLead = ({ adicionarLead }) => {
           className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
         >
           <option value="">Selecione um responsável</option>
-          {/* Renderiza os usuários buscados do Sheets */}
           {usuariosAtivos.map((user) => (
             <option key={user.id} value={user.nome}>
               {user.nome}
@@ -193,7 +187,8 @@ const CriarLead = ({ adicionarLead }) => {
         Status: <span className="font-semibold">Fechado</span>
       </div>
 
-      <div className="flex justify-end">
+      {/* Botão centralizado */}
+      <div className="flex justify-center"> {/* Adicionado para centralizar */}
         <button
           onClick={handleCriar}
           className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition"
@@ -201,6 +196,13 @@ const CriarLead = ({ adicionarLead }) => {
           Criar Lead
         </button>
       </div>
+
+      {/* Mensagem de sucesso/erro */}
+      {mensagemSucesso && (
+        <p className={`mt-4 text-center ${mensagemSucesso.startsWith('✅') ? 'text-green-600' : 'text-red-600'}`}>
+          {mensagemSucesso}
+        </p>
+      )}
     </div>
   );
 };
