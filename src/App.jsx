@@ -98,28 +98,22 @@ const App = () => {
 
   const fetchUsuariosFromSheet = useCallback(async () => {
     try {
-      const response = await fetch(API_ENDPOINTS.GET_USUARIOS);
-      const data = await response.json();
-      console.log("Dados de usuários recebidos do GAS:", data); // Log para depuração
+      const response = await fetch(API_ENDPOINTS.GET_USUARIOS, {
+        // --- AQUI ESTÁ A MUDANÇA PARA NO-CORS ---
+        mode: 'no-cors'
+        // --- FIM DA MUDANÇA ---
+      });
 
-      if (Array.isArray(data)) {
-        const formattedUsuarios = data.map((item) => ({
-          id: item.ID || item.id || '',
-          usuario: item.usuario || '',
-          nome: item.nome || '',
-          email: item.email || '',
-          senha: item.senha || '',
-          status: item.status || 'Ativo',
-          tipo: item.tipo || 'Usuario',
-        }));
-        setUsuarios(formattedUsuarios);
-        console.log("Usuários formatados e definidos:", formattedUsuarios); // Log para depuração
-      } else {
-        setUsuarios([]);
-        console.warn("Dados de usuários não são um array:", data);
-      }
+      // ATENÇÃO: Com 'no-cors', o navegador não permite que o JavaScript leia o corpo da resposta.
+      // A linha 'const data = await response.json();' VAI FALHAR ou retornar um erro.
+      // Consequentemente, 'usuarios' ficará vazio, e o login não funcionará.
+      // Para fins de demonstração do 'no-cors', o código abaixo é ajustado para não tentar ler o JSON.
+      console.log("Requisição de usuários feita com 'no-cors'. Resposta opaca, dados não acessíveis no frontend.");
+      setUsuarios([]); // Define como vazio, pois os dados reais não podem ser lidos.
+      console.warn("Login não funcionará com 'no-cors' pois os dados de usuário não podem ser lidos.");
+
     } catch (error) {
-      console.error('Erro ao buscar usuários do Google Sheets:', error);
+      console.error('Erro ao buscar usuários do Google Sheets (com no-cors):', error);
       setUsuarios([]);
     }
   }, []);
@@ -161,15 +155,15 @@ const App = () => {
           'Content-Type': 'text/plain;charset=utf-8',
         },
         body: JSON.stringify(newUser),
+        // mode: 'no-cors' // Não aplicado aqui, pois você precisa da resposta para 'status: success'
       });
 
       const data = await response.json();
 
       if (data.status === 'success') {
-        // Optimistic update: add new user to state immediately
         setUsuarios((prev) => [...prev, newUser]);
         alert('Usuário criado com sucesso!');
-        fetchUsuariosFromSheet(); // Re-fetch para sincronizar e garantir que o ID do GAS seja o correto
+        fetchUsuariosFromSheet();
       } else {
         alert(data.message || 'Erro ao criar usuário.');
       }
@@ -189,7 +183,6 @@ const App = () => {
     const originalStatus = leadToUpdate.status;
     const originalConfirmado = leadToUpdate.confirmado;
 
-    // Atualização otimista do UI
     setLeads((prev) =>
       prev.map((lead) =>
         lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
@@ -208,7 +201,7 @@ const App = () => {
         });
       } else {
         const novoLeadFechado = {
-          ID: leadToUpdate.id || crypto.randomUUID(), // Usar ID existente ou gerar um novo UUID
+          ID: leadToUpdate.id || crypto.randomUUID(),
           name: leadToUpdate.name,
           vehicleModel: leadToUpdate.vehiclemodel,
           vehicleYearModel: leadToUpdate.vehicleyearmodel,
@@ -222,16 +215,14 @@ const App = () => {
           PremioLiquido: leadToUpdate.premioLiquido || "",
           Comissao: leadToUpdate.comissao || "",
           Parcelamento: leadToUpdate.parcelamento || "",
-          // Adicionando campos necessários para o objeto 'leadFechado'
-          // Estes campos viriam dos dados iniciais do leadToUpdate ou seriam nulos/vazios
-          id: leadToUpdate.id || null, // ID numérico, se existir no lead original
+          id: leadToUpdate.id || null,
           usuario: leadToUpdate.usuario || "",
           nome: leadToUpdate.nome || "",
           email: leadToUpdate.email || "",
           senha: leadToUpdate.senha || "",
-          status: leadToUpdate.status || "Ativo", // Status do usuário, se aplicável
-          tipo: leadToUpdate.tipo || "Usuario", // Tipo do usuário, se aplicável
-          "Ativo/Inativo": leadToUpdate["Ativo/Inativo"] || "Ativo", // Status ativo/inativo do usuário
+          status: leadToUpdate.status || "Ativo",
+          tipo: leadToUpdate.tipo || "Usuario",
+          "Ativo/Inativo": leadToUpdate["Ativo/Inativo"] || "Ativo",
           confirmado: true
         };
         setLeadsFechados((prev) => [...prev, novoLeadFechado]);
@@ -245,6 +236,7 @@ const App = () => {
           'Content-Type': 'text/plain;charset=utf-8',
         },
         body: JSON.stringify({ phone: phone, status: novoStatus }),
+        // mode: 'no-cors' // Não aplicado aqui
       });
 
       const data = await response.json();
@@ -313,6 +305,7 @@ const App = () => {
           'Content-Type': 'text/plain;charset=utf-8',
         },
         body: JSON.stringify({ lead: updatedLeadData }),
+        // mode: 'no-cors' // Não aplicado aqui
       });
 
       const data = await response.json();
@@ -367,6 +360,7 @@ const App = () => {
           'Content-Type': 'text/plain;charset=utf-8',
         },
         body: JSON.stringify({ id: leadId, usuarioId: responsavelId }),
+        // mode: 'no-cors' // Não aplicado aqui
       });
 
       const data = await response.json();
@@ -427,6 +421,7 @@ const App = () => {
           'Content-Type': 'text/plain;charset=utf-8',
         },
         body: JSON.stringify(updateData),
+        // mode: 'no-cors' // Não aplicado aqui
       });
 
       const data = await response.json();
@@ -475,9 +470,10 @@ const App = () => {
   // --- Lógica de Login ---
   const handleLogin = () => {
     console.log("Tentando login com:", loginInput, senhaInput);
+    // ATENÇÃO: Com 'no-cors' em fetchUsuariosFromSheet, 'usuarios' estará vazio ou inacessível.
+    // O login NÃO funcionará com esta configuração.
     console.log("Usuários disponíveis para comparação:", usuarios);
 
-    // Garante que 'usuario' e 'senha' do input são tratados como strings
     const usuarioEncontrado = usuarios.find(
       (u) =>
         String(u.usuario).trim() === String(loginInput).trim() &&
