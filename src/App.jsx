@@ -72,6 +72,38 @@ const App = () => {
     }
   };
 
+  // Nova função para formatar a data para input[type="date"] (YYYY-MM-DD)
+  const formatarDataParaInputDate = (dataString) => {
+    if (!dataString) return '';
+    try {
+      let dateObj;
+      const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})$/); // Já YYYY-MM-DD
+      const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); // DD/MM/YYYY
+
+      if (partesHifen) {
+        // Já está no formato YYYY-MM-DD, pode retornar diretamente
+        return dataString;
+      } else if (partesBarra) {
+        // Converte DD/MM/YYYY para YYYY-MM-DD
+        return `${partesBarra[3]}-${partesBarra[2]}-${partesBarra[1]}`;
+      } else {
+        // Tenta parsear e formatar para YYYY-MM-DD
+        dateObj = new Date(dataString);
+        if (isNaN(dateObj.getTime())) {
+          console.warn('formatarDataParaInputDate: Data inválida detectada:', dataString);
+          return ''; // Retorna vazio para data inválida
+        }
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+    } catch (error) {
+      console.error('Erro ao formatar data para input date:', error);
+      return '';
+    }
+  };
+
 
   const fetchLeadsFromSheet = async () => {
     try {
@@ -552,6 +584,7 @@ const App = () => {
                 onAbrirLead={onAbrirLead}
                 leadSelecionado={leadSelecionado}
                 formatarDataParaExibicao={formatarDataParaExibicao} // Passa a função para o LeadsFechados
+                formatarDataParaInputDate={formatarDataParaInputDate} // Passa a nova função
               />
             }
           />
