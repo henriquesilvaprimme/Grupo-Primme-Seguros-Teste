@@ -16,7 +16,8 @@ import CriarLead from './pages/CriarLead';
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=getLeads';
 const GOOGLE_SHEETS_USERS = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec';
 const GOOGLE_SHEETS_LEADS_FECHADOS = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=pegar_clientes_fechados'
-const GOOGLE_SHEETS_ADD_LEAD_URL = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=adicionar_lead';
+// Adicione um endpoint específico para adicionar leads, se necessário.
+// Exemplo: const GOOGLE_SHEETS_ADD_LEAD_URL = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=adicionar_lead';
 
 
 const App = () => {
@@ -556,7 +557,8 @@ const App = () => {
           />} />
           <Route
             path="/criar-lead"
-            element={<CriarLead adicionarLead={adicionarNovoLead} />} {/* adionarNovoLead está disponível agora */}
+            // O comentário foi movido para uma linha separada para evitar erro de sintaxe.
+            element={<CriarLead adicionarLead={adicionarNovoLead} />}
           />
           {isAdmin && (
             <>
