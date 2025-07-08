@@ -35,12 +35,54 @@ const App = () => {
   const [leads, setLeads] = useState([]);
   const [leadSelecionado, setLeadSelecionado] = useState(null);
 
+  // Função auxiliar para formatar a data para exibição no frontend (DD/Mês/AA ou DD/MM/YYYY)
+  // Deixaremos esta função como ela está, pois é para exibição, não para envio.
+  const formatarDataParaExibicao = (dataString) => {
+    if (!dataString) return '';
+    try {
+      // Cria um objeto Date. Ele deve ser capaz de parsear YYYY-MM-DD (do GAS)
+      // ou DD/MM/YYYY (se o Sheets salvou assim e o GAS retornou assim).
+      let dateObj;
+      const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})$/); // Formato YYYY-MM-DD
+      const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); // Formato DD/MM/YYYY
+
+      if (partesHifen) {
+        dateObj = new Date(dataString + 'T00:00:00'); // Adiciona T00:00:00 para evitar fuso horário
+      } else if (partesBarra) {
+        dateObj = new Date(`${partesBarra[3]}-${partesBarra[2]}-${partesBarra[1]}T00:00:00`);
+      } else {
+        dateObj = new Date(dataString); // Última tentativa de parsear
+      }
+
+      if (isNaN(dateObj.getTime())) {
+        console.warn('Data inválida para exibição:', dataString);
+        return dataString; // Retorna a string original se não conseguir formatar
+      }
+
+      const dia = String(dateObj.getDate()).padStart(2, '0');
+      const mes = String(dateObj.getMonth() + 1).padStart(2, '0'); // Mês é base 0
+      const ano = dateObj.getFullYear();
+      // Se quiser DD/Mês/AA, precisará de um array de nomes de meses
+      const nomeMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                         "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+      const mesExtenso = nomeMeses[dateObj.getMonth()];
+      const anoCurto = String(ano).substring(2);
+
+      return `${dia}/${mesExtenso}/${anoCurto}`; // Formato 08/Junho/25
+      // return `${dia}/${mes}/${ano}`; // Formato 08/06/2025
+    } catch (error) {
+      console.error('Erro ao formatar data para exibição:', error);
+      return dataString;
+    }
+  };
+
+
   const fetchLeadsFromSheet = async () => {
     try {
       const response = await fetch(GOOGLE_SHEETS_SCRIPT_URL);
       const data = await response.json();
 
-      console.log(data)
+      console.log("Dados de Leads Recebidos do GAS:", data);
 
       if (Array.isArray(data)) {
         const sortedData = data.sort((a, b) => {
@@ -65,15 +107,15 @@ const App = () => {
           premioLiquido: item.premioLiquido || '',
           comissao: item.comissao || '',
           parcelamento: item.parcelamento || '',
-          // Certifique-se de que o nome da chave 'VigenciaFinal' aqui corresponda ao nome da coluna na sua planilha
-          // Agora, ao ler, garantimos que ela esteja no formato DD-MM-YYYY
-          VigenciaFinal: item.VigenciaFinal ? formatarDataParaDDMMYYYY(item.VigenciaFinal) : '',
+          // Ao ler do GAS, se VigenciaFinal vier como YYYY-MM-DD, a formatarDataParaExibicao cuidará.
+          // Se vier como DD/MM/YYYY (texto do sheets), a formatarDataParaExibicao também cuidará.
+          VigenciaFinal: item.VigenciaFinal || '', // Mantém o valor como vem do GAS (YYYY-MM-DD)
           createdAt: item.data || new Date().toISOString(),
           responsavel: item.responsavel || '',
           editado: item.editado || ''
         }));
 
-        console.log(formattedLeads)
+        console.log("Leads formatados no frontend:", formattedLeads);
 
         if (!leadSelecionado) {
           setLeads(formattedLeads);
@@ -84,6 +126,7 @@ const App = () => {
         }
       }
     } catch (error) {
+      console.error('Erro ao buscar leads da planilha:', error);
       if (!leadSelecionado) {
         setLeads([]);
       }
@@ -105,10 +148,14 @@ const App = () => {
       const response = await fetch(GOOGLE_SHEETS_LEADS_FECHADOS)
       const data = await response.json();
 
-      // Mapeia os dados para garantir que VigenciaFinal esteja no formato DD-MM-YYYY ao carregar
+      console.log("Dados de Leads Fechados Recebidos do GAS:", data);
+
+      // Mapeia os dados para garantir que VigenciaFinal esteja no formato YYYY-MM-DD ao carregar
+      // O GAS já deve retornar YYYY-MM-DD para o frontend se leu corretamente.
+      // A função formatarDataParaExibicao será usada apenas na exibição.
       const formattedData = data.map(item => ({
-          ...item,
-          VigenciaFinal: item.VigenciaFinal ? formatarDataParaDDMMYYYY(item.VigenciaFinal) : ''
+        ...item,
+        // VigenciaFinal: item.VigenciaFinal ? formatarDataParaDDMMYYYY(item.VigenciaFinal) : '' // REMOVIDO: Não formatar aqui! Apenas na exibição!
       }));
       setLeadsFechados(formattedData);
 
@@ -233,12 +280,12 @@ const App = () => {
               PremioLiquido: leadParaAdicionar.premioLiquido || "",
               Comissao: leadParaAdicionar.comissao || "",
               Parcelamento: leadParaAdicionar.parcelamento || "",
-              // VigenciaFinal: leadParaAdicionar.VigenciaFinal || "", // Se você também buscará VigenciaFinal de leads não fechados
+              VigenciaFinal: leadParaAdicionar.VigenciaFinal || "", // Mantém o formato original se existir
               id: leadParaAdicionar.id || null,
               usuario: leadParaAdicionar.usuario || "",
               nome: leadParaAdicionar.nome || "",
               email: leadParaAdicionar.email || "",
-              senha: leadParaAdicionar.senha || "",
+              senha: leadParaAdandar.senha || "",
               status: leadParaAdicionar.status || "Ativo",
               tipo: leadParaAdicionar.tipo || "Usuario",
               "Ativo/Inativo": leadParaAdicionar["Ativo/Inativo"] || "Ativo",
@@ -271,7 +318,7 @@ const App = () => {
     VigenciaFinal: "", // Limpa também a vigência final ao redefinir
   })
 
-  // === MUDANÇA CRÍTICA AQUI: ADICIONANDO 'vigenciaFinal' ===
+  // === MUDANÇA CRÍTICA AQUI: ENVIANDO 'vigenciaFinal' no FORMATO YYYY-MM-DD ===
   const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal) => {
     const lead = leadsFechados.find((lead) => lead.ID == id);
 
@@ -284,8 +331,10 @@ const App = () => {
     lead.PremioLiquido = premio;
     lead.Comissao = comissao;
     lead.Parcelamento = parcelamento;
-    // Garante que vigenciaFinal é uma string DD-MM-YYYY antes de atribuir
-    lead.VigenciaFinal = vigenciaFinal ? formatarDataParaDDMMYYYY(vigenciaFinal) : ''; 
+    // AQUI É O PONTO CRÍTICO: VigenciaFinal já deve vir como YYYY-MM-DD do input date
+    // Não aplique formatarDataParaDDMMYYYY aqui, pois ela converte para DD-MM-YYYY
+    // O GAS espera YYYY-MM-DD para poder parsear e salvar corretamente.
+    lead.VigenciaFinal = vigenciaFinal || '';
 
     setLeadsFechados((prev) => {
       const atualizados = prev.map((l) =>
@@ -296,21 +345,22 @@ const App = () => {
           PremioLiquido: premio,
           Comissao: comissao,
           Parcelamento: parcelamento,
-          VigenciaFinal: vigenciaFinal ? formatarDataParaDDMMYYYY(vigenciaFinal) : '' // ATUALIZANDO ESTADO LOCAL COM VIGENCIA FINAL
+          VigenciaFinal: vigenciaFinal || '' // ATUALIZANDO ESTADO LOCAL COM O VALOR YYYY-MM-DD
         } : l
       );
       return atualizados;
     });
 
     try {
+      // Use o URL do seu script com a função alterar_seguradora
       fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_seguradora', {
         method: 'POST',
-        mode: 'no-cors',
+        mode: 'no-cors', // Mantenha no-cors se você está enviando do navegador para o GAS diretamente
         body: JSON.stringify({
-          lead: lead
+          lead: lead // O objeto 'lead' já contém VigenciaFinal no formato YYYY-MM-DD
         }),
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json', // É uma boa prática, mesmo com no-cors pode ajudar a clareza
         },
       });
     } catch (error) {
@@ -319,7 +369,7 @@ const App = () => {
   };
 
   const atualizarDetalhesLeadFechado = (id, campo, valor) => {
-    setLeadsFechados((prev) => // Altere para leadsFechados, já que você está atualizando detalhes de leads fechados
+    setLeadsFechados((prev) =>
       prev.map((lead) =>
         lead.ID === id ? { ...lead, [campo]: valor } : lead
       )
@@ -512,7 +562,7 @@ const App = () => {
                 ultimoFechadoId={ultimoFechadoId}
                 onAbrirLead={onAbrirLead}
                 leadSelecionado={leadSelecionado}
-
+                formatarDataParaExibicao={formatarDataParaExibicao} // Passa a função para o LeadsFechados
               />
             }
           />
@@ -569,25 +619,47 @@ const App = () => {
   );
 };
 
-// Nova função para formatar a data de YYYY-MM-DD para DD-MM-YYYY
-// ou de DD/MM/YYYY para DD-MM-YYYY
-const formatarDataParaDDMMYYYY = (dataString) => {
+// Nova função para formatar a data de YYYY-MM-DD para DD/Mês/AA para exibição
+// Esta função é APENAS para exibição, NUNCA para enviar ao GAS.
+const formatarDataParaDDMMYYYY = (dataString) => { // Renomeei para ser mais genérico, embora o nome original já seja ok para o que faz.
   if (!dataString) return '';
 
-  // Tenta reconhecer o formato YYYY-MM-DD (do input type="date")
-  const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (partesHifen) {
-    return `${partesHifen[3]}-${partesHifen[2]}-${partesHifen[1]}`;
-  }
+  try {
+    let dateObj;
+    // Tenta reconhecer o formato YYYY-MM-DD (que o GAS enviaria)
+    const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (partesHifen) {
+      dateObj = new Date(`${partesHifen[1]}-${partesHifen[2]}-${partesHifen[3]}T00:00:00`); // Cria com YYYY-MM-DD
+    } else {
+      // Se não for YYYY-MM-DD, tenta parsear DD/MM/YYYY (do Sheets como texto)
+      const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (partesBarra) {
+        dateObj = new Date(`${partesBarra[3]}-${partesBarra[2]}-${partesBarra[1]}T00:00:00`);
+      } else {
+        // Última tentativa de parsear qualquer formato válido
+        dateObj = new Date(dataString);
+      }
+    }
 
-  // Tenta reconhecer o formato DD/MM/YYYY (do Sheets)
-  const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (partesBarra) {
-    return `${partesBarra[1]}-${partesBarra[2]}-${partesBarra[3]}`;
-  }
+    if (isNaN(dateObj.getTime())) {
+      console.warn('formatarDataParaDDMMYYYY: Data inválida detectada:', dataString);
+      return dataString; // Retorna a string original se inválido
+    }
 
-  // Se não for nenhum dos formatos esperados, retorna a string original ou vazio
-  return dataString; 
+    const dia = String(dateObj.getDate()).padStart(2, '0');
+    const mesIndex = dateObj.getMonth();
+    const ano = dateObj.getFullYear();
+    const nomeMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                       "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    const mesExtenso = nomeMeses[mesIndex];
+    const anoCurto = String(ano).substring(2);
+
+    return `${dia}/${mesExtenso}/${anoCurto}`; // Ex: 08/Junho/25
+  } catch (e) {
+    console.error("Erro na função formatarDataParaDDMMYYYY:", e);
+    return dataString; // Em caso de erro, retorna a string original
+  }
 };
+
 
 export default App;
