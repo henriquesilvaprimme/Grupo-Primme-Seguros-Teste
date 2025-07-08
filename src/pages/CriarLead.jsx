@@ -159,7 +159,7 @@ const CriarLead = ({ adicionarLead }) => {
           onChange={(e) => setTipoSeguro(e.target.value)}
           className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
         >
-          <option value="">Em branco</option> {/* Opção "Em branco" */}
+          <option value=""> </option> {/* Opção " " */}
           <option value="Novo">Novo</option>
           <option value="Renovacao">Renovação</option>
           <option value="Indicacao">Indicação</option>
