@@ -6,7 +6,7 @@ import Dashboard from './components/Dashboard';
 import Leads from './Leads';
 import LeadsFechados from './LeadsFechados';
 import LeadsPerdidos from './LeadsPerdidos';
-import BuscarLead from './ './BuscarLead'; // Corrigido o caminho relativo
+import BuscarLead from './BuscarLead'; // <-- LINHA CORRIGIDA AQUI
 import CriarUsuario from './pages/CriarUsuario';
 import Usuarios from './pages/Usuarios';
 import Ranking from './pages/Ranking';
@@ -41,8 +41,6 @@ const App = () => {
       const response = await fetch(GOOGLE_SHEETS_SCRIPT_URL);
       const data = await response.json();
 
-      // console.log(data); // Removido para evitar logs excessivos em produção
-
       if (Array.isArray(data)) {
         const sortedData = data.sort((a, b) => {
           const dateA = new Date(a.editado);
@@ -66,15 +64,11 @@ const App = () => {
           premioLiquido: item.premioLiquido || '',
           comissao: item.comissao || '',
           parcelamento: item.parcelamento || '',
-          // **ATENÇÃO:** O nome da propriedade abaixo ('VigenciaFinal') deve corresponder
-          // exatamente ao cabeçalho da coluna na sua planilha Google Sheets.
-          VigenciaFinal: item.VigenciaFinal || '', // Adicionado: Vigência Final
+          VigenciaFinal: item.VigenciaFinal || '', 
           createdAt: item.data || new Date().toISOString(),
           responsavel: item.responsavel || '',
           editado: item.editado || ''
         }));
-
-        // console.log(formattedLeads); // Removido para evitar logs excessivos em produção
 
         if (!leadSelecionado) {
           setLeads(formattedLeads);
@@ -106,7 +100,6 @@ const App = () => {
     try {
       const response = await fetch(GOOGLE_SHEETS_LEADS_FECHADOS);
       const data = await response.json();
-      // Assumindo que 'data' já contém a propriedade 'VigenciaFinal' do Apps Script
       setLeadsFechados(data);
     } catch (error) {
       console.error('Erro ao buscar leads fechados:', error);
@@ -228,7 +221,6 @@ const App = () => {
               PremioLiquido: leadParaAdicionar.premioLiquido || "",
               Comissao: leadParaAdicionar.comissao || "",
               Parcelamento: leadParaAdicionar.parcelamento || "",
-              // VigenciaFinal: leadParaAdicionar.VigenciaFinal || "", // Se também buscará VigenciaFinal de leads não fechados (ajuste conforme necessidade)
               id: leadParaAdicionar.id || null,
               usuario: leadParaAdicionar.usuario || "",
               nome: leadParaAdicionar.nome || "",
@@ -263,10 +255,9 @@ const App = () => {
     premioLiquido: "",
     comissao: "",
     parcelamento: "",
-    VigenciaFinal: "", // Limpa também a vigência final ao redefinir
+    VigenciaFinal: "", 
   });
 
-  // **ATENÇÃO:** Parâmetro 'vigenciaFinal' adicionado aqui
   const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal) => {
     const lead = leadsFechados.find((lead) => lead.ID == id);
 
@@ -279,7 +270,7 @@ const App = () => {
     lead.PremioLiquido = premio;
     lead.Comissao = comissao;
     lead.Parcelamento = parcelamento;
-    lead.VigenciaFinal = vigenciaFinal; // **ATENÇÃO:** Atribui Vigência Final ao objeto 'lead' que será enviado
+    lead.VigenciaFinal = vigenciaFinal; 
 
     setLeadsFechados((prev) => {
       const atualizados = prev.map((l) =>
@@ -290,7 +281,7 @@ const App = () => {
           PremioLiquido: premio,
           Comissao: comissao,
           Parcelamento: parcelamento,
-          VigenciaFinal: vigenciaFinal // **ATENÇÃO:** Atualiza o estado local com a Vigência Final
+          VigenciaFinal: vigenciaFinal 
         } : l
       );
       return atualizados;
@@ -299,7 +290,7 @@ const App = () => {
     try {
       fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_seguradora', {
         method: 'POST',
-        mode: 'no-cors', // Importante para evitar erros CORS no ambiente de desenvolvimento
+        mode: 'no-cors',
         body: JSON.stringify({
           lead: lead
         }),
@@ -333,7 +324,6 @@ const App = () => {
     let usuario = usuarios.find((u) => u.id == responsavelId);
 
     if (!usuario) {
-      console.warn(`Usuário com ID ${responsavelId} não encontrado.`);
       return;
     }
 
