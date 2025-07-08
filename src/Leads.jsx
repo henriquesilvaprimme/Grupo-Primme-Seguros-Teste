@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import Lead from './components/Lead';
+import { API_ENDPOINTS } from './config/api'; // Importa as URLs centralizadas
 
-const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
-
-const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet  }) => {
+const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
   const [selecionados, setSelecionados] = useState({}); // { [leadId]: userId }
   const [paginaAtual, setPaginaAtual] = useState(1);
 
@@ -14,21 +13,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   // Estados para filtro por nome
   const [nomeInput, setNomeInput] = useState('');
   const [filtroNome, setFiltroNome] = useState('');
-
-  // Buscar leads atualizados do Google Sheets
-  const buscarLeadsAtualizados = async () => {
-    try {
-      const response = await fetch(GOOGLE_SHEETS_SCRIPT_URL);
-      if (response.ok) {
-        const dadosLeads = await response.json();
-        setLeadsState(dadosLeads);
-      } else {
-        console.error('Erro ao buscar leads:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Erro ao buscar leads:', error);
-    }
-  };
 
   const leadsPorPagina = 10;
 
@@ -97,7 +81,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
 
   const usuariosAtivos = usuarios.filter((u) => u.status === 'Ativo');
-  const isAdmin = usuarioLogado?.tipo == 'Admin';
+  const isAdmin = usuarioLogado?.tipo === 'Admin'; // Corrigido para '==='
 
   const handleSelect = (leadId, userId) => {
     setSelecionados((prev) => ({
@@ -113,35 +97,24 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       return;
     }
 
+    // Chama a função transferirLead passada via props do App.jsx
+    // Essa função já lida com a comunicação com o GAS e a atualização do estado global.
     transferirLead(leadId, userId);
-  
-    const lead = leads.find((l) => l.id === leadId);
-    const leadAtualizado = { ...lead, usuarioId: userId };
-  
-    enviarLeadAtualizado(leadAtualizado);
-  };
 
-  const enviarLeadAtualizado = async (lead) => {
-    try {
-      const response = await fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_atribuido', {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify(lead),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-    } catch (error) {
-      console.error('Erro ao enviar lead:', error);
-    }
+    // Remove o lead do estado local de 'selecionados' após o envio
+    setSelecionados((prev) => {
+      const newSelecionados = { ...prev };
+      delete newSelecionados[leadId];
+      return newSelecionados;
+    });
   };
 
   const handleAlterar = (leadId) => {
     setSelecionados((prev) => ({
       ...prev,
-      [leadId]: '',
+      [leadId]: '', // Limpa a seleção para permitir nova atribuição
     }));
-    transferirLead(leadId, null);
+    transferirLead(leadId, null); // Transfere para 'null' para desatribuir
   };
 
   const inicio = (paginaCorrigida - 1) * leadsPorPagina;
@@ -175,18 +148,16 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           flexWrap: 'wrap',
         }}
       >
-       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <h1 style={{ margin: 0 }}>Leads</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <h1 style={{ margin: 0 }}>Leads</h1>
 
-            <button title='Clique para atualizar os dados'
-              onClick={() => {
-                fetchLeadsFromSheet();
-                //fetchLeadsFechadosFromSheet();
-                //fetchUsuariosFromSheet();
-              }}
-            >
-              🔄
-            </button>
+          <button title='Clique para atualizar os dados'
+            onClick={() => {
+              fetchLeadsFromSheet(); // Usa a prop para buscar leads
+            }}
+          >
+            🔄
+          </button>
         </div>
 
         {/* Filtro nome - centralizado */}
@@ -199,8 +170,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             justifyContent: 'center',
             minWidth: '300px',
           }}
-        >  
-        
+        >
           <button
             onClick={aplicarFiltroNome}
             style={{
@@ -341,14 +311,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     </select>
                     <button
                       onClick={() => handleEnviar(lead.id)}
-                        style={{
-                          padding: '5px 12px',
-                          backgroundColor: '#28a745',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                        }}
+                      style={{
+                        padding: '5px 12px',
+                        backgroundColor: '#28a745',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                      }}
                     >
                       Enviar
                     </button>
