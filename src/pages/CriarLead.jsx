@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-// Altere a definição do componente para receber 'adicionarLead' e 'usuariosAtivos'
-const CriarLead = ({ adicionarLead, usuariosAtivos }) => {
+const CriarLead = () => {
   // Estados para os campos do formulário
   const [nomeLead, setNomeLead] = useState('');
   const [modeloVeiculo, setModeloVeiculo] = useState('');
@@ -11,20 +10,16 @@ const CriarLead = ({ adicionarLead, usuariosAtivos }) => {
   const [telefone, setTelefone] = useState('');
   const [tipoSeguro, setTipoSeguro] = useState('');
   const [responsavel, setResponsavel] = useState('');
-  // Não precisamos mais do estado local para buscar os nomes dos responsáveis,
-  // pois eles virão via props. No entanto, se você quiser manter a variável,
-  // pode inicializá-la com 'usuariosAtivos'
-  // const [nomesResponsaveis, setNomesResponsaveis] = useState([]); // Esta linha pode ser removida ou alterada
+  const [nomesResponsaveis, setNomesResponsaveis] = useState([]);
   const [mensagemFeedback, setMensagemFeedback] = useState(''); // Estado para a mensagem de feedback
 
   const navigate = useNavigate();
 
-  // A URL do Apps Script para criar lead ainda é necessária
-  const gasUrl = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec';
+  // MUITO IMPORTANTE: SUBSTITUA ESTE URL PELA URL REAL E ATUALIZADA DA SUA IMPLANTAÇÃO DO GOOGLE APPS SCRIPT
+  // CADA NOVA IMPLANTAÇÃO PODE GERAR UMA NOVA URL.
+  const gasUrl = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xFFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec';
 
-  // --- REMOVA ESTE useEffect INTEIRO ---
-  // A busca dos nomes dos responsáveis não é mais feita aqui, mas sim em App.jsx
-  /*
+  // Função para buscar os nomes dos responsáveis ao carregar o componente
   useEffect(() => {
     const buscarNomesResponsaveis = async () => {
       try {
@@ -36,11 +31,9 @@ const CriarLead = ({ adicionarLead, usuariosAtivos }) => {
         setMensagemFeedback('❌ Erro ao carregar a lista de responsáveis. Verifique o console e o Apps Script.');
       }
     };
+
     buscarNomesResponsaveis();
   }, [gasUrl]);
-  */
-  // --- FIM DA REMOÇÃO ---
-
 
   const handleCriar = async () => {
     setMensagemFeedback(''); // Limpa qualquer mensagem anterior
@@ -75,12 +68,11 @@ const CriarLead = ({ adicionarLead, usuariosAtivos }) => {
       insurer: tipoSeguro,
       Data: dataHoraAtual,
       Responsavel: responsavel,
-      Status: 'Aberto', // Mudei para 'Aberto' como status inicial para um novo lead, se for o caso
+      Status: 'Fechado',
     };
 
     try {
-      // Usamos a prop adicionarLead, que já foi definida em App.jsx
-      await adicionarLead(novoLead); // Espera a função de criação ser concluída
+      await criarLeadFunc(novoLead); // Espera a função de criação ser concluída
       setMensagemFeedback('✅ Lead criado com sucesso!'); // Mensagem de sucesso
       // Limpeza do formulário após sucesso
       setNomeLead('');
@@ -91,17 +83,10 @@ const CriarLead = ({ adicionarLead, usuariosAtivos }) => {
       setTipoSeguro('');
       setResponsavel('');
     } catch (error) {
-      console.error('Erro ao criar o lead:', error);
       setMensagemFeedback('❌ Erro ao criar o lead. Verifique sua conexão ou tente novamente.'); // Mensagem de erro
     }
   };
 
-  // Esta função agora será responsável APENAS por enviar para o Apps Script,
-  // ou pode ser completamente removida se adicionarLead já faz isso.
-  // No seu App.jsx, adicionarNovoLead já está enviando para o Apps Script.
-  // Então, esta função criarLeadFunc pode ser desnecessária AQUI.
-  // Se `adicionarNovoLead` em `App.jsx` já faz a chamada `fetch` para o GAS,
-  // você pode remover esta `criarLeadFunc` daqui.
   const criarLeadFunc = async (lead) => {
     try {
       await fetch(`${gasUrl}?v=criar_lead`, {
@@ -195,7 +180,7 @@ const CriarLead = ({ adicionarLead, usuariosAtivos }) => {
         </select>
       </div>
 
-      {/* Campo Responsável populado pela prop `usuariosAtivos` */}
+      {/* Campo Responsável agora é um select populado dinamicamente */}
       <div>
         <label className="block text-gray-700">Responsável</label>
         <select
@@ -204,8 +189,7 @@ const CriarLead = ({ adicionarLead, usuariosAtivos }) => {
           className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
         >
           <option value="">Selecione o Responsável</option>
-          {/* Usa a prop diretamente para popular o select */}
-          {usuariosAtivos.map((nome, index) => (
+          {nomesResponsaveis.map((nome, index) => (
             <option key={index} value={nome}>
               {nome}
             </option>
