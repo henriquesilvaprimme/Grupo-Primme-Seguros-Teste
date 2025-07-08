@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_ENDPOINTS } from './config/api'; // Importa as URLs centralizadas
 
-const CriarLead = () => {
+// Recebe 'onCreateLead' como prop do App.jsx para centralizar a lógica de criação
+const CriarLead = ({ onCreateLead }) => {
   // Estados para os campos do formulário
   const [nomeLead, setNomeLead] = useState('');
   const [modeloVeiculo, setModeloVeiculo] = useState('');
@@ -15,15 +17,12 @@ const CriarLead = () => {
 
   const navigate = useNavigate();
 
-  // MUITO IMPORTANTE: SUBSTITUA ESTE URL PELA URL REAL E ATUALIZADA DA SUA IMPLANTAÇÃO DO GOOGLE APPS SCRIPT
-  // CADA NOVA IMPLANTAÇÃO PODE GERAR UMA NOVA URL.
-  const gasUrl = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
-
   // Função para buscar os nomes dos responsáveis ao carregar o componente
   useEffect(() => {
     const buscarNomesResponsaveis = async () => {
       try {
-        const response = await fetch(`${gasUrl}?v=listar_nomes_usuarios`);
+        // Usa API_ENDPOINTS para a URL
+        const response = await fetch(API_ENDPOINTS.LISTAR_NOMES_USUARIOS);
         const data = await response.json();
         setNomesResponsaveis(data);
       } catch (error) {
@@ -33,7 +32,7 @@ const CriarLead = () => {
     };
 
     buscarNomesResponsaveis();
-  }, [gasUrl]);
+  }, []); // Dependência vazia, executa apenas na montagem
 
   const handleCriar = async () => {
     setMensagemFeedback(''); // Limpa qualquer mensagem anterior
@@ -47,17 +46,10 @@ const CriarLead = () => {
     // Geração do ID aleatório mais robusto
     const idAleatorio = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
-    // Data e hora atual formatada com horas, minutos e segundos
-    const dataHoraAtual = new Date().toLocaleString('pt-BR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
+    // Data e hora atual formatada para o formato ISO 8601 que o GAS espera
+    const dataHoraAtual = new Date().toISOString();
 
-    // Objeto lead com os nomes das chaves correspondentes às colunas do Sheets
+    // Objeto lead com os nomes das chaves correspondentes às colunas do Sheets no GAS
     const novoLead = {
       ID: idAleatorio,
       name: nomeLead,
@@ -65,47 +57,41 @@ const CriarLead = () => {
       vehicleYearModel: anoModelo,
       city: cidade,
       phone: telefone,
-      insurer: tipoSeguro,
+      // 'insurer' é o nome da coluna no Sheets para o tipo de seguro
+      insurer: tipoSeguro, 
       Data: dataHoraAtual,
       Responsavel: responsavel,
-      Status: 'Fechado',
+      // Status inicial de um novo lead, conforme a lógica do GAS
+      Status: 'Novo', 
+      Editado: dataHoraAtual // Adiciona o campo Editado
     };
 
     try {
-      await criarLeadFunc(novoLead); // Espera a função de criação ser concluída
-      setMensagemFeedback('✅ Lead criado com sucesso!'); // Mensagem de sucesso
-      // Limpeza do formulário após sucesso
-      setNomeLead('');
-      setModeloVeiculo('');
-      setAnoModelo('');
-      setCidade('');
-      setTelefone('');
-      setTipoSeguro('');
-      setResponsavel('');
+      // Chama a função onCreateLead passada via props do App.jsx
+      // Esta função é responsável por enviar os dados ao GAS e atualizar o estado global.
+      const result = await onCreateLead(novoLead); 
+      
+      if (result.status === 'success') {
+        setMensagemFeedback('✅ Lead criado com sucesso!'); // Mensagem de sucesso
+        // Limpeza do formulário após sucesso
+        setNomeLead('');
+        setModeloVeiculo('');
+        setAnoModelo('');
+        setCidade('');
+        setTelefone('');
+        setTipoSeguro('');
+        setResponsavel('');
+      } else {
+        setMensagemFeedback(`❌ Erro ao criar o lead: ${result.message || 'Erro desconhecido.'}`);
+      }
     } catch (error) {
+      console.error('Erro ao criar o lead:', error);
       setMensagemFeedback('❌ Erro ao criar o lead. Verifique sua conexão ou tente novamente.'); // Mensagem de erro
     }
   };
 
-  const criarLeadFunc = async (lead) => {
-    try {
-      await fetch(`${gasUrl}?v=criar_lead`, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(lead),
-      });
-
-      console.log('Requisição de criação de lead enviada (modo no-cors).');
-      console.log('Verifique os logs de execução do Google Apps Script para confirmar o sucesso.');
-
-    } catch (error) {
-      console.error('Erro ao enviar lead para o Google Sheets:', error);
-      throw error; // Re-lança o erro para que handleCriar possa tratá-lo
-    }
-  };
+  // A função 'criarLeadFunc' local foi removida, pois a lógica de requisição
+  // agora é centralizada na prop 'onCreateLead' do App.jsx.
 
   return (
     <div className="p-6 max-w-xl mx-auto bg-white rounded-xl shadow-md space-y-6">
