@@ -23,38 +23,32 @@ const App = () => {
   const [loginInput, setLoginInput] = useState('');
   const [senhaInput, setSenhaInput] = useState('');
   const [usuarioLogado, setUsuarioLogado] = useState(null);
+  const [leadsFechados, setLeadsFechados] = useState([]);
   const [backgroundLoaded, setBackgroundLoaded] = useState(false);
 
-  const [leads, setLeads] = useState([]);
-  const [leadsFechados, setLeadsFechados] = useState([]);
-  const [usuarios, setUsuarios] = useState([]);
-  const [leadSelecionado, setLeadSelecionado] = useState(null);
-
-  // Carrega imagem de fundo
   useEffect(() => {
     const img = new Image();
     img.src = '/background.png';
     img.onload = () => setBackgroundLoaded(true);
   }, []);
 
+  const [leads, setLeads] = useState([]);
+  const [leadSelecionado, setLeadSelecionado] = useState(null);
+
   // Função auxiliar para formatar a data para exibição no frontend (DD/Mês/AA ou DD/MM/YYYY)
   const formatarDataParaExibicao = (dataString) => {
     if (!dataString) return '';
     try {
       let dateObj;
-      // Tenta parsear como ISO 8601 (com T e Z) ou YYYY-MM-dd
-      if (dataString.includes('T')) {
-        dateObj = new Date(dataString);
-      } else if (dataString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        dateObj = new Date(dataString + 'T00:00:00'); // Adiciona T00:00:00 para evitar problemas de fuso horário
+      const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})$/); // Formato YYYY-MM-DD
+      const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); // Formato DD/MM/YYYY
+
+      if (partesHifen) {
+        dateObj = new Date(dataString + 'T00:00:00'); // Adiciona T00:00:00 para evitar fuso horário
+      } else if (partesBarra) {
+        dateObj = new Date(`${partesBarra[3]}-${partesBarra[2]}-${partesBarra[1]}T00:00:00`);
       } else {
-        // Tenta parsear como DD/MM/YYYY
-        const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-        if (partesBarra) {
-          dateObj = new Date(`${partesBarra[3]}-${partesBarra[2]}-${partesBarra[1]}T00:00:00`);
-        } else {
-          dateObj = new Date(dataString); // Última tentativa de parsear
-        }
+        dateObj = new Date(dataString); // Última tentativa de parsear
       }
 
       if (isNaN(dateObj.getTime())) {
@@ -70,7 +64,8 @@ const App = () => {
       const mesExtenso = nomeMeses[dateObj.getMonth()];
       const anoCurto = String(ano).substring(2);
 
-      return `${dia}/${mesExtenso}/${anoCurto}`; // Ex: 08/Julho/25
+      return `${dia}/${mesExtenso}/${anoCurto}`; // Formato 08/Junho/25
+      // return `${dia}/${mes}/${ano}`; // Formato 08/06/2025
     } catch (error) {
       console.error('Erro ao formatar data para exibição:', error);
       return dataString;
@@ -78,14 +73,12 @@ const App = () => {
   };
 
 
-  // --- Funções de Fetch de Dados ---
-  const fetchLeadsFromSheet = useCallback(async () => {
+  const fetchLeadsFromSheet = async () => {
     try {
-      const response = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads`);
-      if (!response.ok) {
-        throw new Error(`Erro ao buscar leads: ${response.status} ${response.statusText}`);
-      }
-      const data = await response.json(); // Aqui pode ler JSON normalmente para GET
+      const response = await fetch(GOOGLE_SHEETS_SCRIPT_URL);
+      const data = await response.json();
+
+      console.log("Dados de Leads Recebidos do GAS:", data);
 
       if (Array.isArray(data)) {
         const sortedData = data.sort((a, b) => {
@@ -95,10 +88,10 @@ const App = () => {
         });
 
         const formattedLeads = sortedData.map((item, index) => ({
-          id: item.id ? String(item.id) : String(index + 1), // Garante que o ID é string
+          id: item.id ? Number(item.id) : index + 1,
           name: item.name || item.Name || '',
-          vehicleModel: item.vehiclemodel || item.vehicleModel || '',
-          vehicleYearModel: item.vehicleyearmodel || item.vehicleYearModel || '',
+          vehicleModel: item.vehiclemodel || item.vehicleModel || '', // Usando `vehicleModel` consistentemente
+          vehicleYearModel: item.vehicleyearmodel || item.vehicleYearModel || '', // Usando `vehicleYearModel` consistentemente
           city: item.city || '',
           phone: item.phone || item.Telefone || '',
           insuranceType: item.insurancetype || item.insuranceType || '',
@@ -106,358 +99,331 @@ const App = () => {
           confirmado: item.confirmado === 'true' || item.confirmado === true,
           insurer: item.insurer || '',
           insurerConfirmed: item.insurerConfirmed === 'true' || item.insurerConfirmed === true,
-          usuarioId: item.usuarioId ? String(item.usuarioId) : null, // Garante que o ID do usuário é string
+          usuarioId: item.usuarioId ? Number(item.usuarioId) : null,
           premioLiquido: item.premioLiquido || '',
           comissao: item.comissao || '',
           parcelamento: item.parcelamento || '',
-          VigenciaFinal: item.VigenciaFinal || '', // Já vem no formato correto do GAS
+          VigenciaFinal: item.VigenciaFinal || '',
           createdAt: item.data || new Date().toISOString(),
           responsavel: item.responsavel || '',
           editado: item.editado || ''
         }));
 
-        setLeads(formattedLeads);
+        console.log("Leads formatados no frontend:", formattedLeads);
+
+        if (!leadSelecionado) {
+          setLeads(formattedLeads);
+        }
       } else {
-        setLeads([]);
+        if (!leadSelecionado) {
+          setLeads([]);
+        }
       }
     } catch (error) {
       console.error('Erro ao buscar leads da planilha:', error);
-      setLeads([]);
-    }
-  }, []); // Dependência vazia, pois o URL é constante
-
-  const fetchLeadsFechadosFromSheet = useCallback(async () => {
-    try {
-      const response = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`);
-      if (!response.ok) {
-        throw new Error(`Erro ao buscar leads fechados: ${response.status} ${response.statusText}`);
+      if (!leadSelecionado) {
+        setLeads([]);
       }
-      const data = await response.json(); // Aqui pode ler JSON normalmente para GET
+    }
+  };
 
-      setLeadsFechados(data);
+  useEffect(() => {
+    fetchLeadsFromSheet();
+
+    const interval = setInterval(() => {
+      fetchLeadsFromSheet();
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [leadSelecionado]);
+
+  const fetchLeadsFechadosFromSheet = async () => {
+    try {
+      const response = await fetch(GOOGLE_SHEETS_LEADS_FECHADOS)
+      const data = await response.json();
+
+      console.log("Dados de Leads Fechados Recebidos do GAS:", data);
+
+      const formattedData = data.map(item => ({
+        ...item,
+        // VigenciaFinal já vem no formato YYYY-MM-DD do GAS, então não precisamos formatar aqui
+      }));
+      setLeadsFechados(formattedData);
+
     } catch (error) {
       console.error('Erro ao buscar leads fechados:', error);
       setLeadsFechados([]);
     }
-  }, []); // Dependência vazia, pois o URL é constante
-
-  const fetchUsuariosFromSheet = useCallback(async () => {
-    try {
-      const response = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_usuario`);
-      if (!response.ok) {
-        throw new Error(`Erro ao buscar usuários: ${response.status} ${response.statusText}`);
-      }
-      const data = await response.json(); // Aqui pode ler JSON normalmente para GET
-
-      if (Array.isArray(data)) {
-        const formattedUsuarios = data.map((item) => ({
-          id: String(item.id) || '', // Garante que o ID é string
-          usuario: item.usuario || '',
-          nome: item.nome || '',
-          email: item.email || '',
-          senha: item.senha || '',
-          status: item.status || 'Ativo', // Default para 'Ativo'
-          tipo: item.tipo || 'Usuario Comum', // Default para 'Usuario Comum'
-        }));
-        setUsuarios(formattedUsuarios);
-      } else {
-        setUsuarios([]);
-      }
-    } catch (error) {
-      console.error('Erro ao buscar usuários do Google Sheets:', error);
-      setUsuarios([]);
-    }
-  }, []); // Dependência vazia, pois o URL é constante
-
-  // --- Efeitos para Carregar Dados e Atualizar Automaticamente ---
-  useEffect(() => {
-    fetchLeadsFromSheet();
-    const interval = setInterval(fetchLeadsFromSheet, 60000);
-    return () => clearInterval(interval);
-  }, [fetchLeadsFromSheet]);
+  };
 
   useEffect(() => {
     fetchLeadsFechadosFromSheet();
-    const interval = setInterval(fetchLeadsFechadosFromSheet, 60000);
-    return () => clearInterval(interval);
-  }, [fetchLeadsFechadosFromSheet]);
 
-  useEffect(() => {
-    fetchUsuariosFromSheet();
-    const interval = setInterval(fetchUsuariosFromSheet, 60000);
-    return () => clearInterval(interval);
-  }, [fetchUsuariosFromSheet]);
+    const interval = setInterval(() => {
+      fetchLeadsFechadosFromSheet();
+    }, 60000);
 
-  // --- Funções de Manipulação de Dados ---
-  const adicionarUsuario = useCallback(async (usuario) => {
-    // Esta função deveria chamar o GAS diretamente para adicionar e, em seguida,
-    // chamar fetchUsuariosFromSheet() para atualizar a lista.
-    // Mantendo a estrutura para você adaptar em CriarUsuario.jsx.
-    // Exemplo de como CriarUsuario deveria fazer:
-    /*
-    try {
-      const response = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=criar_usuario`, {
-        method: 'POST',
-        mode: 'no-cors', // Se mantiver no-cors, não pode ler response.json()
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(usuario),
-      });
-      if (response.ok) { // Apenas verifica se a requisição HTTP foi OK
-        console.log("Usuário enviado para o GAS com sucesso.");
-        // Re-fetch para atualizar a lista após a operação
-        await fetchUsuariosFromSheet();
-        return true;
-      } else {
-        console.error("Erro ao enviar usuário para o GAS:", response.status);
-        return false;
-      }
-    } catch (error) {
-      console.error("Erro na comunicação para criar usuário:", error);
-      return false;
-    }
-    */
+    return () => clearInterval(interval);
   }, []);
 
-  const adicionarNovoLead = useCallback(async (novoLead) => {
-    // Similar a adicionarUsuario, o ideal é que CriarLead chame o GAS e,
-    // em caso de sucesso, você faça um fetchLeadsFromSheet().
-    // Mantendo a estrutura para você adaptar em CriarLead.jsx.
+  const [usuarios, setUsuarios] = useState([]);
+
+  useEffect(() => {
+    const fetchUsuariosFromSheet = async () => {
+      try {
+        const response = await fetch(GOOGLE_SHEETS_USERS + '?v=pegar_usuario');
+        const data = await response.json();
+
+        if (Array.isArray(data)) {
+          const formattedUsuarios = data.map((item, index) => ({
+            id: item.id || '',
+            usuario: item.usuario || '',
+            nome: item.nome || '',
+            email: item.email || '',
+            senha: item.senha || '',
+            status: item.status || 'Ativo',
+            tipo: item.tipo || 'Usuario',
+          }));
+
+          setUsuarios(formattedUsuarios);
+        } else {
+          setUsuarios([]);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar usuários do Google Sheets:', error);
+        setUsuarios([]);
+      }
+    };
+
+    fetchUsuariosFromSheet();
+
+    const interval = setInterval(() => {
+      fetchUsuariosFromSheet();
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const [ultimoFechadoId, setUltimoFechadoId] = useState(null);
+
+  const adicionarUsuario = (usuario) => {
+    setUsuarios((prev) => [...prev, { ...usuario, id: prev.length + 1 }]);
+  };
+
+  const adicionarNovoLead = (novoLead) => {
     setLeads((prevLeads) => {
-      // Verifique por 'id' se o ID é único ou outro campo identificador
-      if (!prevLeads.some(lead => lead.id === novoLead.id)) {
+      if (!prevLeads.some(lead => lead.ID === novoLead.ID)) {
         return [novoLead, ...prevLeads];
       }
       return prevLeads;
     });
-  }, []);
+  };
 
-  const atualizarStatusLead = useCallback(async (id, novoStatus, phone) => {
-    // Encontra o lead no estado atual
-    const leadToUpdate = leads.find(lead => lead.phone === phone);
-    if (!leadToUpdate) {
-      console.error("Lead não encontrado para atualização de status:", phone);
-      return;
-    }
-
-    try {
-      const response = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=alterar_status`, {
-        method: 'POST',
-        mode: 'no-cors', // Mantido no-cors
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phone: phone, // Enviando o telefone como identificador
-          status: novoStatus
-        }),
-      });
-
-      if (response.ok) { // Apenas verifica se a requisição HTTP foi OK
-        console.log('Status do lead enviado ao Sheets com sucesso.');
-        // Atualiza o estado local e re-sincroniza após o envio
-        setLeads(prevLeads =>
-          prevLeads.map(lead =>
-            lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
-          )
+  const atualizarStatusLeadAntigo = (id, novoStatus, phone) => {
+    if (novoStatus == 'Fechado') {
+      setLeadsFechados((prev) => {
+        const atualizados = prev.map((leadsFechados) =>
+          leadsFechados.phone === phone ? { ...leadsFechados, Status: novoStatus, confirmado: true } : leadsFechados
         );
-        // Re-fetch para garantir a sincronização total
-        fetchLeadsFromSheet();
-        if (novoStatus === 'Fechado' || novoStatus === 'Perdido') {
-            fetchLeadsFechadosFromSheet(); // Para Leads Fechados
-        }
-      } else {
-        console.error('Erro ao enviar status do lead para o Apps Script:', response.status);
-        alert(`Erro ao comunicar com o servidor: ${response.status}`);
-      }
-    } catch (error) {
-      console.error('Erro ao enviar dados para o Apps Script (atualizar_status):', error);
-      alert(`Erro de rede ou ao processar requisição: ${error.message}`);
+        return atualizados;
+      });
     }
-  }, [leads, fetchLeadsFromSheet, fetchLeadsFechadosFromSheet]);
 
-  const atualizarSeguradoraLead = useCallback((id, seguradora) => {
-    // Esta função só atualiza o estado local, o envio ao GAS ocorre em 'confirmarSeguradoraLead'.
-    setLeadsFechados((prev) =>
+    setLeads((prev) =>
       prev.map((lead) =>
-        lead.ID === id
-          ? { ...lead, insurer: seguradora, premioLiquido: "", comissao: "", parcelamento: "", VigenciaFinal: "" }
+        lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
+      )
+    );
+  };
+
+  const atualizarStatusLead = (id, novoStatus, phone) => {
+    setLeads((prev) =>
+      prev.map((lead) =>
+        lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
+      )
+    );
+
+    if (novoStatus === 'Fechado') {
+      setLeadsFechados((prev) => {
+        const jaExiste = prev.some((lead) => lead.phone === phone);
+
+        if (jaExiste) {
+          const atualizados = prev.map((lead) =>
+            lead.phone === phone ? { ...lead, Status: novoStatus, confirmado: true } : lead
+          );
+          return atualizados;
+        } else {
+          const leadParaAdicionar = leads.find((lead) => lead.phone === phone);
+
+          if (leadParaAdicionar) {
+            const novoLeadFechado = {
+              ID: leadParaAdicionar.id || crypto.randomUUID(),
+              name: leadParaAdicionar.name,
+              vehicleModel: leadParaAdicionar.vehicleModel, // Corrigido: usando a propriedade mapeada
+              vehicleYearModel: leadParaAdicionar.vehicleYearModel, // Corrigido: usando a propriedade mapeada
+              city: leadParaAdicionar.city,
+              phone: leadParaAdicionar.phone,
+              insurer: leadParaAdicionar.insurancetype || leadParaAdicionar.insuranceType || "",
+              Data: leadParaAdicionar.createdAt || new Date().toISOString(),
+              Responsavel: leadParaAdicionar.responsavel || "",
+              Status: "Fechado",
+              Seguradora: leadParaAdicionar.Seguradora || "",
+              PremioLiquido: leadParaAdicionar.premioLiquido || "",
+              Comissao: leadParaAdicionar.comissao || "",
+              Parcelamento: leadParaAdicionar.parcelamento || "",
+              VigenciaFinal: leadParaAdicionar.VigenciaFinal || "",
+              id: leadParaAdicionar.id || null,
+              usuario: leadParaAdicionar.usuario || "",
+              nome: leadParaAdicionar.nome || "",
+              email: leadParaAdicionar.email || "",
+              senha: leadParaAdicionar.senha || "", // <<-- CORREÇÃO AQUI!
+              status: leadParaAdicionar.status || "Ativo",
+              tipo: leadParaAdicionar.tipo || "Usuario",
+              "Ativo/Inativo": leadParaAdicionar["Ativo/Inativo"] || "Ativo",
+              confirmado: true
+            };
+            return [...prev, novoLeadFechado];
+          }
+          console.warn("Lead não encontrado na lista principal para adicionar aos fechados.");
+          return prev;
+        }
+      });
+    }
+  };
+
+  const atualizarSeguradoraLead = (id, seguradora) => {
+    setLeads((prev) =>
+      prev.map((lead) =>
+        lead.id === id
+          ? limparCamposLead({ ...lead, insurer: seguradora })
           : lead
       )
     );
-  }, []);
+  };
 
-  const confirmarSeguradoraLead = useCallback(async (id, premio, seguradora, comissao, parcelamento, vigenciaFinal) => {
-    const lead = leadsFechados.find((lead) => lead.ID === id);
+  const limparCamposLead = (lead) => ({
+    ...lead,
+    premioLiquido: "",
+    comissao: "",
+    parcelamento: "",
+    VigenciaFinal: "",
+  })
+
+  // === MUDANÇA CRÍTICA AQUI: ENVIANDO 'vigenciaFinal' no FORMATO YYYY-MM-DD ===
+  const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal) => {
+    const lead = leadsFechados.find((lead) => lead.ID == id);
+
     if (!lead) {
       console.error(`Lead com ID ${id} não encontrado na lista de leads fechados.`);
-      alert(`Erro: Lead com ID ${id} não encontrado.`);
       return;
     }
 
-    const dataToSend = {
-      lead: {
-        ID: lead.ID,
-        Seguradora: seguradora,
-        PremioLiquido: premio,
-        Comissao: comissao,
-        Parcelamento: parcelamento,
-        VigenciaFinal: vigenciaFinal || ''
-      }
-    };
+    lead.Seguradora = seguradora;
+    lead.PremioLiquido = premio;
+    lead.Comissao = comissao;
+    lead.Parcelamento = parcelamento;
+    // AQUI É O PONTO CRÍTICO: VigenciaFinal já deve vir como YYYY-MM-DD do input date
+    lead.VigenciaFinal = vigenciaFinal || '';
 
-    console.log("Enviando para o GAS (confirmar_seguradora):", dataToSend);
+    setLeadsFechados((prev) => {
+      const atualizados = prev.map((l) =>
+        l.ID === id ? {
+          ...l,
+          insurerConfirmed: true,
+          Seguradora: seguradora,
+          PremioLiquido: premio,
+          Comissao: comissao,
+          Parcelamento: parcelamento,
+          VigenciaFinal: vigenciaFinal || '' // ATUALIZANDO ESTADO LOCAL COM O VALOR YYYY-MM-DD
+        } : l
+      );
+      return atualizados;
+    });
 
     try {
-      const response = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=alterar_seguradora`, {
+      // Use o URL do seu script com a função alterar_seguradora
+      fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_seguradora', {
         method: 'POST',
-        mode: 'no-cors', // Mantido no-cors
+        mode: 'no-cors', // Mantenha no-cors se você está enviando do navegador para o GAS diretamente
+        body: JSON.stringify({
+          lead: lead // O objeto 'lead' já contém VigenciaFinal no formato YYYY-MM-DD
+        }),
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json', // É uma boa prática, mesmo com no-cors pode ajudar a clareza
         },
-        body: JSON.stringify(dataToSend),
       });
-
-      if (response.ok) { // Apenas verifica se a requisição HTTP foi OK
-        console.log('Dados da seguradora enviados ao Sheets com sucesso.');
-        // Atualiza o estado local e re-sincroniza após o envio
-        setLeadsFechados((prev) =>
-          prev.map((l) =>
-            l.ID === id ? {
-              ...l,
-              insurerConfirmed: true,
-              Seguradora: seguradora,
-              PremioLiquido: premio,
-              Comissao: comissao,
-              Parcelamento: parcelamento,
-              VigenciaFinal: vigenciaFinal || ''
-            } : l
-          )
-        );
-        fetchLeadsFechadosFromSheet(); // Re-fetch para garantir a sincronização
-      } else {
-        console.error('Erro ao enviar dados da seguradora para o Apps Script:', response.status);
-        alert(`Erro ao comunicar com o servidor: ${response.status}`);
-      }
     } catch (error) {
-      console.error('Erro ao enviar dados para o Apps Script (confirmar_seguradora):', error);
-      alert(`Erro de rede ou ao processar requisição: ${error.message}`);
+      console.error('Erro ao enviar lead:', error);
     }
-  }, [leadsFechados, fetchLeadsFechadosFromSheet]);
+  };
 
-  const atualizarDetalhesLeadFechado = useCallback((id, campo, valor) => {
-    // Esta função só atualiza o estado local. O envio ao GAS deve ser feito
-    // em conjunto com a 'confirmarSeguradoraLead' ou uma função similar para cada campo.
+  const atualizarDetalhesLeadFechado = (id, campo, valor) => {
     setLeadsFechados((prev) =>
       prev.map((lead) =>
         lead.ID === id ? { ...lead, [campo]: valor } : lead
       )
     );
-  }, []);
+  };
 
-  const transferirLead = useCallback(async (leadId, responsavelId) => {
-    // Encontra o lead para obter o 'id' da linha na planilha
-    const lead = leads.find(l => l.id === leadId);
-    if (!lead) {
-        console.error("Lead não encontrado para transferência:", leadId);
-        return;
-    }
-
-    let usuarioNome = null;
-    if (responsavelId !== null) {
-      const usuario = usuarios.find((u) => u.id === String(responsavelId));
-      if (usuario) {
-        usuarioNome = usuario.nome;
-      } else {
-        console.error("Usuário responsável não encontrado para ID:", responsavelId);
-        alert("Erro: Usuário responsável não encontrado.");
-        return;
-      }
-    }
-
-    try {
-        const response = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=alterar_atribuido`, {
-            method: 'POST',
-            mode: 'no-cors', // Mantido no-cors
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                id: lead.id, // O ID que o GAS espera para encontrar a linha
-                usuarioId: responsavelId
-            }),
-        });
-
-        if (response.ok) { // Apenas verifica se a requisição HTTP foi OK
-            console.log('Lead transferido para o Sheets com sucesso.');
-            // Atualiza o estado local e re-sincroniza após o envio
-            setLeads((prev) =>
-                prev.map((l) =>
-                    l.id === leadId ? { ...l, responsavel: usuarioNome } : l
-                )
-            );
-            fetchLeadsFromSheet(); // Re-fetch para garantir a sincronização
-        } else {
-            console.error('Erro ao enviar transferência de lead para o Apps Script:', response.status);
-            alert(`Erro ao comunicar com o servidor: ${response.status}`);
-        }
-    } catch (error) {
-        console.error('Erro ao enviar dados para o Apps Script (transferir_lead):', error);
-        alert(`Erro de rede ou ao processar requisição: ${error.message}`);
-    }
-}, [leads, usuarios, fetchLeadsFromSheet]);
-
-  const atualizarStatusUsuario = useCallback(async (id, novoStatus = null, novoTipo = null) => {
-    const usuarioParaAtualizar = usuarios.find((usuario) => usuario.id === id);
-
-    if (!usuarioParaAtualizar) {
-      console.error('Usuário não encontrado para o ID:', id);
+  const transferirLead = (leadId, responsavelId) => {
+    if (responsavelId === null) {
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.id === leadId ? { ...lead, responsavel: null } : lead
+        )
+      );
       return;
     }
 
-    // Cria um novo objeto para enviar, sem modificar o estado diretamente
-    const usuarioModificado = { ...usuarioParaAtualizar };
+    let usuario = usuarios.find((u) => u.id == responsavelId);
 
-    if (novoStatus !== null) {
-      usuarioModificado.status = novoStatus;
-    }
-    if (novoTipo !== null) {
-      usuarioModificado.tipo = novoTipo;
+    if (!usuario) {
+      return;
     }
 
-    console.log("Dados do usuário a serem enviados para o GAS (atualizar_usuario):", usuarioModificado);
+    setLeads((prev) =>
+      prev.map((lead) =>
+        lead.id === leadId ? { ...lead, responsavel: usuario.nome } : lead
+      )
+    );
+  };
+
+  const atualizarStatusUsuario = (id, novoStatus = null, novoTipo = null) => {
+    const usuario = usuarios.find((usuario) => usuario.id === id);
+    if (!usuario) return;
+
+    if (novoStatus !== null) usuario.status = novoStatus;
+    if (novoTipo !== null) usuario.tipo = novoTipo;
 
     try {
-      const response = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=alterar_usuario`, {
+      fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_usuario', {
         method: 'POST',
-        mode: 'no-cors', // Mantido no-cors
+        mode: 'no-cors',
+        body: JSON.stringify({
+          usuario: usuario
+        }),
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          usuario: usuarioModificado // Envia o objeto 'usuario' completo
-        }),
       });
-
-      if (response.ok) { // Apenas verifica se a requisição HTTP foi OK
-        console.log('Usuário enviado ao Sheets com sucesso.');
-        // Atualiza o estado local e re-sincroniza após o envio
-        setUsuarios(prevUsuarios =>
-          prevUsuarios.map(u =>
-            u.id === usuarioModificado.id ? usuarioModificado : u
-          )
-        );
-        fetchUsuariosFromSheet(); // Re-fetch para garantir a sincronização
-      } else {
-        console.error('Erro ao enviar usuário para o Apps Script:', response.status);
-        alert(`Erro ao comunicar com o servidor: ${response.status}`);
-      }
     } catch (error) {
-      console.error('Erro ao enviar dados para o Apps Script (atualizar_usuario):', error);
-      alert(`Erro de rede ou ao processar requisição: ${error.message}`);
+      console.error('Erro ao enviar lead:', error);
     }
-  }, [usuarios, fetchUsuariosFromSheet]);
 
-  const onAbrirLead = useCallback((lead) => {
+    setUsuarios((prev) =>
+      prev.map((usuario) =>
+        usuario.id === id
+          ? {
+              ...usuario,
+              ...(novoStatus !== null ? { status: novoStatus } : {}),
+              ...(novoTipo !== null ? { tipo: novoTipo } : {}),
+            }
+          : usuario
+      )
+    );
+  };
+
+  const onAbrirLead = (lead) => {
     setLeadSelecionado(lead);
 
     let path = '/leads';
@@ -465,9 +431,9 @@ const App = () => {
     else if (lead.status === 'Perdido') path = '/leads-perdidos';
 
     navigate(path);
-  }, [navigate]);
+  };
 
-  const handleLogin = useCallback(() => {
+  const handleLogin = () => {
     const usuarioEncontrado = usuarios.find(
       (u) => u.usuario === loginInput && u.senha === senhaInput && u.status === 'Ativo'
     );
@@ -478,9 +444,7 @@ const App = () => {
     } else {
       alert('Login ou senha inválidos ou usuário inativo.');
     }
-  }, [loginInput, senhaInput, usuarios]); // Depende dos estados de input e da lista de usuários
-
-  const isAdmin = usuarioLogado?.tipo === 'Admin';
+  };
 
   if (!isAuthenticated) {
     return (
@@ -532,6 +496,8 @@ const App = () => {
     );
   }
 
+  const isAdmin = usuarioLogado?.tipo === 'Admin';
+
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
       <Sidebar isAdmin={isAdmin} nomeUsuario={usuarioLogado} />
@@ -554,6 +520,7 @@ const App = () => {
                     : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)
                 }
                 usuarioLogado={usuarioLogado}
+
               />
             }
           />
@@ -577,13 +544,14 @@ const App = () => {
                 leads={isAdmin ? leadsFechados : leadsFechados.filter((lead) => lead.Responsavel === usuarioLogado.nome)}
                 usuarios={usuarios}
                 onUpdateInsurer={atualizarSeguradoraLead}
-                onConfirmInsurer={confirmarSeguradoraLead}
+                onConfirmInsurer={confirmarSeguradoraLead} // Esta função agora aceita VigenciaFinal
                 onUpdateDetalhes={atualizarDetalhesLeadFechado}
                 fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
                 isAdmin={isAdmin}
+                ultimoFechadoId={ultimoFechadoId}
                 onAbrirLead={onAbrirLead}
                 leadSelecionado={leadSelecionado}
-                formatarDataParaExibicao={formatarDataParaExibicao}
+                formatarDataParaExibicao={formatarDataParaExibicao} // Passa a função para o LeadsFechados
               />
             }
           />
@@ -617,6 +585,7 @@ const App = () => {
                 element={
                   <Usuarios
                     leads={isAdmin ? leads : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)}
+
                     usuarios={usuarios}
                     fetchLeadsFromSheet={fetchLeadsFromSheet}
                     fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
@@ -637,5 +606,48 @@ const App = () => {
     </div>
   );
 };
+
+// Nova função para formatar a data de YYYY-MM-DD para DD/Mês/AA para exibição
+// Esta função é APENAS para exibição, NUNCA para enviar ao GAS.
+const formatarDataParaDDMMYYYY = (dataString) => {
+  if (!dataString) return '';
+
+  try {
+    let dateObj;
+    // Tenta reconhecer o formato YYYY-MM-DD (que o GAS enviaria)
+    const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (partesHifen) {
+      dateObj = new Date(`${partesHifen[1]}-${partesHifen[2]}-${partesHifen[3]}T00:00:00`); // Cria com YYYY-MM-DD
+    } else {
+      // Se não for YYYY-MM-DD, tenta parsear DD/MM/YYYY (do Sheets como texto)
+      const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (partesBarra) {
+        dateObj = new Date(`${partesBarra[3]}-${partesBarra[2]}-${partesBarra[1]}T00:00:00`);
+      } else {
+        // Última tentativa de parsear qualquer formato válido
+        dateObj = new Date(dataString);
+      }
+    }
+
+    if (isNaN(dateObj.getTime())) {
+      console.warn('formatarDataParaDDMMYYYY: Data inválida detectada:', dataString);
+      return dataString; // Retorna a string original se inválido
+    }
+
+    const dia = String(dateObj.getDate()).padStart(2, '0');
+    const mesIndex = dateObj.getMonth();
+    const ano = dateObj.getFullYear();
+    const nomeMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                       "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    const mesExtenso = nomeMeses[mesIndex];
+    const anoCurto = String(ano).substring(2);
+
+    return `${dia}/${mesExtenso}/${anoCurto}`; // Ex: 08/Junho/25
+  } catch (e) {
+    console.error("Erro na função formatarDataParaDDMMYYYY:", e);
+    return dataString; // Em caso de erro, retorna a string original
+  }
+};
+
 
 export default App;
