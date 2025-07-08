@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import Lead from './components/Lead';
-import { API_ENDPOINTS } from './config/api'; // Importa as URLs centralizadas
+
+const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
   const [selecionados, setSelecionados] = useState({}); // { [leadId]: userId }
   const [paginaAtual, setPaginaAtual] = useState(1);
+  // Novo estado para controlar o estado de carregamento
+  const [isLoading, setIsLoading] = useState(false);
 
   // Estados para filtro por data (mes e ano) - INICIAM LIMPOS
   const [dataInput, setDataInput] = useState('');
@@ -13,6 +16,19 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   // Estados para filtro por nome
   const [nomeInput, setNomeInput] = useState('');
   const [filtroNome, setFiltroNome] = useState('');
+
+  // Função para buscar leads atualizados do Google Sheets, agora controlando o isLoading
+  const handleRefreshLeads = async () => {
+    setIsLoading(true); // Ativa o loader
+    try {
+      // Chama a função fetchLeadsFromSheet passada como prop
+      await fetchLeadsFromSheet(); 
+    } catch (error) {
+      console.error('Erro ao buscar leads atualizados:', error);
+    } finally {
+      setIsLoading(false); // Desativa o loader, independentemente do sucesso ou erro
+    }
+  };
 
   const leadsPorPagina = 10;
 
@@ -67,7 +83,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
 
     if (filtroData) {
-      return isSameMonthAndYear(lead.createdAt, filtroData);
+      // Considerando que lead.createdAt é uma string no formato 'YYYY-MM-DD'
+      const leadMesAno = lead.createdAt ? lead.createdAt.substring(0, 7) : '';
+      return leadMesAno === filtroData;
     }
 
     if (filtroNome) {
@@ -81,7 +99,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
 
   const usuariosAtivos = usuarios.filter((u) => u.status === 'Ativo');
-  const isAdmin = usuarioLogado?.tipo === 'Admin'; // Corrigido para '==='
+  const isAdmin = usuarioLogado?.tipo === 'Admin';
 
   const handleSelect = (leadId, userId) => {
     setSelecionados((prev) => ({
@@ -97,24 +115,35 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       return;
     }
 
-    // Chama a função transferirLead passada via props do App.jsx
-    // Essa função já lida com a comunicação com o GAS e a atualização do estado global.
     transferirLead(leadId, userId);
 
-    // Remove o lead do estado local de 'selecionados' após o envio
-    setSelecionados((prev) => {
-      const newSelecionados = { ...prev };
-      delete newSelecionados[leadId];
-      return newSelecionados;
-    });
+    const lead = leads.find((l) => l.id === leadId);
+    const leadAtualizado = { ...lead, usuarioId: userId };
+
+    enviarLeadAtualizado(leadAtualizado);
+  };
+
+  const enviarLeadAtualizado = async (lead) => {
+    try {
+      const response = await fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_atribuido', {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify(lead),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (error) {
+      console.error('Erro ao enviar lead:', error);
+    }
   };
 
   const handleAlterar = (leadId) => {
     setSelecionados((prev) => ({
       ...prev,
-      [leadId]: '', // Limpa a seleção para permitir nova atribuição
+      [leadId]: '',
     }));
-    transferirLead(leadId, null); // Transfere para 'null' para desatribuir
+    transferirLead(leadId, null);
   };
 
   const inicio = (paginaCorrigida - 1) * leadsPorPagina;
@@ -131,13 +160,62 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const formatarData = (dataStr) => {
     if (!dataStr) return '';
-    const data = new Date(dataStr);
+    // A API Google Sheets pode retornar datas como 'DD/MM/AAAA' ou 'YYYY-MM-DD'.
+    // Tentamos parsear ambas, priorizando 'YYYY-MM-DD' que Date() entende melhor.
+    let data;
+    if (dataStr.includes('/')) {
+        const partes = dataStr.split('/');
+        data = new Date(`${partes[2]}-${partes[1]}-${partes[0]}`);
+    } else {
+        data = new Date(dataStr);
+    }
+
+    // Verifica se a data é válida
+    if (isNaN(data.getTime())) {
+        return ''; // Retorna vazio se a data for inválida
+    }
     return data.toLocaleDateString('pt-BR');
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      {/* Linha de filtros */}
+    <div style={{ padding: '20px', position: 'relative' }}>
+      {/* Loader de carregamento */}
+      {isLoading && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div
+            style={{
+              border: '8px solid #f3f3f3',
+              borderTop: '8px solid #3498db',
+              borderRadius: '50%',
+              width: '50px',
+              height: '50px',
+              animation: 'spin 1s linear infinite',
+            }}
+          ></div>
+          <style>
+            {`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}
+          </style>
+        </div>
+      )}
+
       <div
         style={{
           display: 'flex',
@@ -151,10 +229,10 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <h1 style={{ margin: 0 }}>Leads</h1>
 
-          <button title='Clique para atualizar os dados'
-            onClick={() => {
-              fetchLeadsFromSheet(); // Usa a prop para buscar leads
-            }}
+          <button
+            title='Clique para atualizar os dados'
+            onClick={handleRefreshLeads} // Chamando a nova função para lidar com o refresh
+            disabled={isLoading} // Desabilita o botão enquanto estiver carregando
           >
             🔄
           </button>
@@ -238,8 +316,10 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         </div>
       </div>
 
-      {gerais.length === 0 ? (
-        <p>Não há leads pendentes.</p>
+      {isLoading ? ( // Mostra a mensagem de carregamento quando isLoading for true
+        <p>Carregando leads...</p>
+      ) : gerais.length === 0 ? (
+        <p>Não há leads pendentes para os filtros aplicados.</p>
       ) : (
         <>
           {leadsPagina.map((lead) => {
@@ -354,13 +434,13 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           >
             <button
               onClick={handlePaginaAnterior}
-              disabled={paginaCorrigida <= 1}
+              disabled={paginaCorrigida <= 1 || isLoading} // Desabilita se estiver carregando
               style={{
                 padding: '6px 14px',
                 borderRadius: '6px',
                 border: '1px solid #ccc',
-                cursor: paginaCorrigida <= 1 ? 'not-allowed' : 'pointer',
-                backgroundColor: paginaCorrigida <= 1 ? '#f0f0f0' : '#fff',
+                cursor: (paginaCorrigida <= 1 || isLoading) ? 'not-allowed' : 'pointer',
+                backgroundColor: (paginaCorrigida <= 1 || isLoading) ? '#f0f0f0' : '#fff',
               }}
             >
               Anterior
@@ -370,13 +450,13 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             </span>
             <button
               onClick={handlePaginaProxima}
-              disabled={paginaCorrigida >= totalPaginas}
+              disabled={paginaCorrigida >= totalPaginas || isLoading} // Desabilita se estiver carregando
               style={{
                 padding: '6px 14px',
                 borderRadius: '6px',
                 border: '1px solid #ccc',
-                cursor: paginaCorrigida >= totalPaginas ? 'not-allowed' : 'pointer',
-                backgroundColor: paginaCorrigida >= totalPaginas ? '#f0f0f0' : '#fff',
+                cursor: (paginaCorrigida >= totalPaginas || isLoading) ? 'not-allowed' : 'pointer',
+                backgroundColor: (paginaCorrigida >= totalPaginas || isLoading) ? '#f0f0f0' : '#fff',
               }}
             >
               Próxima
