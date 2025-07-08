@@ -66,7 +66,8 @@ const App = () => {
           comissao: item.comissao || '',
           parcelamento: item.parcelamento || '',
           // Certifique-se de que o nome da chave 'VigenciaFinal' aqui corresponda ao nome da coluna na sua planilha
-          VigenciaFinal: item.VigenciaFinal || '', // ADICIONADO AQUI
+          // Agora, ao ler, garantimos que ela esteja no formato DD-MM-YYYY
+          VigenciaFinal: item.VigenciaFinal ? formatarDataParaDDMMYYYY(item.VigenciaFinal) : '',
           createdAt: item.data || new Date().toISOString(),
           responsavel: item.responsavel || '',
           editado: item.editado || ''
@@ -104,8 +105,12 @@ const App = () => {
       const response = await fetch(GOOGLE_SHEETS_LEADS_FECHADOS)
       const data = await response.json();
 
-      // Assuming `data` already contains 'VigenciaFinal' from the Apps Script
-      setLeadsFechados(data);
+      // Mapeia os dados para garantir que VigenciaFinal esteja no formato DD-MM-YYYY ao carregar
+      const formattedData = data.map(item => ({
+          ...item,
+          VigenciaFinal: item.VigenciaFinal ? formatarDataParaDDMMYYYY(item.VigenciaFinal) : ''
+      }));
+      setLeadsFechados(formattedData);
 
     } catch (error) {
       console.error('Erro ao buscar leads fechados:', error);
@@ -279,7 +284,8 @@ const App = () => {
     lead.PremioLiquido = premio;
     lead.Comissao = comissao;
     lead.Parcelamento = parcelamento;
-    lead.VigenciaFinal = vigenciaFinal; // ADICIONADO AQUI
+    // Garante que vigenciaFinal é uma string DD-MM-YYYY antes de atribuir
+    lead.VigenciaFinal = vigenciaFinal ? formatarDataParaDDMMYYYY(vigenciaFinal) : ''; 
 
     setLeadsFechados((prev) => {
       const atualizados = prev.map((l) =>
@@ -290,7 +296,7 @@ const App = () => {
           PremioLiquido: premio,
           Comissao: comissao,
           Parcelamento: parcelamento,
-          VigenciaFinal: vigenciaFinal // ATUALIZANDO ESTADO LOCAL COM VIGENCIA FINAL
+          VigenciaFinal: vigenciaFinal ? formatarDataParaDDMMYYYY(vigenciaFinal) : '' // ATUALIZANDO ESTADO LOCAL COM VIGENCIA FINAL
         } : l
       );
       return atualizados;
@@ -561,6 +567,27 @@ const App = () => {
       </main>
     </div>
   );
+};
+
+// Nova função para formatar a data de YYYY-MM-DD para DD-MM-YYYY
+// ou de DD/MM/YYYY para DD-MM-YYYY
+const formatarDataParaDDMMYYYY = (dataString) => {
+  if (!dataString) return '';
+
+  // Tenta reconhecer o formato YYYY-MM-DD (do input type="date")
+  const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (partesHifen) {
+    return `${partesHifen[3]}-${partesHifen[2]}-${partesHifen[1]}`;
+  }
+
+  // Tenta reconhecer o formato DD/MM/YYYY (do Sheets)
+  const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (partesBarra) {
+    return `${partesBarra[1]}-${partesBarra[2]}-${partesBarra[3]}`;
+  }
+
+  // Se não for nenhum dos formatos esperados, retorna a string original ou vazio
+  return dataString; 
 };
 
 export default App;
