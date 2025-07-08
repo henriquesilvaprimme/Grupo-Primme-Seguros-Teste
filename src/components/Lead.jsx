@@ -43,7 +43,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
   const enviarLeadAtualizado = async (leadId, status, phone) => {
     //console.log('Enviando para o GAS:', leadId, status, phone);
     try {
-      await fetch('https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_status', {
+      await fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_status', {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify({
