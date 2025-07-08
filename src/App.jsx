@@ -6,7 +6,7 @@ import Dashboard from './components/Dashboard';
 import Leads from './Leads';
 import LeadsFechados from './LeadsFechados';
 import LeadsPerdidos from './LeadsPerdidos';
-import BuscarLead from './Layers/BuscarLead'; // Corrigido o caminho se for Layers/BuscarLead
+import BuscarLead from './BuscarLead'; // Corrigido o caminho se for Layers/BuscarLead
 import CriarUsuario from './pages/CriarUsuario';
 import Usuarios from './pages/Usuarios';
 import Ranking from './pages/Ranking';
