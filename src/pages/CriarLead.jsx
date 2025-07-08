@@ -17,15 +17,18 @@ const CriarLead = () => {
 
   // MUITO IMPORTANTE: SUBSTITUA ESTE URL PELA URL REAL E ATUALIZADA DA SUA IMPLANTAÇÃO DO GOOGLE APPS SCRIPT
   // CADA NOVA IMPLANTAÇÃO PODE GERAR UMA NOVA URL.
-  const gasUrl = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xFFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec';
+  const gasUrl = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xFFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec'; // Mantenha sua URL atualizada
 
   // Função para buscar os nomes dos responsáveis ao carregar o componente
   useEffect(() => {
     const buscarNomesResponsaveis = async () => {
       try {
-        const response = await fetch(`${gasUrl}?v=listar_nomes_usuarios`);
+        // Altere o endpoint para 'pegar_usuario' que retorna a lista completa de usuários.
+        const response = await fetch(`${gasUrl}?v=pegar_usuario`);
         const data = await response.json();
-        setNomesResponsaveis(data);
+        // Mapeie os dados para pegar apenas os nomes dos responsáveis (assumindo que a coluna 'Nome' existe)
+        const nomes = data.map(user => user.Nome);
+        setNomesResponsaveis(nomes);
       } catch (error) {
         console.error('Erro ao buscar nomes de responsáveis:', error);
         setMensagemFeedback('❌ Erro ao carregar a lista de responsáveis. Verifique o console e o Apps Script.');
@@ -44,31 +47,18 @@ const CriarLead = () => {
       return;
     }
 
-    // Geração do ID aleatório mais robusto
-    const idAleatorio = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-
-    // Data e hora atual formatada com horas, minutos e segundos
-    const dataHoraAtual = new Date().toLocaleString('pt-BR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-
-    // Objeto lead com os nomes das chaves correspondentes às colunas do Sheets
+    // Objeto lead com os nomes das chaves correspondentes às colunas do Apps Script/Sheets
+    // As chaves devem bater com as que você usou na função `doPost` para 'criar_lead'
     const novoLead = {
-      ID: idAleatorio,
+      // O ID e a data/hora serão gerados no Apps Script para evitar inconsistências
       name: nomeLead,
       vehicleModel: modeloVeiculo,
       vehicleYearModel: anoModelo,
       city: cidade,
       phone: telefone,
-      insurer: tipoSeguro,
-      Data: dataHoraAtual,
-      Responsavel: responsavel,
-      Status: 'Fechado',
+      insuranceType: tipoSeguro, // A coluna no Apps Script está como 'insuranceType'
+      responsavel: responsavel, // A coluna no Apps Script está como 'responsavel'
+      status: 'Novo', // O status inicial de um lead recém-criado
     };
 
     try {
@@ -91,7 +81,7 @@ const CriarLead = () => {
     try {
       await fetch(`${gasUrl}?v=criar_lead`, {
         method: 'POST',
-        mode: 'no-cors',
+        mode: 'no-cors', // Necessário para evitar erros de CORS em requisições simples
         headers: {
           'Content-Type': 'application/json',
         },
