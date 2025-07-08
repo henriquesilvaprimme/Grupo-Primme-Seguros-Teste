@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_ENDPOINTS } from './config/api'; // Importa as URLs centralizadas
+import { API_ENDPOINTS } from '../config/api'; // Importa as URLs centralizadas
 
 // Recebe 'onCreateLead' como prop do App.jsx para centralizar a lógica de criação
 const CriarLead = ({ onCreateLead }) => {
