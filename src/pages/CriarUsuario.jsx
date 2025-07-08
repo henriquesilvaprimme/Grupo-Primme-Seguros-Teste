@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-// Não é necessário importar API_ENDPOINTS aqui, pois a requisição é feita via prop
-// import { API_ENDPOINTS } from './config/api'; 
 
 const CriarUsuario = ({ adicionarUsuario }) => {
   const [usuario, setUsuario] = useState(''); // Será usado como login
@@ -11,34 +9,51 @@ const CriarUsuario = ({ adicionarUsuario }) => {
 
   const navigate = useNavigate();
 
-  const handleCriar = async () => { // Adicionado 'async' pois 'adicionarUsuario' pode ser assíncrona
+  const handleCriar = () => {
     if (!usuario || !email || !nome || !senha) {
       alert('Preencha todos os campos.');
       return;
     }
 
     const novoUsuario = {
-      // O ID será gerado no App.jsx (ou no GAS, se você mudar a lógica lá para isso)
-      // Mantendo Date.now() aqui para fins de demonstração, mas o App.jsx já tem uma lógica melhor.
-      id: Date.now(), 
+      id: Date.now(),
       usuario, // Usado como login
       email,
       nome, // Nome completo
       senha,
-      tipo: 'Usuario', // Tipo padrão
-      status: 'Ativo', // Status padrão
+      tipo: 'Usuario',
+      status: 'Ativo',
     };
 
-    // Chama a função 'adicionarUsuario' passada via props do App.jsx.
-    // Esta função já lida com a comunicação com o GAS e a atualização do estado global.
-    await adicionarUsuario(novoUsuario); 
+    criarUsuarioFunc(novoUsuario);
+
+    adicionarUsuario(novoUsuario);
     
-    // Navega após a tentativa de adicionar o usuário
     navigate('/usuarios');
   };
 
-  // A função 'criarUsuarioFunc' foi removida, pois a lógica de requisição
-  // agora é centralizada na prop 'adicionarUsuario' do App.jsx.
+  const criarUsuarioFunc = async (lead) => {
+
+    try {
+      const response = await fetch('https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=criar_usuario', {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify(lead),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      //const result = await response.json();
+      //console.log(result);
+    } catch (error) {
+      console.error('Erro ao enviar lead:', error);
+    }
+  };
+
+  
+
+
+
 
   return (
     <div className="p-6 max-w-xl mx-auto bg-white rounded-xl shadow-md space-y-6">
