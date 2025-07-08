@@ -6,7 +6,7 @@ import Dashboard from './components/Dashboard';
 import Leads from './Leads';
 import LeadsFechados from './LeadsFechados';
 import LeadsPerdidos from './LeadsPerdidos';
-import BuscarLead from './BuscarLead'; // <-- LINHA CORRIGIDA AQUI
+import BuscarLead from './BuscarLead';
 import CriarUsuario from './pages/CriarUsuario';
 import Usuarios from './pages/Usuarios';
 import Ranking from './pages/Ranking';
@@ -50,22 +50,22 @@ const App = () => {
 
         const formattedLeads = sortedData.map((item, index) => ({
           id: item.id ? Number(item.id) : index + 1,
-          name: item.name || item.Name || '',
-          vehicleModel: item.vehiclemodel || item.vehiclemodel || '',
-          vehicleYearModel: item.vehicleyearmodel || item.vehicleyearmodel || '',
+          name: item.name || '',
+          vehicleModel: item.vehiclemodel || '',
+          vehicleYearModel: item.vehicleyearmodel || '',
           city: item.city || '',
-          phone: item.phone || item.Telefone || '',
+          phone: item.phone || '',
           insuranceType: item.insurancetype || '',
           status: item.status || 'Selecione o status',
-          confirmado: item.confirmado === 'true' || item.confirmado === true,
-          insurer: item.insurer || '',
+          confirmado: item.confirmado === 'true' || item.confirmado === true, // Assumindo que essa prop vem do GAS se confirmada
+          insurer: item.insurer || '', // Esta deve ser a seguradora atual, se aplicável
           insurerConfirmed: item.insurerConfirmed === 'true' || item.insurerConfirmed === true,
           usuarioId: item.usuarioId ? Number(item.usuarioId) : null,
           premioLiquido: item.premioLiquido || '',
           comissao: item.comissao || '',
           parcelamento: item.parcelamento || '',
-          VigenciaFinal: item.VigenciaFinal || '', 
-          createdAt: item.data || new Date().toISOString(),
+          VigenciaFinal: item.VigenciaFinal || '', // Mantenha esta aqui para leads fechados, mas para leads "normais" pode ser vazio
+          createdAt: item.data || new Date().toISOString(), // Usando 'data' do GAS como 'createdAt'
           responsavel: item.responsavel || '',
           editado: item.editado || ''
         }));
@@ -96,11 +96,45 @@ const App = () => {
     return () => clearInterval(interval);
   }, [leadSelecionado]);
 
+
+  // ** FUNÇÃO CORRIGIDA PARA PEGAR LEADS FECHADOS **
   const fetchLeadsFechadosFromSheet = async () => {
     try {
       const response = await fetch(GOOGLE_SHEETS_LEADS_FECHADOS);
-      const data = await response.json();
-      setLeadsFechados(data);
+      const data = await response.json(); // Data já vem como array de objetos
+
+      if (Array.isArray(data)) {
+        // Mapeia os dados para a estrutura esperada pelo frontend
+        const formattedLeadsFechados = data.map(item => ({
+          id: String(item.ID), // Use ID como string
+          name: item.Name || '',
+          vehicleModel: item['Vehicle Model'] || '', // Corrigido para "Vehicle Model"
+          vehicleYearModel: item['Vehicle Year Model'] || '', // Corrigido para "Vehicle Year Model"
+          city: item.City || '',
+          phone: item.Phone || '',
+          insuranceType: item['Ins. Type'] || '', // Corrigido para "Ins. Type"
+          createdAt: item.Data || '', // Corrigido para "Data"
+          responsavel: item.Responsavel || '',
+          status: item.Status || 'Fechado', // O status deve ser "Fechado"
+          insurer: item.Seguradora || '', // Corrigido para "Seguradora"
+          premioLiquido: item['Premio Liquido'] || '', // Corrigido para "Premio Liquido"
+          comissao: item.Comissao || '',
+          parcelamento: item.Parcelamento || '',
+          VigenciaFinal: item.FimVigencia || '', // **CORRIGIDO: Agora mapeia para 'FimVigencia' do GAS**
+          editado: item.Editado || '', // Corrigido para "Editado"
+
+          // Dados do usuário, se houver no objeto retornado pelo joinUsersClosed
+          usuarioId: item.usuarioId || null,
+          username: item.username || '',
+          nomeUsuario: item.nomeUsuario || '',
+          emailUsuario: item.emailUsuario || '',
+          statusUsuario: item.statusUsuario || '',
+          tipoUsuario: item.tipoUsuario || '',
+        }));
+        setLeadsFechados(formattedLeadsFechados);
+      } else {
+        setLeadsFechados([]);
+      }
     } catch (error) {
       console.error('Erro ao buscar leads fechados:', error);
       setLeadsFechados([]);
@@ -126,7 +160,7 @@ const App = () => {
         const data = await response.json();
 
         if (Array.isArray(data)) {
-          const formattedUsuarios = data.map((item, index) => ({
+          const formattedUsuarios = data.map((item) => ({ // Removido index, pois não é necessário aqui
             id: item.id || '',
             usuario: item.usuario || '',
             nome: item.nome || '',
@@ -162,7 +196,9 @@ const App = () => {
 
   const adicionarNovoLead = (novoLead) => {
     setLeads((prevLeads) => {
-      if (!prevLeads.some(lead => lead.ID === novoLead.ID)) {
+      // Verifica se o lead já existe pelo ID (se houver) ou por outro identificador único
+      // Ajuste para usar `novoLead.ID` se essa for a propriedade única no objeto `novoLead`
+      if (!prevLeads.some(lead => String(lead.id) === String(novoLead.ID))) { // Converter ambos para string para comparação
         return [novoLead, ...prevLeads];
       }
       return prevLeads;
@@ -189,46 +225,41 @@ const App = () => {
   const atualizarStatusLead = (id, novoStatus, phone) => {
     setLeads((prev) =>
       prev.map((lead) =>
-        lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
+        String(lead.phone) === String(phone) ? { ...lead, status: novoStatus, confirmado: true } : lead // Garante comparação de string
       )
     );
 
     if (novoStatus === 'Fechado') {
       setLeadsFechados((prev) => {
-        const jaExiste = prev.some((lead) => lead.phone === phone);
-
-        if (jaExiste) {
-          const atualizados = prev.map((lead) =>
-            lead.phone === phone ? { ...lead, Status: novoStatus, confirmado: true } : lead
+        const leadExistenteFechado = prev.find((lead) => String(lead.phone) === String(phone)); // Verifica por telefone
+        if (leadExistenteFechado) {
+          // Se já existe, apenas atualiza o status se necessário
+          return prev.map((lead) =>
+            String(lead.phone) === String(phone) ? { ...lead, Status: novoStatus, confirmado: true } : lead
           );
-          return atualizados;
         } else {
-          const leadParaAdicionar = leads.find((lead) => lead.phone === phone);
+          // Se não existe, encontra na lista principal e adiciona
+          const leadParaAdicionar = leads.find((lead) => String(lead.phone) === String(phone));
 
           if (leadParaAdicionar) {
             const novoLeadFechado = {
-              ID: leadParaAdicionar.id || crypto.randomUUID(),
+              id: leadParaAdicionar.id || crypto.randomUUID(), // Usar `id` como chave principal
+              ID: leadParaAdicionar.id || crypto.randomUUID(), // Manter `ID` para compatibilidade com GAS
               name: leadParaAdicionar.name,
-              vehicleModel: leadParaAdicionar.vehiclemodel,
-              vehicleYearModel: leadParaAdicionar.vehicleyearmodel,
+              vehicleModel: leadParaAdicionar.vehicleModel,
+              vehicleYearModel: leadParaAdicionar.vehicleYearModel,
               city: leadParaAdicionar.city,
               phone: leadParaAdicionar.phone,
-              insurer: leadParaAdicionar.insurancetype || leadParaAdicionar.insuranceType || "",
-              Data: leadParaAdicionar.createdAt || new Date().toISOString(),
-              Responsavel: leadParaAdicionar.responsavel || "",
-              Status: "Fechado",
-              Seguradora: leadParaAdicionar.Seguradora || "",
+              // Use insuranceType do lead original, que já vem formatado
+              insuranceType: leadParaAdicionar.insuranceType || leadParaAdicionar.insurer || '',
+              createdAt: leadParaAdicionar.createdAt || new Date().toISOString(),
+              responsavel: leadParaAdicionar.responsavel || '',
+              status: "Fechado", // Já está definido aqui
+              Seguradora: leadParaAdicionar.insurer || "", // Mapeia para a seguradora inicial do lead principal
               PremioLiquido: leadParaAdicionar.premioLiquido || "",
               Comissao: leadParaAdicionar.comissao || "",
               Parcelamento: leadParaAdicionar.parcelamento || "",
-              id: leadParaAdicionar.id || null,
-              usuario: leadParaAdicionar.usuario || "",
-              nome: leadParaAdicionar.nome || "",
-              email: leadParaAdicionar.email || "",
-              senha: leadParaAdicionar.senha || "",
-              status: leadParaAdicionar.status || "Ativo",
-              tipo: leadParaAdicionar.tipo || "Usuario",
-              "Ativo/Inativo": leadParaAdicionar["Ativo/Inativo"] || "Ativo",
+              VigenciaFinal: leadParaAdicionar.VigenciaFinal || "", // Mantém VigenciaFinal do lead principal
               confirmado: true
             };
             return [...prev, novoLeadFechado];
@@ -240,11 +271,12 @@ const App = () => {
     }
   };
 
+
   const atualizarSeguradoraLead = (id, seguradora) => {
-    setLeads((prev) =>
+    setLeadsFechados((prev) =>
       prev.map((lead) =>
-        lead.id === id
-          ? limparCamposLead({ ...lead, insurer: seguradora })
+        String(lead.id) === String(id) // Usar 'id'
+          ? limparCamposLead({ ...lead, Seguradora: seguradora })
           : lead
       )
     );
@@ -252,61 +284,79 @@ const App = () => {
 
   const limparCamposLead = (lead) => ({
     ...lead,
-    premioLiquido: "",
-    comissao: "",
-    parcelamento: "",
-    VigenciaFinal: "", 
+    PremioLiquido: "",
+    Comissao: "",
+    Parcelamento: "",
+    VigenciaFinal: "",
   });
 
   const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal) => {
-    const lead = leadsFechados.find((lead) => lead.ID == id);
+    // Encontrar o lead na lista local de leadsFechados
+    const lead = leadsFechados.find((l) => String(l.id) === String(id));
 
     if (!lead) {
       console.error(`Lead com ID ${id} não encontrado na lista de leads fechados.`);
       return;
     }
 
-    lead.Seguradora = seguradora;
-    lead.PremioLiquido = premio;
-    lead.Comissao = comissao;
-    lead.Parcelamento = parcelamento;
-    lead.VigenciaFinal = vigenciaFinal; 
-
+    // Atualiza o estado local primeiro
     setLeadsFechados((prev) => {
       const atualizados = prev.map((l) =>
-        l.ID === id ? {
+        String(l.id) === String(id) ? {
           ...l,
-          insurerConfirmed: true,
+          insurerConfirmed: true, // Se essa prop for usada
           Seguradora: seguradora,
           PremioLiquido: premio,
           Comissao: comissao,
           Parcelamento: parcelamento,
-          VigenciaFinal: vigenciaFinal 
+          VigenciaFinal: vigenciaFinal, // Atualiza a VigenciaFinal no estado
         } : l
       );
       return atualizados;
     });
 
+    // Prepara os dados para enviar ao Google Apps Script (GAS)
+    // Os nomes das propriedades devem coincidir com o que o GAS espera
+    const dataToSend = {
+      lead: {
+        ID: String(lead.id), // ID do lead
+        Seguradora: seguradora,
+        PremioLiquido: premio,
+        Comissao: comissao,
+        Parcelamento: parcelamento,
+        VigenciaFinal: vigenciaFinal, // Envia VigenciaFinal para o GAS
+      },
+    };
+
     try {
       fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_seguradora', {
         method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify({
-          lead: lead
-        }),
+        mode: 'no-cors', // Necessário para evitar erro CORS no browser
+        body: JSON.stringify(dataToSend),
         headers: {
           'Content-Type': 'application/json',
         },
+      })
+      .then(response => {
+          // Como mode: 'no-cors' não permite ler a resposta,
+          // assumimos sucesso se não houver erro na requisição.
+          console.log("Requisição de atualização de seguradora enviada.");
+          // Opcional: Re-fetch os leads fechados após um pequeno atraso para garantir que as alterações foram salvas.
+          setTimeout(fetchLeadsFechadosFromSheet, 2000);
+      })
+      .catch(error => {
+          console.error('Erro ao enviar lead para o GAS:', error);
       });
     } catch (error) {
-      console.error('Erro ao enviar lead:', error);
+      console.error('Erro ao preparar requisição de seguradora:', error);
     }
   };
+
 
   const atualizarDetalhesLeadFechado = (id, campo, valor) => {
     setLeadsFechados((prev) =>
       prev.map((lead) =>
-        lead.ID === id ? { ...lead, [campo]: valor } : lead
+        String(lead.id) === String(id) ? { ...lead, [campo]: valor } : lead
       )
     );
   };
@@ -315,13 +365,13 @@ const App = () => {
     if (responsavelId === null) {
       setLeads((prev) =>
         prev.map((lead) =>
-          lead.id === leadId ? { ...lead, responsavel: null } : lead
+          String(lead.id) === String(leadId) ? { ...lead, responsavel: null } : lead
         )
       );
       return;
     }
 
-    let usuario = usuarios.find((u) => u.id == responsavelId);
+    let usuario = usuarios.find((u) => String(u.id) === String(responsavelId));
 
     if (!usuario) {
       return;
@@ -329,44 +379,77 @@ const App = () => {
 
     setLeads((prev) =>
       prev.map((lead) =>
-        lead.id === leadId ? { ...lead, responsavel: usuario.nome } : lead
+        String(lead.id) === String(leadId) ? { ...lead, responsavel: usuario.nome } : lead
       )
     );
-  };
 
-  const atualizarStatusUsuario = (id, novoStatus = null, novoTipo = null) => {
-    const usuario = usuarios.find((usuario) => usuario.id === id);
-    if (!usuario) return;
-
-    if (novoStatus !== null) usuario.status = novoStatus;
-    if (novoTipo !== null) usuario.tipo = novoTipo;
-
+    // Enviar a alteração para o GAS
     try {
-      fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_usuario', {
+      fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_atribuido', {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify({
-          usuario: usuario
+          id: leadId,
+          usuarioId: responsavelId
         }),
         headers: {
           'Content-Type': 'application/json',
         },
       });
     } catch (error) {
-      console.error('Erro ao enviar lead:', error);
+      console.error('Erro ao enviar alteração de atribuição para o GAS:', error);
     }
+  };
 
-    setUsuarios((prev) =>
-      prev.map((usuario) =>
-        usuario.id === id
-          ? {
-            ...usuario,
-            ...(novoStatus !== null ? { status: novoStatus } : {}),
-            ...(novoTipo !== null ? { tipo: novoTipo } : {}),
-          }
-          : usuario
-      )
-    );
+  const atualizarStatusUsuario = (id, novoStatus = null, novoTipo = null) => {
+    // Encontrar o usuário na lista local
+    const usuarioParaAtualizar = usuarios.find((u) => String(u.id) === String(id));
+    if (!usuarioParaAtualizar) return;
+
+    // Criar um objeto com os dados a serem enviados ao GAS
+    const dataToSend = {
+      usuario: {
+        id: String(usuarioParaAtualizar.id), // ID é crucial para o GAS encontrar o usuário
+        usuario: usuarioParaAtualizar.usuario,
+        nome: usuarioParaAtualizar.nome,
+        email: usuarioParaAtualizar.email,
+        senha: usuarioParaAtualizar.senha,
+        status: novoStatus !== null ? novoStatus : usuarioParaAtualizar.status,
+        tipo: novoTipo !== null ? novoTipo : usuarioParaAtualizar.tipo,
+      },
+    };
+
+    // Enviar a alteração para o GAS
+    try {
+      fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_usuario', {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify(dataToSend),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      .then(response => {
+          console.log("Requisição de atualização de usuário enviada.");
+          // Atualiza o estado local APÓS o envio para o GAS (ou assume sucesso)
+          setUsuarios((prev) =>
+              prev.map((u) =>
+                  String(u.id) === String(id)
+                      ? {
+                          ...u,
+                          ...(novoStatus !== null ? { status: novoStatus } : {}),
+                          ...(novoTipo !== null ? { tipo: novoTipo } : {}),
+                      }
+                      : u
+              )
+          );
+      })
+      .catch(error => {
+          console.error('Erro ao enviar alteração de usuário para o GAS:', error);
+      });
+    } catch (error) {
+      console.error('Erro ao preparar requisição de usuário:', error);
+    }
   };
 
   const onAbrirLead = (lead) => {
