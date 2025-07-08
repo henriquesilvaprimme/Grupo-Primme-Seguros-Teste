@@ -17,7 +17,7 @@ const CriarLead = () => {
 
   // MUITO IMPORTANTE: SUBSTITUA ESTE URL PELA URL REAL E ATUALIZADA DA SUA IMPLANTAÇÃO DO GOOGLE APPS SCRIPT
   // CADA NOVA IMPLANTAÇÃO PODE GERAR UMA NOVA URL.
-  const gasUrl = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xFFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec'; // Mantenha sua URL atualizada
+  const gasUrl = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec'; // Mantenha sua URL atualizada
 
   // Função para buscar os nomes dos responsáveis ao carregar o componente
   useEffect(() => {
