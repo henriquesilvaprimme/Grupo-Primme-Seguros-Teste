@@ -36,12 +36,9 @@ const App = () => {
   const [leadSelecionado, setLeadSelecionado] = useState(null);
 
   // Função auxiliar para formatar a data para exibição no frontend (DD/Mês/AA ou DD/MM/YYYY)
-  // Deixaremos esta função como ela está, pois é para exibição, não para envio.
   const formatarDataParaExibicao = (dataString) => {
     if (!dataString) return '';
     try {
-      // Cria um objeto Date. Ele deve ser capaz de parsear YYYY-MM-DD (do GAS)
-      // ou DD/MM/YYYY (se o Sheets salvou assim e o GAS retornou assim).
       let dateObj;
       const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})$/); // Formato YYYY-MM-DD
       const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); // Formato DD/MM/YYYY
@@ -62,9 +59,8 @@ const App = () => {
       const dia = String(dateObj.getDate()).padStart(2, '0');
       const mes = String(dateObj.getMonth() + 1).padStart(2, '0'); // Mês é base 0
       const ano = dateObj.getFullYear();
-      // Se quiser DD/Mês/AA, precisará de um array de nomes de meses
       const nomeMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-                         "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+                          "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
       const mesExtenso = nomeMeses[dateObj.getMonth()];
       const anoCurto = String(ano).substring(2);
 
@@ -94,11 +90,11 @@ const App = () => {
         const formattedLeads = sortedData.map((item, index) => ({
           id: item.id ? Number(item.id) : index + 1,
           name: item.name || item.Name || '',
-          vehicleModel: item.vehiclemodel || item.vehiclemodel || '',
-          vehicleYearModel: item.vehicleyearmodel || item.vehicleyearmodel || '',
+          vehicleModel: item.vehiclemodel || item.vehicleModel || '', // Usando `vehicleModel` consistentemente
+          vehicleYearModel: item.vehicleyearmodel || item.vehicleYearModel || '', // Usando `vehicleYearModel` consistentemente
           city: item.city || '',
           phone: item.phone || item.Telefone || '',
-          insuranceType: item.insurancetype || '',
+          insuranceType: item.insurancetype || item.insuranceType || '',
           status: item.status || 'Selecione o status',
           confirmado: item.confirmado === 'true' || item.confirmado === true,
           insurer: item.insurer || '',
@@ -107,9 +103,7 @@ const App = () => {
           premioLiquido: item.premioLiquido || '',
           comissao: item.comissao || '',
           parcelamento: item.parcelamento || '',
-          // Ao ler do GAS, se VigenciaFinal vier como YYYY-MM-DD, a formatarDataParaExibicao cuidará.
-          // Se vier como DD/MM/YYYY (texto do sheets), a formatarDataParaExibicao também cuidará.
-          VigenciaFinal: item.VigenciaFinal || '', // Mantém o valor como vem do GAS (YYYY-MM-DD)
+          VigenciaFinal: item.VigenciaFinal || '',
           createdAt: item.data || new Date().toISOString(),
           responsavel: item.responsavel || '',
           editado: item.editado || ''
@@ -150,12 +144,9 @@ const App = () => {
 
       console.log("Dados de Leads Fechados Recebidos do GAS:", data);
 
-      // Mapeia os dados para garantir que VigenciaFinal esteja no formato YYYY-MM-DD ao carregar
-      // O GAS já deve retornar YYYY-MM-DD para o frontend se leu corretamente.
-      // A função formatarDataParaExibicao será usada apenas na exibição.
       const formattedData = data.map(item => ({
         ...item,
-        // VigenciaFinal: item.VigenciaFinal ? formatarDataParaDDMMYYYY(item.VigenciaFinal) : '' // REMOVIDO: Não formatar aqui! Apenas na exibição!
+        // VigenciaFinal já vem no formato YYYY-MM-DD do GAS, então não precisamos formatar aqui
       }));
       setLeadsFechados(formattedData);
 
@@ -268,8 +259,8 @@ const App = () => {
             const novoLeadFechado = {
               ID: leadParaAdicionar.id || crypto.randomUUID(),
               name: leadParaAdicionar.name,
-              vehicleModel: leadParaAdicionar.vehiclemodel,
-              vehicleYearModel: leadParaAdicionar.vehicleyearmodel,
+              vehicleModel: leadParaAdicionar.vehicleModel, // Corrigido: usando a propriedade mapeada
+              vehicleYearModel: leadParaAdicionar.vehicleYearModel, // Corrigido: usando a propriedade mapeada
               city: leadParaAdicionar.city,
               phone: leadParaAdicionar.phone,
               insurer: leadParaAdicionar.insurancetype || leadParaAdicionar.insuranceType || "",
@@ -280,12 +271,12 @@ const App = () => {
               PremioLiquido: leadParaAdicionar.premioLiquido || "",
               Comissao: leadParaAdicionar.comissao || "",
               Parcelamento: leadParaAdicionar.parcelamento || "",
-              VigenciaFinal: leadParaAdicionar.VigenciaFinal || "", // Mantém o formato original se existir
+              VigenciaFinal: leadParaAdicionar.VigenciaFinal || "",
               id: leadParaAdicionar.id || null,
               usuario: leadParaAdicionar.usuario || "",
               nome: leadParaAdicionar.nome || "",
               email: leadParaAdicionar.email || "",
-              senha: leadParaAdandar.senha || "",
+              senha: leadParaAdicionar.senha || "", // <<-- CORREÇÃO AQUI!
               status: leadParaAdicionar.status || "Ativo",
               tipo: leadParaAdicionar.tipo || "Usuario",
               "Ativo/Inativo": leadParaAdicionar["Ativo/Inativo"] || "Ativo",
@@ -315,7 +306,7 @@ const App = () => {
     premioLiquido: "",
     comissao: "",
     parcelamento: "",
-    VigenciaFinal: "", // Limpa também a vigência final ao redefinir
+    VigenciaFinal: "",
   })
 
   // === MUDANÇA CRÍTICA AQUI: ENVIANDO 'vigenciaFinal' no FORMATO YYYY-MM-DD ===
@@ -332,8 +323,6 @@ const App = () => {
     lead.Comissao = comissao;
     lead.Parcelamento = parcelamento;
     // AQUI É O PONTO CRÍTICO: VigenciaFinal já deve vir como YYYY-MM-DD do input date
-    // Não aplique formatarDataParaDDMMYYYY aqui, pois ela converte para DD-MM-YYYY
-    // O GAS espera YYYY-MM-DD para poder parsear e salvar corretamente.
     lead.VigenciaFinal = vigenciaFinal || '';
 
     setLeadsFechados((prev) => {
@@ -407,7 +396,7 @@ const App = () => {
     if (novoTipo !== null) usuario.tipo = novoTipo;
 
     try {
-      fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_usuario', {
+      fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_usuario', {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify({
@@ -425,10 +414,10 @@ const App = () => {
       prev.map((usuario) =>
         usuario.id === id
           ? {
-            ...usuario,
-            ...(novoStatus !== null ? { status: novoStatus } : {}),
-            ...(novoTipo !== null ? { tipo: novoTipo } : {}),
-          }
+              ...usuario,
+              ...(novoStatus !== null ? { status: novoStatus } : {}),
+              ...(novoTipo !== null ? { tipo: novoTipo } : {}),
+            }
           : usuario
       )
     );
@@ -576,7 +565,6 @@ const App = () => {
                 onAbrirLead={onAbrirLead}
                 isAdmin={isAdmin}
                 leadSelecionado={leadSelecionado}
-
               />
             }
           />
@@ -621,7 +609,7 @@ const App = () => {
 
 // Nova função para formatar a data de YYYY-MM-DD para DD/Mês/AA para exibição
 // Esta função é APENAS para exibição, NUNCA para enviar ao GAS.
-const formatarDataParaDDMMYYYY = (dataString) => { // Renomeei para ser mais genérico, embora o nome original já seja ok para o que faz.
+const formatarDataParaDDMMYYYY = (dataString) => {
   if (!dataString) return '';
 
   try {
