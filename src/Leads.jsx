@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import Lead from './components/Lead';
 
-const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
+const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwgeZteouyVWzrCvgHHQttx-5Bekgs_k-5EguO9Sn2p-XFrivFg9S7_gGKLdoDfCa08/exec';
 
-const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
+const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet  }) => {
   const [selecionados, setSelecionados] = useState({}); // { [leadId]: userId }
   const [paginaAtual, setPaginaAtual] = useState(1);
-  const [isLoading, setIsLoading] = useState(false); // Estado para controlar o loader
 
   // Estados para filtro por data (mes e ano) - INICIAM LIMPOS
   const [dataInput, setDataInput] = useState('');
@@ -16,33 +15,18 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const [nomeInput, setNomeInput] = useState('');
   const [filtroNome, setFiltroNome] = useState('');
 
-  // Função para buscar leads atualizados do Google Sheets com loader
+  // Buscar leads atualizados do Google Sheets
   const buscarLeadsAtualizados = async () => {
-    setIsLoading(true); // Ativa o loader
     try {
-      // Aqui você faz a requisição para buscar os leads mais recentes
-      // Após a requisição, chame a função fetchLeadsFromSheet que deve atualizar o estado 'leads'
-      await fetchLeadsFromSheet(); // Assume que esta função já faz a requisição e atualiza o estado 'leads'
-      
-      // Se você precisar de uma requisição separada aqui para o loader, use:
-      /*
       const response = await fetch(GOOGLE_SHEETS_SCRIPT_URL);
       if (response.ok) {
         const dadosLeads = await response.json();
-        // Você precisaria de uma forma de passar esses dados para o componente pai
-        // ou de ter uma função setLeads aqui que atualize o estado de leads deste componente,
-        // mas como 'leads' vem das props, é melhor que fetchLeadsFromSheet cuide disso.
-        // setLeadsState(dadosLeads); // Se existisse um setLeadsState interno
-        console.log("Leads atualizados via requisição direta:", dadosLeads);
+        setLeadsState(dadosLeads);
       } else {
-        console.error('Erro ao buscar leads diretamente:', response.statusText);
+        console.error('Erro ao buscar leads:', response.statusText);
       }
-      */
-
     } catch (error) {
       console.error('Erro ao buscar leads:', error);
-    } finally {
-      setIsLoading(false); // Desativa o loader, independentemente do resultado
     }
   };
 
@@ -130,16 +114,16 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     }
 
     transferirLead(leadId, userId);
-
+  
     const lead = leads.find((l) => l.id === leadId);
     const leadAtualizado = { ...lead, usuarioId: userId };
-
+  
     enviarLeadAtualizado(leadAtualizado);
   };
 
   const enviarLeadAtualizado = async (lead) => {
     try {
-      const response = await fetch('https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido', {
+      const response = await fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_atribuido', {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify(lead),
@@ -179,44 +163,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   return (
-    <div style={{ padding: '20px', position: 'relative' }}>
-      {/* Loader de carregamento */}
-      {isLoading && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'rgba(255, 255, 255, 0.8)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 9999,
-          }}
-        >
-          <div
-            style={{
-              border: '8px solid #f3f3f3',
-              borderTop: '8px solid #3498db',
-              borderRadius: '50%',
-              width: '50px',
-              height: '50px',
-              animation: 'spin 1s linear infinite',
-            }}
-          ></div>
-          <style>
-            {`
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-            `}
-          </style>
-        </div>
-      )}
-
+    <div style={{ padding: '20px' }}>
       {/* Linha de filtros */}
       <div
         style={{
@@ -228,14 +175,18 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h1 style={{ margin: 0 }}>Leads</h1>
+       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h1 style={{ margin: 0 }}>Leads</h1>
 
-          <button title='Clique para atualizar os dados'
-            onClick={buscarLeadsAtualizados} // Agora chama a função que gerencia o loader e a atualização
-          >
-            🔄
-          </button>
+            <button title='Clique para atualizar os dados'
+              onClick={() => {
+                fetchLeadsFromSheet();
+                //fetchLeadsFechadosFromSheet();
+                //fetchUsuariosFromSheet();
+              }}
+            >
+              🔄
+            </button>
         </div>
 
         {/* Filtro nome - centralizado */}
@@ -248,8 +199,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             justifyContent: 'center',
             minWidth: '300px',
           }}
-        >
-
+        >  
+        
           <button
             onClick={aplicarFiltroNome}
             style={{
@@ -390,14 +341,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     </select>
                     <button
                       onClick={() => handleEnviar(lead.id)}
-                      style={{
-                        padding: '5px 12px',
-                        backgroundColor: '#28a745',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                      }}
+                        style={{
+                          padding: '5px 12px',
+                          backgroundColor: '#28a745',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                        }}
                     >
                       Enviar
                     </button>
