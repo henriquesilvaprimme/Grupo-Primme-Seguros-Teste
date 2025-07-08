@@ -602,8 +602,7 @@ const App = () => {
           <Route
             path="/criar-lead"
              element={<CriarLead adicionarLead={adicionarNovoLead} />}
-           /> // <--- Remova o fechamento extra aqui, use apenas "/>"
-// ...restante do seu código
+           
           {isAdmin && (
             <>
               <Route path="/criar-usuario" element={<CriarUsuario adicionarUsuario={adicionarUsuario} />} />
