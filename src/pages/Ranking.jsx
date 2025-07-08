@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
+// Não é necessário importar API_ENDPOINTS diretamente aqui se a busca for via prop
+// import { API_ENDPOINTS } from './config/api'; 
 
-const Ranking = ({ usuarios }) => {
-  const [carregando, setCarregando] = useState(true);
-  const [dadosLeads, setLeads] = useState([]);
+// Recebe leadsFechados, usuarios, e fetchLeadsFechadosFromSheet como props do App.jsx
+const Ranking = ({ usuarios, leadsFechados, fetchLeadsFechadosFromSheet }) => {
+  const [carregando, setCarregando] = useState(false); // O carregamento principal já é gerenciado pelo App.jsx
 
   // Estado para filtro por mês/ano (formato yyyy-mm)
   const [dataInput, setDataInput] = useState(() => {
@@ -14,53 +16,42 @@ const Ranking = ({ usuarios }) => {
 
   const [filtroData, setFiltroData] = useState(dataInput);
 
-  // Função para converter data no formato dd/mm/aaaa para yyyy-mm-dd
-  const converterDataParaISO = (dataStr) => {
-    if (!dataStr) return '';
-    if (dataStr.includes('/')) {
-      const partes = dataStr.split('/');
-      if (partes.length === 3) {
-        // dd/mm/aaaa -> yyyy-mm-dd
-        return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
-      }
-    }
-    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo yyyy-mm
-    return dataStr.slice(0, 7);
+  // Função para extrair yyyy-mm de uma string de data ISO
+  const getYearMonthFromISO = (isoDateStr) => {
+    if (!isoDateStr || typeof isoDateStr !== 'string') return '';
+    return isoDateStr.slice(0, 7); // Extrai "yyyy-mm"
   };
 
-  const buscarClientesFechados = async () => {
-    setCarregando(true);
-    try {
-      const respostaLeads = await fetch(
-        'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec'
-      );
-      const dados = await respostaLeads.json();
-      setLeads(dados);
-    } catch (error) {
-      console.error('Erro ao buscar dados:', error);
-      setLeads([]);
-    } finally {
-      setCarregando(false);
-    }
-  };
+  // Não precisamos de uma função local para buscar clientes fechados aqui,
+  // pois eles já são passados via prop 'leadsFechados' e atualizados via 'fetchLeadsFechadosFromSheet'
+  // const buscarClientesFechados = async () => { ... } // REMOVIDO
 
+  // Use useEffect para chamar a função de fetch inicial do App.jsx se necessário,
+  // ou apenas para garantir que os dados estejam lá.
   useEffect(() => {
-    buscarClientesFechados();
-  }, []);
+    // A chamada inicial de fetchLeadsFechadosFromSheet já ocorre no App.jsx.
+    // Esta linha é mais para garantir que os dados são carregados se o componente for montado
+    // em um cenário onde o App.jsx ainda não os buscou, ou para um refresh inicial.
+    // setCarregando(true); // Mantido se houver uma lógica de carregamento específica para este componente
+    // fetchLeadsFechadosFromSheet().finally(() => setCarregando(false));
+    // No entanto, como o App.jsx já faz o polling, esta chamada explícita pode ser redundante.
+    // Deixaremos o botão de refresh para o usuário.
+  }, [fetchLeadsFechadosFromSheet]); // Dependência para a função de fetch
 
-  if (!Array.isArray(usuarios) || !Array.isArray(dadosLeads)) {
-    return <div style={{ padding: 20 }}>Erro: dados não carregados corretamente.</div>;
+  // Verifica se os dados são arrays antes de processar
+  if (!Array.isArray(usuarios) || !Array.isArray(leadsFechados)) {
+    return <div style={{ padding: 20 }}>Carregando dados ou erro ao carregar.</div>;
   }
 
   const ativos = usuarios.filter(
     (u) =>
-      u.status === 'Ativo' &&
-      u.email !== 'admin@admin.com' &&
-      u.tipo !== 'Admin'
+      String(u.status).trim() === 'Ativo' && // Garante comparação de string trimada
+      String(u.email).trim() !== 'admin@admin.com' &&
+      String(u.tipo).trim() !== 'Admin'
   );
 
   const formatarMoeda = (valor) =>
-    valor?.toLocaleString('pt-BR', {
+    (Number(valor) || 0).toLocaleString('pt-BR', { // Garante que é número antes de formatar
       style: 'currency',
       currency: 'BRL',
       minimumFractionDigits: 2,
@@ -83,17 +74,20 @@ const Ranking = ({ usuarios }) => {
 
   const usuariosComContagem = ativos.map((usuario) => {
     // Filtrar leads fechados do usuário com status "Fechado", seguradora preenchida e data dentro do filtro (yyyy-mm)
-    const leadsUsuario = dadosLeads.filter((l) => {
-      const responsavelOk = l.Responsavel === usuario.nome;
-      const statusOk = l.Status === 'Fechado';
-      const seguradoraOk = l.Seguradora && l.Seguradora.trim() !== '';
-      const dataISO = converterDataParaISO(l.Data);
-      const dataOk = !filtroData || dataISO.startsWith(filtroData);
+    const leadsUsuario = leadsFechados.filter((l) => {
+      const responsavelOk = String(l.Responsavel).trim() === String(usuario.nome).trim();
+      const statusOk = String(l.Status).trim() === 'Fechado';
+      const seguradoraOk = l.Seguradora && String(l.Seguradora).trim() !== '';
+      
+      // Usa a data do lead fechado (l.Data) que vem do GAS já em ISO format
+      const dataISO = getYearMonthFromISO(l.Data); 
+      const dataOk = !filtroData || dataISO === filtroData; // Compara yyyy-mm
+
       return responsavelOk && statusOk && seguradoraOk && dataOk;
     });
 
     const getCount = (seguradora) =>
-      leadsUsuario.filter((l) => l.Seguradora === seguradora).length;
+      leadsUsuario.filter((l) => String(l.Seguradora).trim() === seguradora).length; // Garante comparação de string trimada
 
     const porto = getCount('Porto Seguro');
     const azul = getCount('Azul Seguros');
@@ -103,13 +97,13 @@ const Ranking = ({ usuarios }) => {
     const vendas = porto + azul + itau + demais;
 
     const premioLiquido = leadsUsuario.reduce(
-      (acc, curr) => acc + (Number(curr.PremioLiquido) || 0),
+      (acc, curr) => acc + (Number(String(curr.PremioLiquido).replace(',', '.')) || 0), // Lida com vírgula e garante número
       0
     );
 
     const somaPonderadaComissao = leadsUsuario.reduce((acc, lead) => {
-      const premio = Number(lead.PremioLiquido) || 0;
-      const comissao = Number(lead.Comissao) || 0;
+      const premio = Number(String(lead.PremioLiquido).replace(',', '.')) || 0;
+      const comissao = Number(String(lead.Comissao).replace(',', '.')) || 0;
       return acc + premio * (comissao / 100);
     }, 0);
 
@@ -122,7 +116,7 @@ const Ranking = ({ usuarios }) => {
       const somaParcelamento = leadsParcelamento.reduce((acc, curr) => {
         const val =
           typeof curr.Parcelamento === 'string'
-            ? parseInt(curr.Parcelamento.replace('x', ''), 10)
+            ? parseInt(String(curr.Parcelamento).replace('x', ''), 10) // Garante string e remove 'x'
             : Number(curr.Parcelamento) || 0;
         return acc + val;
       }, 0);
@@ -167,7 +161,8 @@ const Ranking = ({ usuarios }) => {
         <button
           title="Clique para atualizar os dados"
           onClick={() => {
-            buscarClientesFechados();
+            setCarregando(true); // Opcional: mostra carregamento enquanto busca
+            fetchLeadsFechadosFromSheet().finally(() => setCarregando(false)); // Chama a prop para atualizar
           }}
         >
           🔄
