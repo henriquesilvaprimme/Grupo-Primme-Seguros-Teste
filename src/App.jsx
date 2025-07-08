@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 
+import Login from './Login'; // ajuste o caminho se necessário
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Leads from './Leads';
@@ -25,13 +26,6 @@ const App = () => {
   const [senhaInput, setSenhaInput] = useState('');
   const [usuarioLogado, setUsuarioLogado] = useState(null);
   const [leadsFechados, setLeadsFechados] = useState([]);
-  const [backgroundLoaded, setBackgroundLoaded] = useState(false);
-
-  useEffect(() => {
-    const img = new Image();
-    img.src = '/background.png';
-    img.onload = () => setBackgroundLoaded(true);
-  }, []);
 
   // INÍCIO - sincronização leads via Google Sheets
   const [leads, setLeads] = useState([]);
@@ -473,54 +467,14 @@ const App = () => {
   };
 
   if (!isAuthenticated) {
-    return (
-      <div
-        className={`flex items-center justify-center min-h-screen bg-cover bg-center transition-opacity duration-1000 ${
-          backgroundLoaded ? 'opacity-100' : 'opacity-0'
-        }`}
-        style={{
-          backgroundImage: `url('/background.png')`,
-        }}
-      >
-        <div className="bg-blue-900 bg-opacity-60 text-white p-10 rounded-2xl shadow-2xl w-full max-w-sm">
-          <div className="flex flex-col items-center mb-6">
-            <div className="w-12 h-12 mb-2 flex items-center justify-center text-4xl text-yellow-400">
-              👑
-            </div>
-            <h1 className="text-xl font-semibold">GRUPO</h1>
-            <h2 className="text-2xl font-bold text-white">PRIMME SEGUROS</h2>
-            <p className="text-sm text-white">CORRETORA DE SEGUROS</p>
-          </div>
-
-          <input
-            type="text"
-            placeholder="Usuário"
-            value={loginInput}
-            onChange={(e) => setLoginInput(e.target.value)}
-            className="w-full mb-4 px-4 py-2 rounded text-black"
-          />
-          <input
-            type="password"
-            placeholder="Senha"
-            value={senhaInput}
-            onChange={(e) => setSenhaInput(e.target.value)}
-            className="w-full mb-2 px-4 py-2 rounded text-black"
-          />
-          <div className="text-right text-sm mb-4">
-            <a href="#" className="text-white underline">
-              Esqueci minha senha
-            </a>
-          </div>
-          <button
-            onClick={handleLogin}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-          >
-            ENTRAR
-          </button>
-        </div>
-      </div>
-    );
-  }
+  return (
+    <Login
+      usuarios={usuarios}
+      setIsAuthenticated={setIsAuthenticated}
+      setUsuarioLogado={setUsuarioLogado}
+    />
+  );
+}
 
   const isAdmin = usuarioLogado?.tipo === 'Admin';
 
