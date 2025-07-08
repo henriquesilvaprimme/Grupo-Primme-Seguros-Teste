@@ -222,7 +222,7 @@ const App = () => {
         )
       );
       alert('Erro de comunicação com o servidor ao atualizar status.');
-      return { status: 'error', message: error.message };
+      return { status: 'error', message: error.error }; // Retorna o erro completo
     }
   };
 
