@@ -1,18 +1,8 @@
-import React, { useState, useEffect } from 'react';
-
-// Não é necessário importar API_ENDPOINTS aqui, pois a requisição é feita via prop
-// import { API_ENDPOINTS } from './config/api'; 
+import React, { useState } from 'react';
 
 const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
   const [status, setStatus] = useState(lead.status || '');
-  // A propriedade 'blocked' deve refletir o estado inicial do lead
   const [blocked, setBlocked] = useState(lead.status === 'Fechado' || lead.status === 'Perdido');
-
-  // Use useEffect para atualizar 'blocked' se o status do lead mudar externamente
-  useEffect(() => {
-    setBlocked(lead.status === 'Fechado' || lead.status === 'Perdido');
-    setStatus(lead.status || ''); // Garante que o estado local de status esteja sincronizado
-  }, [lead.status]);
 
   // Define a cor do card conforme o status
   const cardColor = (() => {
@@ -32,24 +22,43 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
     }
   })();
 
-  const handleConfirm = async () => { // Adicionado 'async' pois onUpdateStatus pode ser assíncrona
+  const handleConfirm = () => {
     if (!status || status === 'Selecione o status') {
       alert('Selecione um status antes de confirmar!');
       return;
     }
 
-    // Chama o callback onUpdateStatus passado via props do App.jsx.
-    // Esta função é responsável por enviar os dados ao GAS e atualizar o estado global.
-    if (onUpdateStatus) {
-      await onUpdateStatus(lead.id, status, lead.phone); // Espera a atualização ser concluída
+    enviarLeadAtualizado(lead.id, status, lead.phone);
+
+    if (status === 'Fechado' || status === 'Perdido') {
+      setBlocked(true);
     }
 
-    // A lógica de setBlocked já é tratada pelo useEffect acima,
-    // que reage à mudança de lead.status após a atualização global.
+    if (onUpdateStatus) {
+      onUpdateStatus(lead.id, status, lead.phone);  // chama o callback pra informar a atualização
+    }
+
   };
 
-  // A função 'enviarLeadAtualizado' local foi removida, pois a lógica de requisição
-  // agora é centralizada na prop 'onUpdateStatus' do App.jsx.
+  const enviarLeadAtualizado = async (leadId, status, phone) => {
+    //console.log('Enviando para o GAS:', leadId, status, phone);
+    try {
+      await fetch('https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_status', {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({
+          lead: leadId,
+          status: status,
+          phone: phone
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (error) {
+      console.error('Erro ao enviar lead:', error);
+    }
+  };
 
   return (
     <div
