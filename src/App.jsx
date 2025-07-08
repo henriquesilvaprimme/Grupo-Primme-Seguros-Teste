@@ -380,7 +380,7 @@ const App = () => {
 
     try {
       // Use o URL do seu script com a função alterar_seguradora
-      fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_seguradora', {
+      fetch('https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_seguradora', {
         method: 'POST',
         mode: 'no-cors', // Mantenha no-cors se você está enviando do navegador para o GAS diretamente
         body: JSON.stringify({
@@ -458,7 +458,7 @@ const App = () => {
 
     // Envia a atualização para o Google Sheets via Google Apps Script
     try {
-      fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_usuario', {
+      fetch('https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_usuario', {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify(payload), // Envia apenas o payload com 'id', 'status' e 'tipo'
