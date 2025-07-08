@@ -22,7 +22,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         Parcelamento: lead.Parcelamento || '',
         insurer: lead.Seguradora || '',
         // Adiciona a VigenciaFinal ao estado inicial, se existir no lead
-        VigenciaFinal: lead.VigenciaFinal || '',
+        // Garantindo que esteja no formato YYYY-MM-DD para o input type="date"
+        VigenciaFinal: lead.VigenciaFinal ? formatarDataParaYYYYMMDD(lead.VigenciaFinal) : '',
       };
     });
     return inicial;
@@ -44,8 +45,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
               Comissao: lead.Comissao ? String(lead.Comissao) : '',
               Parcelamento: lead.Parcelamento || '',
               insurer: lead.Seguradora || '',
-              // Inicializa VigenciaFinal para novos leads fechados
-              VigenciaFinal: lead.VigenciaFinal || '',
+              // Inicializa VigenciaFinal para novos leads fechados, formatando para YYYY-MM-DD
+              VigenciaFinal: lead.VigenciaFinal ? formatarDataParaYYYYMMDD(lead.VigenciaFinal) : '',
             };
           }
         });
@@ -175,13 +176,17 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
   // Nova função para lidar com a mudança na Vigência Final
   const handleVigenciaFinalChange = (id, valor) => {
+    // Aqui, o 'valor' já vem no formato YYYY-MM-DD do input type="date"
     setValores(prev => ({
       ...prev,
       [id]: {
         ...prev[id],
-        VigenciaFinal: valor,
+        VigenciaFinal: valor, // Salva como YYYY-MM-DD no estado
       },
     }));
+    // Passa a data no formato YYYY-MM-DD para o onUpdateDetalhes
+    // A formatação para DD-MM-YYYY será feita no App.jsx antes de salvar no estado global
+    // e no GAS antes de salvar na planilha.
     onUpdateDetalhes(id, 'VigenciaFinal', valor);
   };
 
@@ -411,6 +416,9 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 <input
                   id={`vigencia-final-${lead.ID}`}
                   type="date"
+                  // O input type="date" espera YYYY-MM-DD. O valor do estado já está nesse formato.
+                  // Se o valor vindo do App.jsx (que pode ser DD-MM-YYYY) for passado, 
+                  // essa função fará a conversão para YYYY-MM-DD para o input HTML.
                   value={valores[lead.ID]?.VigenciaFinal || ''}
                   onChange={(e) => handleVigenciaFinalChange(lead.ID, e.target.value)}
                   disabled={!!lead.Seguradora}
@@ -533,6 +541,28 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       )}
     </div>
   );
+};
+
+// Nova função para formatar a data para o formato YYYY-MM-DD exigido pelo input type="date"
+// Recebe DD-MM-YYYY ou DD/MM/YYYY ou YYYY-MM-DD
+const formatarDataParaYYYYMMDD = (dataString) => {
+  if (!dataString) return '';
+
+  // Tenta reconhecer o formato DD-MM-YYYY
+  const partesHifen = dataString.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (partesHifen) {
+    return `${partesHifen[3]}-${partesHifen[2]}-${partesHifen[1]}`;
+  }
+
+  // Tenta reconhecer o formato DD/MM/YYYY
+  const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (partesBarra) {
+    return `${partesBarra[3]}-${partesBarra[2]}-${partesBarra[1]}`;
+  }
+
+  // Se já estiver em YYYY-MM-DD ou outro formato, tenta passar.
+  // O input type="date" é robusto e tenta parsear strings válidas.
+  return dataString;
 };
 
 export default LeadsFechados;
