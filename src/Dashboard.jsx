@@ -1,65 +1,52 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
-// Importe suas URLs centralizadas (se ainda precisar de alguma requisição direta aqui, o que não parece ser o caso)
-// import { API_ENDPOINTS } from './config/api';
-
-// As props leads e leadsClosed já vêm do App.jsx
-const Dashboard = ({ leads, leadsClosed, usuarioLogado }) => {
+const Dashboard = ({ leads }) => {
+  const [leadsClosed, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
 
-  // Função auxiliar para verificar se uma data está dentro do período de filtro
-  const isDateInRange = (leadDateStr, startStr, endStr) => {
-    if (!leadDateStr) return false;
-    const leadDate = new Date(leadDateStr);
-    leadDate.setHours(0, 0, 0, 0); // Normaliza para o início do dia
-
-    const startDate = startStr ? new Date(startStr) : null;
-    if (startDate) startDate.setHours(0, 0, 0, 0);
-
-    const endDate = endStr ? new Date(endStr) : null;
-    if (endDate) endDate.setHours(23, 59, 59, 999); // Normaliza para o final do dia
-
-    if (startDate && leadDate < startDate) return false;
-    if (endDate && leadDate > endDate) return false;
-    return true;
+  const buscarLeads = async () => {
+    try {
+      const response = await axios.get(
+        'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
+      );
+      setLeads(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar leads:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Filtra os leads ativos e fechados com base nas datas de criação/edição
-  const filteredLeads = leads.filter(lead => {
-    // Usa lead.createdAt para leads ativos, que é a data de criação
-    return isDateInRange(lead.createdAt, dataInicio, dataFim);
-  });
+  useEffect(() => {
+    buscarLeads();
+  }, []);
 
-  const filteredLeadsClosed = leadsClosed.filter(lead => {
-    // Para leads fechados, use a data de fechamento (lead.Data ou lead.createdAt)
-    // Assumindo que 'Data' é a data de fechamento/movimentação para Leads Fechados
-    return isDateInRange(lead.Data || lead.createdAt, dataInicio, dataFim);
-  });
+  // Contadores existentes
+  const totalLeads = leads.length;
+  const leadsFechados = leads.filter((lead) => lead.status === 'Fechado').length;
+  const leadsPerdidos = leads.filter((lead) => lead.status === 'Perdido').length;
+  const leadsEmContato = leads.filter((lead) => lead.status === 'Em Contato').length;
+  const leadsSemContato = leads.filter((lead) => lead.status === 'Sem Contato').length;
 
-  // Contadores existentes (agora baseados em leads filtrados)
-  const totalLeads = filteredLeads.length;
-  const leadsFechadosCount = filteredLeads.filter((lead) => lead.status === 'Fechado').length;
-  const leadsPerdidosCount = filteredLeads.filter((lead) => lead.status === 'Perdido').length;
-  const leadsEmContatoCount = filteredLeads.filter((lead) => lead.status === 'Em Contato').length;
-  const leadsSemContatoCount = filteredLeads.filter((lead) => lead.status === 'Sem Contato').length;
+  // Contadores por seguradora baseados em leadsClosed
+  const portoSeguro = leadsClosed.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
+  const azulSeguros = leadsClosed.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
+  const itauSeguros = leadsClosed.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
+  const demais = leadsClosed.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
 
-  // Contadores por seguradora baseados em filteredLeadsClosed
-  const portoSeguro = filteredLeadsClosed.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
-  const azulSeguros = filteredLeadsClosed.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
-  const itauSeguros = filteredLeadsClosed.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
-  const demais = filteredLeadsClosed.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
-
-  // Calcular total de prêmio líquido global (agora baseado em filteredLeadsClosed)
-  const totalPremioLiquido = filteredLeadsClosed.reduce(
-    (acc, curr) => acc + (Number(String(curr.PremioLiquido).replace(',', '.')) || 0), // Converte para número, lida com vírgula
+  // Calcular total de prêmio líquido global
+  const totalPremioLiquido = leadsClosed.reduce(
+    (acc, curr) => acc + (Number(curr.PremioLiquido) || 0),
     0
   );
 
-  // Calcular média ponderada de comissão global (agora baseado em filteredLeadsClosed)
-  const somaPonderadaComissao = filteredLeadsClosed.reduce((acc, lead) => {
-    const premio = Number(String(lead.PremioLiquido).replace(',', '.')) || 0;
-    const comissao = Number(String(lead.Comissao).replace(',', '.')) || 0;
+  // Calcular média ponderada de comissão global
+  const somaPonderadaComissao = leadsClosed.reduce((acc, lead) => {
+    const premio = Number(lead.PremioLiquido) || 0;
+    const comissao = Number(lead.Comissao) || 0;
     return acc + premio * (comissao / 100);
   }, 0);
 
@@ -79,14 +66,13 @@ const Dashboard = ({ leads, leadsClosed, usuarioLogado }) => {
     <div style={{ padding: '20px' }}>
       <h1>Dashboard</h1>
 
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '20px' }}>
         <div>
           <label>Data Início: </label>
           <input
             type="date"
             value={dataInicio}
             onChange={(e) => setDataInicio(e.target.value)}
-            style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
           />
         </div>
         <div>
@@ -95,37 +81,36 @@ const Dashboard = ({ leads, leadsClosed, usuarioLogado }) => {
             type="date"
             value={dataFim}
             onChange={(e) => setDataFim(e.target.value)}
-            style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
           />
         </div>
       </div>
 
       {/* Primeira linha de contadores */}
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
         <div style={{ ...boxStyle, backgroundColor: '#eee', color: '#333' }}>
           <h3>Total de Leads</h3>
           <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{totalLeads}</p>
         </div>
         <div style={{ ...boxStyle, backgroundColor: '#4CAF50' }}>
           <h3>Leads Fechados</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsFechadosCount}</p>
+          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsFechados}</p>
         </div>
         <div style={{ ...boxStyle, backgroundColor: '#F44336' }}>
           <h3>Leads Perdidos</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsPerdidosCount}</p>
+          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsPerdidos}</p>
         </div>
         <div style={{ ...boxStyle, backgroundColor: '#FF9800' }}>
           <h3>Em Contato</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsEmContatoCount}</p>
+          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsEmContato}</p>
         </div>
         <div style={{ ...boxStyle, backgroundColor: '#9E9E9E' }}>
           <h3>Sem Contato</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsSemContatoCount}</p>
+          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsSemContato}</p>
         </div>
       </div>
 
       {/* Segunda linha de contadores (por seguradora) */}
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
         <div style={{ ...boxStyle, backgroundColor: '#003366' }}>
           <h3>Porto Seguro</h3>
           <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{portoSeguro}</p>
@@ -145,7 +130,7 @@ const Dashboard = ({ leads, leadsClosed, usuarioLogado }) => {
       </div>
 
       {/* Linha extra para Prêmio Líquido e Comissão */}
-      <div style={{ display: 'flex', gap: '20px', marginTop: '20px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
         <div style={{ ...boxStyle, backgroundColor: '#3f51b5' }}>
           <h3>Total Prêmio Líquido</h3>
           <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
