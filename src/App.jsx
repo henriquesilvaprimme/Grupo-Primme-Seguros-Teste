@@ -12,15 +12,23 @@ import Usuarios from './pages/Usuarios';
 import Ranking from './pages/Ranking';
 import CriarLead from './pages/CriarLead';
 
-// URL BASE do seu Web App no Google Apps Script
-const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
+// App.jsx
+// Certifique-se de que este URL é EXATAMENTE o que você copiou da sua implantação mais recente do GAS.
+const GOOGLE_SHEETS_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 
-// URLs para as Google Sheets APIs, usando a URL base
-const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads`;
-const GOOGLE_SHEETS_USERS = GOOGLE_APPS_SCRIPT_BASE_URL; // O parâmetro 'v=pegar_usuario' será adicionado nas chamadas
-const GOOGLE_SHEETS_LEADS_FECHADOS = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`;
-const GOOGLE_SHEETS_ALTERAR_SEGURADORA = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=alterar_seguradora`;
-const GOOGLE_SHEETS_ALTERAR_USUARIO = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=alterar_usuario`;
+const GOOGLE_SHEETS_GET_USERS_URL = `${GOOGLE_SHEETS_BASE_URL}?v=pegar_usuario`;
+const GOOGLE_SHEETS_ALTERAR_USUARIO = `${GOOGLE_SHEETS_BASE_URL}?v=alterar_usuario`;
+const GOOGLE_SHEETS_GET_LEADS_URL = `${GOOGLE_SHEETS_BASE_URL}?v=getLeads`;
+const GOOGLE_SHEETS_GET_CLOSED_LEADS_URL = `${GOOGLE_SHEETS_BASE_URL}?v=pegar_clientes_fechados`;
+const GOOGLE_SHEETS_CREATE_LEAD_URL = `${GOOGLE_SHEETS_BASE_URL}?action=criar_lead`; // ou ?v=criar_lead dependendo de como voce quer rotear
+const GOOGLE_SHEETS_SAVE_LEAD_URL = `${GOOGLE_SHEETS_BASE_URL}?action=salvar_lead`;
+const GOOGLE_SHEETS_TRANSFER_LEAD_URL = `${GOOGLE_SHEETS_BASE_URL}?action=transferir_lead`;
+const GOOGLE_SHEETS_ALTERAR_SEGURADORA_URL = `${GOOGLE_SHEETS_BASE_URL}?action=alterar_seguradora`;
+const GOOGLE_SHEETS_CREATE_USER_URL = `${GOOGLE_SHEETS_BASE_URL}?action=criar_usuario`;
+const GOOGLE_SHEETS_SAVE_USER_URL = `${GOOGLE_SHEETS_BASE_URL}?action=salvar_usuario`; // Pode ser redundante com alterar_usuario
+const GOOGLE_SHEETS_RANKING_URL = `${GOOGLE_SHEETS_BASE_URL}?action=ranking_data`;
+
+// ... o resto do seu código App.jsx ...
 
 const App = () => {
   const navigate = useNavigate();
