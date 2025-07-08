@@ -8,7 +8,7 @@ import LeadsFechados from './LeadsFechados';
 import LeadsPerdidos from './LeadsPerdidos';
 import BuscarLead from './BuscarLead';
 import CriarUsuario from './pages/CriarUsuario';
-import Usuarios from './pages/Usuarios'; // Certifique-se de que este caminho está correto
+import Usuarios from './pages/Usuarios';
 import Ranking from './pages/Ranking';
 import CriarLead from './pages/CriarLead';
 
@@ -37,42 +37,39 @@ const App = () => {
   const [leads, setLeads] = useState([]);
   const [leadSelecionado, setLeadSelecionado] = useState(null);
 
-  // Função auxiliar para formatar a data para exibição no frontend (DD/Mês/AA ou DD/MM/YYYY)
   const formatarDataParaExibicao = (dataString) => {
     if (!dataString) return '';
     try {
       let dateObj;
-      // Tenta parsear formato ISO (YYYY-MM-DDTHH:mm:ss.000Z) ou YYYY-MM-DD
       if (dataString.includes('T')) {
         dateObj = new Date(dataString);
       } else {
-        const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})$/); // Formato YYYY-MM-DD
-        const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); // Formato DD/MM/YYYY
+        const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
 
         if (partesHifen) {
-          dateObj = new Date(dataString + 'T00:00:00'); // Adiciona T00:00:00 para evitar fuso horário
+          dateObj = new Date(dataString + 'T00:00:00');
         } else if (partesBarra) {
           dateObj = new Date(`${partesBarra[3]}-${partesBarra[2]}-${partesBarra[1]}T00:00:00`);
         } else {
-          dateObj = new Date(dataString); // Última tentativa de parsear
+          dateObj = new Date(dataString);
         }
       }
 
       if (isNaN(dateObj.getTime())) {
         console.warn('Data inválida para exibição:', dataString);
-        return dataString; // Retorna a string original se não conseguir formatar
+        return dataString;
       }
 
       const dia = String(dateObj.getDate()).padStart(2, '0');
-      const mes = String(dateObj.getMonth() + 1).padStart(2, '0'); // Mês é base 0
+      const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
       const ano = dateObj.getFullYear();
       const nomeMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
                           "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
       const mesExtenso = nomeMeses[dateObj.getMonth()];
       const anoCurto = String(ano).substring(2);
 
-      return `${dia}/${mesExtenso}/${anoCurto}`; // Formato 08/Junho/25
-      // return `${dia}/${mes}/${ano}`; // Formato 08/06/2025
+      return `${dia}/${mesExtenso}/${anoCurto}`;
     } catch (error) {
       console.error('Erro ao formatar data para exibição:', error);
       return dataString;
@@ -95,7 +92,7 @@ const App = () => {
         });
 
         const formattedLeads = sortedData.map((item, index) => ({
-          id: item.id ? Number(item.id) : index + 1,
+          id: item.id ? String(item.id) : String(index + 1), // Garante que o ID é string
           name: item.name || item.Name || '',
           vehicleModel: item.vehiclemodel || item.vehicleModel || '',
           vehicleYearModel: item.vehicleyearmodel || item.vehicleYearModel || '',
@@ -106,7 +103,7 @@ const App = () => {
           confirmado: item.confirmado === 'true' || item.confirmado === true,
           insurer: item.insurer || '',
           insurerConfirmed: item.insurerConfirmed === 'true' || item.insurerConfirmed === true,
-          usuarioId: item.usuarioId ? Number(item.usuarioId) : null,
+          usuarioId: item.usuarioId ? String(item.usuarioId) : null, // Garante que usuarioId é string
           premioLiquido: item.premioLiquido || '',
           comissao: item.comissao || '',
           parcelamento: item.parcelamento || '',
@@ -153,8 +150,7 @@ const App = () => {
 
       const formattedData = data.map(item => ({
         ...item,
-        // VigenciaFinal já vem no formato YYYY-MM-DD do GAS, então não precisamos formatar aqui
-        // Mas podemos garantir que esteja no formato certo se o Sheets estiver enviando diferente
+        ID: String(item.ID), // Garante que o ID é string
         VigenciaFinal: item.VigenciaFinal ? formatarDataParaExibicao(item.VigenciaFinal) : ''
       }));
       setLeadsFechados(formattedData);
@@ -185,9 +181,7 @@ const App = () => {
 
         if (Array.isArray(data)) {
           const formattedUsuarios = data.map((item) => ({
-            // Certifique-se de que 'ID' (maiúsculo) é como a coluna é chamada no Sheets
-            // e que é o identificador único usado no GAS para 'alterar_usuario'.
-            id: item.ID || '',
+            id: String(item.ID), // CONVERSÃO CRÍTICA: Garante que o ID é STRING para comparação consistente
             usuario: item.usuario || '',
             nome: item.nome || '',
             email: item.email || '',
@@ -218,15 +212,12 @@ const App = () => {
   const [ultimoFechadoId, setUltimoFechadoId] = useState(null);
 
   const adicionarUsuario = (usuario) => {
-    // Ao adicionar um novo usuário, o ID deve ser gerenciado pelo Sheets/GAS
-    // ou você pode gerar um UUID temporário até que o Sheets retorne um ID.
-    // Por simplicidade, estou usando prev.length + 1, mas o ideal é que o GAS retorne o ID.
-    setUsuarios((prev) => [...prev, { ...usuario, id: String(prev.length + 1) }]); // Converte para string para consistência
+    setUsuarios((prev) => [...prev, { ...usuario, id: String(prev.length + 1) }]); // Mantém ID como string
   };
 
   const adicionarNovoLead = (novoLead) => {
     setLeads((prevLeads) => {
-      if (!prevLeads.some(lead => lead.ID === novoLead.ID)) {
+      if (!prevLeads.some(lead => String(lead.ID) === String(novoLead.ID))) { // Garante comparação de string
         return [novoLead, ...prevLeads];
       }
       return prevLeads;
@@ -237,7 +228,7 @@ const App = () => {
     if (novoStatus == 'Fechado') {
       setLeadsFechados((prev) => {
         const atualizados = prev.map((leadsFechados) =>
-          leadsFechados.phone === phone ? { ...leadsFechados, Status: novoStatus, confirmado: true } : leadsFechados
+          String(leadsFechados.phone) === String(phone) ? { ...leadsFechados, Status: novoStatus, confirmado: true } : leadsFechados
         );
         return atualizados;
       });
@@ -245,7 +236,7 @@ const App = () => {
 
     setLeads((prev) =>
       prev.map((lead) =>
-        lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
+        String(lead.phone) === String(phone) ? { ...lead, status: novoStatus, confirmado: true } : lead
       )
     );
   };
@@ -253,25 +244,25 @@ const App = () => {
   const atualizarStatusLead = (id, novoStatus, phone) => {
     setLeads((prev) =>
       prev.map((lead) =>
-        lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
+        String(lead.phone) === String(phone) ? { ...lead, status: novoStatus, confirmado: true } : lead
       )
     );
 
     if (novoStatus === 'Fechado') {
       setLeadsFechados((prev) => {
-        const jaExiste = prev.some((lead) => lead.phone === phone);
+        const jaExiste = prev.some((lead) => String(lead.phone) === String(phone));
 
         if (jaExiste) {
           const atualizados = prev.map((lead) =>
-            lead.phone === phone ? { ...lead, Status: novoStatus, confirmado: true } : lead
+            String(lead.phone) === String(phone) ? { ...lead, Status: novoStatus, confirmado: true } : lead
           );
           return atualizados;
         } else {
-          const leadParaAdicionar = leads.find((lead) => lead.phone === phone);
+          const leadParaAdicionar = leads.find((lead) => String(lead.phone) === String(phone));
 
           if (leadParaAdicionar) {
             const novoLeadFechado = {
-              ID: leadParaAdicionar.id || crypto.randomUUID(),
+              ID: String(leadParaAdicionar.id) || crypto.randomUUID(), // Garante ID como string
               name: leadParaAdicionar.name,
               vehicleModel: leadParaAdicionar.vehicleModel,
               vehicleYearModel: leadParaAdicionar.vehicleYearModel,
@@ -286,7 +277,6 @@ const App = () => {
               Comissao: leadParaAdicionar.comissao || "",
               Parcelamento: leadParaAdicionar.parcelamento || "",
               VigenciaFinal: leadParaAdicionar.VigenciaFinal || "",
-              // Removidas propriedades de usuário que não pertencem a leads (como senha, status de usuário, tipo de usuário)
             };
             return [...prev, novoLeadFechado];
           }
@@ -300,7 +290,7 @@ const App = () => {
   const atualizarSeguradoraLead = (id, seguradora) => {
     setLeads((prev) =>
       prev.map((lead) =>
-        lead.id === id
+        String(lead.id) === String(id)
           ? limparCamposLead({ ...lead, insurer: seguradora })
           : lead
       )
@@ -316,7 +306,7 @@ const App = () => {
   })
 
   const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal) => {
-    const lead = leadsFechados.find((lead) => lead.ID == id);
+    const lead = leadsFechados.find((lead) => String(lead.ID) === String(id)); // Garante comparação de string
 
     if (!lead) {
       console.error(`Lead com ID ${id} não encontrado na lista de leads fechados.`);
@@ -327,11 +317,11 @@ const App = () => {
     lead.PremioLiquido = premio;
     lead.Comissao = comissao;
     lead.Parcelamento = parcelamento;
-    lead.VigenciaFinal = vigenciaFinal || ''; // Já deve vir como YYYY-MM-DD do input date
+    lead.VigenciaFinal = vigenciaFinal || '';
 
     setLeadsFechados((prev) => {
       const atualizados = prev.map((l) =>
-        l.ID === id ? {
+        String(l.ID) === String(id) ? { // Garante comparação de string
           ...l,
           insurerConfirmed: true,
           Seguradora: seguradora,
@@ -345,11 +335,11 @@ const App = () => {
     });
 
     try {
-      fetch(`${BASE_GAS_URL}?v=alterar_seguradora`, { // Usando BASE_GAS_URL
+      fetch(`${BASE_GAS_URL}?v=alterar_seguradora`, {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify({
-          lead: lead // O objeto 'lead' já contém VigenciaFinal no formato YYYY-MM-DD
+          lead: lead
         }),
         headers: {
           'Content-Type': 'application/json',
@@ -363,7 +353,7 @@ const App = () => {
   const atualizarDetalhesLeadFechado = (id, campo, valor) => {
     setLeadsFechados((prev) =>
       prev.map((lead) =>
-        lead.ID === id ? { ...lead, [campo]: valor } : lead
+        String(lead.ID) === String(id) ? { ...lead, [campo]: valor } : lead // Garante comparação de string
       )
     );
   };
@@ -372,13 +362,13 @@ const App = () => {
     if (responsavelId === null) {
       setLeads((prev) =>
         prev.map((lead) =>
-          lead.id === leadId ? { ...lead, responsavel: null } : lead
+          String(lead.id) === String(leadId) ? { ...lead, responsavel: null } : lead // Garante comparação de string
         )
       );
       return;
     }
 
-    let usuario = usuarios.find((u) => u.id == responsavelId);
+    let usuario = usuarios.find((u) => String(u.id) === String(responsavelId)); // Garante comparação de string
 
     if (!usuario) {
       return;
@@ -386,53 +376,51 @@ const App = () => {
 
     setLeads((prev) =>
       prev.map((lead) =>
-        lead.id === leadId ? { ...lead, responsavel: usuario.nome } : lead
+        String(lead.id) === String(leadId) ? { ...lead, responsavel: usuario.nome } : lead // Garante comparação de string
       )
     );
   };
 
   const atualizarStatusUsuario = (id, novoStatus = null, novoTipo = null) => {
-    const usuario = usuarios.find((user) => user.id === id);
-    if (!usuario) {
+    // 1. Encontra o usuário na lista de usuários atual, garantindo que o ID seja comparado como string
+    const usuarioParaAtualizarIndex = usuarios.findIndex((user) => String(user.id) === String(id));
+
+    if (usuarioParaAtualizarIndex === -1) {
       console.warn(`Usuário com ID ${id} não encontrado para atualização.`);
       return;
     }
 
-    // Cria uma cópia do usuário para enviar, garantindo que todos os campos esperados pelo GAS estejam presentes
-    const usuarioParaEnviar = {
-      id: usuario.id,
-      usuario: usuario.usuario,
-      nome: usuario.nome,
-      email: usuario.email,
-      senha: usuario.senha, // Importante enviar a senha atual (mesmo que não alterada)
-      status: novoStatus !== null ? novoStatus : usuario.status, // Usa o novo status ou o existente
-      tipo: novoTipo !== null ? novoTipo : usuario.tipo, // Usa o novo tipo ou o existente
-    };
+    const usuarioAtual = { ...usuarios[usuarioParaAtualizarIndex] }; // Faz uma cópia para não mutar diretamente o estado
 
+    // 2. Atualiza as propriedades no objeto copiado
+    if (novoStatus !== null) {
+      usuarioAtual.status = novoStatus;
+    }
+    if (novoTipo !== null) {
+      usuarioAtual.tipo = novoTipo;
+    }
+
+    // 3. Envia o objeto atualizado para o Google Apps Script
     try {
       fetch(`${BASE_GAS_URL}?v=alterar_usuario`, {
         method: 'POST',
-        mode: 'no-cors',
+        mode: 'no-cors', // Mantenha no-cors se você está enviando do navegador para o GAS diretamente
         body: JSON.stringify({
-          usuario: usuarioParaEnviar // Envia o objeto de usuário completo e atualizado
+          usuario: usuarioAtual // Envia o objeto de usuário com o ID e as propriedades atualizadas
         }),
         headers: {
           'Content-Type': 'application/json',
         },
       });
-      // Atualiza o estado local apenas se a chamada fetch foi bem-sucedida (ou não deu erro)
-      setUsuarios((prev) =>
-        prev.map((user) =>
-          user.id === id
-            ? {
-                ...user,
-                ...(novoStatus !== null ? { status: novoStatus } : {}),
-                ...(novoTipo !== null ? { tipo: novoTipo } : {}),
-              }
-            : user
-        )
-      );
-      console.log(`Usuário ID ${id} atualizado para Status: ${usuarioParaEnviar.status}, Tipo: ${usuarioParaEnviar.tipo}`);
+
+      // 4. Atualiza o estado local APENAS para o usuário específico
+      setUsuarios((prev) => {
+        const novosUsuarios = [...prev]; // Cria uma nova cópia do array
+        novosUsuarios[usuarioParaAtualizarIndex] = usuarioAtual; // Substitui o objeto antigo pelo atualizado
+        return novosUsuarios;
+      });
+
+      console.log(`Usuário ID ${id} atualizado para Status: ${usuarioAtual.status}, Tipo: ${usuarioAtual.tipo}`);
     } catch (error) {
       console.error('Erro ao enviar atualização de usuário:', error);
       alert('Erro ao atualizar usuário. Verifique o console para mais detalhes.');
@@ -605,7 +593,7 @@ const App = () => {
                     usuarios={usuarios}
                     fetchLeadsFromSheet={fetchLeadsFromSheet}
                     fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
-                    atualizarStatusUsuario={atualizarStatusUsuario} // Passando a função atualizada
+                    atualizarStatusUsuario={atualizarStatusUsuario}
                   />
                 }
               />
