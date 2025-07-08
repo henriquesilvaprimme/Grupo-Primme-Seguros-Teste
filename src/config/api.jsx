@@ -3,19 +3,17 @@ const BASE_GAS_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0k
 
 // Objeto contendo todas as URLs específicas do seu Google Apps Script
 export const API_ENDPOINTS = {
-  // Endpoints para GET (para buscar dados)
-  GET_LEADS: `${BASE_GAS_URL}?v=getLeads`,
-  GET_LEADS_FECHADOS: `${BASE_GAS_URL}?v=pegar_clientes_fechados`,
-  GET_USUARIOS: `${BASE_GAS_URL}?v=pegar_usuario`,
-  GET_LISTA_NOMES_USUARIOS: `${BASE_GAS_URL}?v=listar_nomes_usuarios`, // Se você tiver esta função no GAS
-
-  // Endpoints para POST (para enviar dados/ações)
-  POST_ALTERAR_STATUS: `${BASE_GAS_URL}?v=alterar_status`,
-  POST_ALTERAR_ATRIBUIDO: `${BASE_GAS_URL}?v=alterar_atribuido`,
-  POST_ALTERAR_SEGURADORA: `${BASE_GAS_URL}?v=alterar_seguradora`,
-  POST_CRIAR_USUARIO: `${BASE_GAS_URL}?v=criar_usuario`,
-  POST_ALTERAR_USUARIO: `${BASE_GAS_URL}?v=alterar_usuario`,
-  POST_CRIAR_LEAD: `${BASE_GAS_URL}?v=criar_lead`, // Adicionado com base no seu `doPost`
+  BASE_GAS_URL: 'SUA_NOVA_URL_GAS_AQUI', // Atualize esta linha
+  GET_LEADS: 'SUA_NOVA_URL_GAS_AQUI?v=getLeads',
+  GET_LEADS_FECHADOS: 'SUA_NOVA_URL_GAS_AQUI?v=pegar_clientes_fechados',
+  GET_USUARIOS: 'SUA_NOVA_URL_GAS_AQUI?v=pegar_usuario',
+  POST_ALTERAR_STATUS: 'SUA_NOVA_URL_GAS_AQUI?v=alterar_status',
+  POST_ALTERAR_ATRIBUIDO: 'SUA_NOVA_URL_GAS_AQUI?v=alterar_atribuido',
+  POST_ALTERAR_SEGURADORA: 'SUA_NOVA_URL_GAS_AQUI?v=alterar_seguradora',
+  POST_CRIAR_USUARIO: 'SUA_NOVA_URL_GAS_AQUI?v=criar_usuario',
+  POST_ALTERAR_USUARIO: 'SUA_NOVA_URL_GAS_AQUI?v=alterar_usuario',
+  LISTAR_NOMES_USUARIOS: 'SUA_NOVA_URL_GAS_AQUI?v=listar_nomes_usuarios',
+  POST_CRIAR_LEAD: 'SUA_NOVA_URL_GAS_AQUI?v=criar_lead', // Adicione esta linha
 };
 
 // Se você precisar da base URL em algum lugar, pode exportá-la também
