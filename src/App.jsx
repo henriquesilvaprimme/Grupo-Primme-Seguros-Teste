@@ -1,22 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 
+// Importe suas URLs centralizadas
+import { API_ENDPOINTS } from './config/api'; // Ajuste o caminho se necessário
+
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Leads from './Leads';
 import LeadsFechados from './LeadsFechados';
 import LeadsPerdidos from './LeadsPerdidos';
-import BuscarLead from './BuscarLead'; // Corrigido o caminho se for Layers/BuscarLead
+import BuscarLead from './BuscarLead'; // Caminho corrigido conforme a discussão anterior
 import CriarUsuario from './pages/CriarUsuario';
 import Usuarios from './pages/Usuarios';
 import Ranking from './pages/Ranking';
 
-// URL base do Google Apps Script
-const BASE_GAS_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 
 const App = () => {
   const navigate = useNavigate();
 
+  // ... (seus estados existentes) ...
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginInput, setLoginInput] = useState('');
   const [senhaInput, setSenhaInput] = useState('');
@@ -26,7 +28,7 @@ const App = () => {
   const [leads, setLeads] = useState([]);
   const [leadSelecionado, setLeadSelecionado] = useState(null);
   const [usuarios, setUsuarios] = useState([]);
-  const [ultimoFechadoId, setUltimoFechadoId] = useState(null); // Este estado ainda parece não ser usado diretamente
+  const [ultimoFechadoId, setUltimoFechadoId] = useState(null);
 
   useEffect(() => {
     const img = new Image();
@@ -37,7 +39,8 @@ const App = () => {
   // Funções de fetch memoizadas com useCallback
   const fetchLeadsFromSheet = useCallback(async () => {
     try {
-      const response = await fetch(`${BASE_GAS_URL}?v=getLeads`);
+      // Usando a URL do API_ENDPOINTS
+      const response = await fetch(API_ENDPOINTS.GET_LEADS);
       const data = await response.json();
 
       if (Array.isArray(data)) {
@@ -86,7 +89,8 @@ const App = () => {
 
   const fetchLeadsFechadosFromSheet = useCallback(async () => {
     try {
-      const response = await fetch(`${BASE_GAS_URL}?v=pegar_clientes_fechados`);
+      // Usando a URL do API_ENDPOINTS
+      const response = await fetch(API_ENDPOINTS.GET_LEADS_FECHADOS);
       const data = await response.json();
       setLeadsFechados(data);
     } catch (error) {
@@ -97,7 +101,8 @@ const App = () => {
 
   const fetchUsuariosFromSheet = useCallback(async () => {
     try {
-      const response = await fetch(`${BASE_GAS_URL}?v=pegar_usuario`);
+      // Usando a URL do API_ENDPOINTS
+      const response = await fetch(API_ENDPOINTS.GET_USUARIOS);
       const data = await response.json();
 
       if (Array.isArray(data)) {
@@ -120,23 +125,7 @@ const App = () => {
     }
   }, []);
 
-  // Efeitos para carregar dados e configurar o polling
-  useEffect(() => {
-    fetchLeadsFromSheet();
-    fetchLeadsFechadosFromSheet();
-    fetchUsuariosFromSheet();
-
-    const leadsInterval = setInterval(fetchLeadsFromSheet, 60000);
-    const leadsFechadosInterval = setInterval(fetchLeadsFechadosFromSheet, 60000);
-    const usuariosInterval = setInterval(fetchUsuariosFromSheet, 60000);
-
-    return () => {
-      clearInterval(leadsInterval);
-      clearInterval(leadsFechadosInterval);
-      clearInterval(usuariosInterval);
-    };
-  }, [fetchLeadsFromSheet, fetchLeadsFechadosFromSheet, fetchUsuariosFromSheet]);
-
+  // ... (Restante do seu código useEffect e funções de manipulação de dados) ...
 
   const adicionarUsuario = async (usuario) => {
     try {
@@ -149,7 +138,7 @@ const App = () => {
         tipo: usuario.tipo || 'Usuario',
       };
 
-      const response = await fetch(`${BASE_GAS_URL}?v=criar_usuario`, {
+      const response = await fetch(API_ENDPOINTS.POST_CRIAR_USUARIO, { // Usando a URL do API_ENDPOINTS
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
@@ -162,7 +151,7 @@ const App = () => {
       if (data.status === 'success') {
         setUsuarios((prev) => [...prev, newUser]);
         alert('Usuário criado com sucesso!');
-        fetchUsuariosFromSheet(); // Re-fetch para sincronizar
+        fetchUsuariosFromSheet();
       } else {
         alert(data.message || 'Erro ao criar usuário.');
       }
@@ -182,7 +171,6 @@ const App = () => {
     const originalStatus = leadToUpdate.status;
     const originalConfirmado = leadToUpdate.confirmado;
 
-    // Atualização otimista do UI
     setLeads((prev) =>
       prev.map((lead) =>
         lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
@@ -230,7 +218,7 @@ const App = () => {
     }
 
     try {
-      const response = await fetch(`${BASE_GAS_URL}?v=alterar_status`, {
+      const response = await fetch(API_ENDPOINTS.POST_ALTERAR_STATUS, { // Usando a URL do API_ENDPOINTS
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
@@ -245,7 +233,6 @@ const App = () => {
         fetchLeadsFechadosFromSheet();
       } else {
         console.error('Erro ao atualizar status do lead no Google Sheets:', data.message);
-        // Rollback se falhar
         setLeads((prev) =>
           prev.map((lead) =>
             lead.phone === phone ? { ...lead, status: originalStatus, confirmado: originalConfirmado } : lead
@@ -255,7 +242,6 @@ const App = () => {
       }
     } catch (error) {
       console.error('Erro na requisição para atualizar status do lead:', error);
-      // Rollback em caso de erro de comunicação
       setLeads((prev) =>
         prev.map((lead) =>
           lead.phone === phone ? { ...lead, status: originalStatus, confirmado: originalConfirmado } : lead
@@ -272,7 +258,7 @@ const App = () => {
       return;
     }
 
-    const originalLeadData = { ...lead }; // Salva estado original para rollback
+    const originalLeadData = { ...lead };
 
     const updatedLeadData = {
       ID: lead.ID,
@@ -280,10 +266,9 @@ const App = () => {
       PremioLiquido: parseFloat(premio),
       Comissao: parseFloat(comissao),
       Parcelamento: parcelamento,
-      VigenciaFinal: vigenciaFinal // Novo campo
+      VigenciaFinal: vigenciaFinal
     };
 
-    // Atualização otimista do UI
     setLeadsFechados((prev) =>
       prev.map((l) =>
         l.ID === id
@@ -301,7 +286,7 @@ const App = () => {
     );
 
     try {
-      const response = await fetch(`${BASE_GAS_URL}?v=alterar_seguradora`, {
+      const response = await fetch(API_ENDPOINTS.POST_ALTERAR_SEGURADORA, { // Usando a URL do API_ENDPOINTS
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
@@ -312,10 +297,9 @@ const App = () => {
       const data = await response.json();
       if (data.status === 'success') {
         console.log('Seguradora e detalhes atualizados no Google Sheets:', data.message);
-        fetchLeadsFechadosFromSheet(); // Re-fetch para sincronizar
+        fetchLeadsFechadosFromSheet();
       } else {
         console.error('Erro ao atualizar seguradora no Google Sheets:', data.message);
-        // Rollback se falhar
         setLeadsFechados((prev) =>
           prev.map((l) => (l.ID === id ? originalLeadData : l))
         );
@@ -323,7 +307,6 @@ const App = () => {
       }
     } catch (error) {
       console.error('Erro na requisição para confirmar seguradora:', error);
-      // Rollback em caso de erro de comunicação
       setLeadsFechados((prev) =>
         prev.map((l) => (l.ID === id ? originalLeadData : l))
       );
@@ -350,7 +333,6 @@ const App = () => {
       usuarioNome = usuario.nome;
     }
 
-    // Atualização otimista do UI
     setLeads((prev) =>
       prev.map((lead) =>
         lead.id === leadId ? { ...lead, responsavel: usuarioNome } : lead
@@ -358,7 +340,7 @@ const App = () => {
     );
 
     try {
-      const response = await fetch(`${BASE_GAS_URL}?v=alterar_atribuido`, {
+      const response = await fetch(API_ENDPOINTS.POST_ALTERAR_ATRIBUIDO, { // Usando a URL do API_ENDPOINTS
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
@@ -369,10 +351,9 @@ const App = () => {
       const data = await response.json();
       if (data.status === 'success') {
         console.log('Lead transferido no Google Sheets:', data.message);
-        fetchLeadsFromSheet(); // Re-fetch para sincronizar
+        fetchLeadsFromSheet();
       } else {
         console.error('Erro ao transferir lead no Google Sheets:', data.message);
-        // Rollback se falhar
         setLeads((prev) =>
           prev.map((lead) =>
             lead.id === leadId ? { ...lead, responsavel: originalResponsavel } : lead
@@ -382,7 +363,6 @@ const App = () => {
       }
     } catch (error) {
       console.error('Erro na requisição para transferir lead:', error);
-      // Rollback em caso de erro de comunicação
       setLeads((prev) =>
         prev.map((lead) =>
           lead.id === leadId ? { ...lead, responsavel: originalResponsavel } : lead
@@ -407,7 +387,6 @@ const App = () => {
       },
     };
 
-    // Atualização otimista do UI
     setUsuarios((prev) =>
       prev.map((u) =>
         u.id === id
@@ -421,7 +400,7 @@ const App = () => {
     );
 
     try {
-      const response = await fetch(`${BASE_GAS_URL}?v=alterar_usuario`, {
+      const response = await fetch(API_ENDPOINTS.POST_ALTERAR_USUARIO, { // Usando a URL do API_ENDPOINTS
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
@@ -432,10 +411,9 @@ const App = () => {
       const data = await response.json();
       if (data.status === 'success') {
         console.log('Status/Tipo do usuário atualizado no Google Sheets:', data.message);
-        fetchUsuariosFromSheet(); // Re-fetch para sincronizar
+        fetchUsuariosFromSheet();
       } else {
         console.error('Erro ao atualizar usuário no Google Sheets:', data.message);
-        // Rollback se falhar
         setUsuarios((prev) =>
           prev.map((u) =>
             u.id === id ? { ...u, status: originalStatus, tipo: originalTipo } : u
@@ -445,7 +423,6 @@ const App = () => {
       }
     } catch (error) {
       console.error('Erro na requisição para atualizar usuário:', error);
-      // Rollback em caso de erro de comunicação
       setUsuarios((prev) =>
         prev.map((u) =>
           u.id === id ? { ...u, status: originalStatus, tipo: originalTipo } : u
@@ -454,6 +431,9 @@ const App = () => {
       alert('Erro de comunicação com o servidor ao atualizar usuário.');
     }
   };
+
+
+  // ... (resto do seu componente App.jsx) ...
 
   const atualizarDetalhesLeadFechado = (id, campo, valor) => {
     setLeads((prev) =>
