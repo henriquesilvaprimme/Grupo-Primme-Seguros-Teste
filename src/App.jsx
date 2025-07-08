@@ -13,22 +13,43 @@ import Ranking from './pages/Ranking';
 import CriarLead from './pages/CriarLead';
 
 // App.jsx
-// Certifique-se de que este URL é EXATAMENTE o que você copiou da sua implantação mais recente do GAS.
-const GOOGLE_SHEETS_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
+
+// 1. COPIE O URL EXATO da sua ÚLTIMA IMPLANTAÇÃO do Google Apps Script aqui.
+// Deve terminar com /exec
+const GOOGLE_SHEETS_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec'; // <-- SUBSTITUA ESTE VALOR PELO SEU URL REAL E MAIS RECENTE!
+
+// 2. Defina todas as URLs específicas que sua aplicação usará, baseadas no URL base.
+// Certifique-se de que os nomes dessas variáveis GOOGLE_SHEETS_... sejam exatamente
+// os mesmos que você usa nas suas funções de fetch.
 
 const GOOGLE_SHEETS_GET_USERS_URL = `${GOOGLE_SHEETS_BASE_URL}?v=pegar_usuario`;
-const GOOGLE_SHEETS_ALTERAR_USUARIO = `${GOOGLE_SHEETS_BASE_URL}?v=alterar_usuario`;
+const GOOGLE_SHEETS_ALTERAR_USUARIO_URL = `${GOOGLE_SHEETS_BASE_URL}?v=alterar_usuario`;
 const GOOGLE_SHEETS_GET_LEADS_URL = `${GOOGLE_SHEETS_BASE_URL}?v=getLeads`;
 const GOOGLE_SHEETS_GET_CLOSED_LEADS_URL = `${GOOGLE_SHEETS_BASE_URL}?v=pegar_clientes_fechados`;
-const GOOGLE_SHEETS_CREATE_LEAD_URL = `${GOOGLE_SHEETS_BASE_URL}?action=criar_lead`; // ou ?v=criar_lead dependendo de como voce quer rotear
-const GOOGLE_SHEETS_SAVE_LEAD_URL = `${GOOGLE_SHEETS_BASE_URL}?action=salvar_lead`;
-const GOOGLE_SHEETS_TRANSFER_LEAD_URL = `${GOOGLE_SHEETS_BASE_URL}?action=transferir_lead`;
-const GOOGLE_SHEETS_ALTERAR_SEGURADORA_URL = `${GOOGLE_SHEETS_BASE_URL}?action=alterar_seguradora`;
-const GOOGLE_SHEETS_CREATE_USER_URL = `${GOOGLE_SHEETS_BASE_URL}?action=criar_usuario`;
-const GOOGLE_SHEETS_SAVE_USER_URL = `${GOOGLE_SHEETS_BASE_URL}?action=salvar_usuario`; // Pode ser redundante com alterar_usuario
-const GOOGLE_SHEETS_RANKING_URL = `${GOOGLE_SHEETS_BASE_URL}?action=ranking_data`;
+const GOOGLE_SHEETS_CREATE_LEAD_URL = `${GOOGLE_SHEETS_BASE_URL}?v=criar_lead`; // Usando 'v' para consistência
+const GOOGLE_SHEETS_SAVE_LEAD_URL = `${GOOGLE_SHEETS_BASE_URL}?v=salvar_lead`;   // Usando 'v' para consistência
+const GOOGLE_SHEETS_TRANSFER_LEAD_URL = `${GOOGLE_SHEETS_BASE_URL}?v=transferir_lead`; // Usando 'v' para consistência
+const GOOGLE_SHEETS_ALTERAR_SEGURADORA_URL = `${GOOGLE_SHEETS_BASE_URL}?v=alterar_seguradora`; // Usando 'v' para consistência
+const GOOGLE_SHEETS_CREATE_USER_URL = `${GOOGLE_SHEETS_BASE_URL}?v=criar_usuario`; // Usando 'v' para consistência
+const GOOGLE_SHEETS_RANKING_URL = `${GOOGLE_SHEETS_BASE_URL}?action=ranking_data`; // Este usa 'action' no GAS
 
-// ... o resto do seu código App.jsx ...
+
+// Seu código App.jsx continuaria aqui...
+
+// Exemplo de como você usaria essas URLs (isso já deve estar no seu código):
+/*
+async function fetchUsers() {
+    try {
+        const response = await fetch(GOOGLE_SHEETS_GET_USERS_URL); // <-- Usa a variável definida acima
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setUsers(data);
+    } catch (error) {
+        console.error("Erro ao buscar usuários do Google Sheets:", error);
+    }
+}
 
 const App = () => {
   const navigate = useNavigate();
