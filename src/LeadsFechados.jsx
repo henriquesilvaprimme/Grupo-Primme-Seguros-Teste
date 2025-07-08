@@ -16,12 +16,13 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   const [valores, setValores] = useState(() => {
     const inicial = {};
     fechados.forEach(lead => {
-
       inicial[lead.ID] = {
         PremioLiquido: lead.PremioLiquido !== undefined ? Math.round(parseFloat(lead.PremioLiquido) * 100) : 0,
         Comissao: lead.Comissao ? String(lead.Comissao) : '',
         Parcelamento: lead.Parcelamento || '',
         insurer: lead.Seguradora || '',
+        // Adiciona a VigenciaFinal ao estado inicial, se existir no lead
+        VigenciaFinal: lead.VigenciaFinal || '',
       };
     });
     return inicial;
@@ -43,6 +44,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
               Comissao: lead.Comissao ? String(lead.Comissao) : '',
               Parcelamento: lead.Parcelamento || '',
               insurer: lead.Seguradora || '',
+              // Inicializa VigenciaFinal para novos leads fechados
+              VigenciaFinal: lead.VigenciaFinal || '',
             };
           }
         });
@@ -168,6 +171,18 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       },
     }));
     onUpdateDetalhes(id, 'Parcelamento', valor);
+  };
+
+  // Nova função para lidar com a mudança na Vigência Final
+  const handleVigenciaFinalChange = (id, valor) => {
+    setValores(prev => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        VigenciaFinal: valor,
+      },
+    }));
+    onUpdateDetalhes(id, 'VigenciaFinal', valor);
   };
 
   const inputWrapperStyle = {
@@ -367,7 +382,9 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             !valores[lead.ID]?.Comissao ||
             valores[lead.ID]?.Comissao === '' ||
             !valores[lead.ID]?.Parcelamento ||
-            valores[lead.ID]?.Parcelamento === '';
+            valores[lead.ID]?.Parcelamento === '' ||
+            !valores[lead.ID]?.VigenciaFinal || // Adiciona a validação para VigenciaFinal
+            valores[lead.ID]?.VigenciaFinal === '';
 
           return (
             <div key={lead.ID} style={containerStyle}>
@@ -387,6 +404,27 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '250px' }}>
+                {/* Novo campo de input para Vigência Final */}
+                <label htmlFor={`vigencia-final-${lead.ID}`} style={{ marginBottom: '5px', alignSelf: 'flex-start', fontSize: '14px', fontWeight: 'bold' }}>
+                  Vigência Final:
+                </label>
+                <input
+                  id={`vigencia-final-${lead.ID}`}
+                  type="date"
+                  value={valores[lead.ID]?.VigenciaFinal || ''}
+                  onChange={(e) => handleVigenciaFinalChange(lead.ID, e.target.value)}
+                  disabled={!!lead.Seguradora}
+                  style={{
+                    padding: '8px',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    width: '100%',
+                    marginBottom: '8px',
+                    boxSizing: 'border-box', // Garante que padding e border não aumentem o width total
+                  }}
+                  title="Selecione a data de vigência final do seguro"
+                />
+
                 <select
                   value={valores[lead.ID]?.insurer || ''}
                   onChange={(e) => {
@@ -462,11 +500,13 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
                 {!lead.Seguradora ? (
                   <button
-                    onClick={() => onConfirmInsurer(lead.ID,
+                    onClick={() => onConfirmInsurer(
+                      lead.ID,
                       parseFloat(valores[lead.ID]?.PremioLiquido.toString().replace('.', ',')),
                       valores[lead.ID]?.insurer,
                       valores[lead.ID]?.Comissao,
-                      valores[lead.ID]?.Parcelamento
+                      valores[lead.ID]?.Parcelamento,
+                      valores[lead.ID]?.VigenciaFinal // Passa a VigenciaFinal para a função de confirmação
                     )}
                     disabled={isButtonDisabled}
                     style={{
