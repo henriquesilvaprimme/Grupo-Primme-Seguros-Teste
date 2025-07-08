@@ -41,7 +41,7 @@ const App = () => {
         const response = await fetch(GOOGLE_SHEETS_SCRIPT_URL );
         const data = await response.json();
 
-         console.log(data)
+          console.log(data)
 
         if (Array.isArray(data)) {
 
@@ -94,7 +94,7 @@ const App = () => {
     };
 
   useEffect(() => {
-    
+
     fetchLeadsFromSheet();
 
     const interval = setInterval(() => {
@@ -104,7 +104,7 @@ const App = () => {
     return () => clearInterval(interval);
   }, [leadSelecionado]);
   // FIM - sincronização leads
-   
+
 
   const fetchLeadsFechadosFromSheet = async () => {
     try {
@@ -122,7 +122,7 @@ const App = () => {
   };
 
   useEffect(() => {
-    
+
     fetchLeadsFechadosFromSheet();
 
     const interval = setInterval(() => {
@@ -215,6 +215,20 @@ const App = () => {
     setUsuarios((prev) => [...prev, { ...usuario, id: prev.length + 1 }]);
   };
 
+  // --- INÍCIO DA FUNÇÃO ADICIONADA: adicionarNovoLead ---
+  const adicionarNovoLead = (novoLead) => {
+    // Esta função será chamada pelo componente CriarLead.
+    // Aqui você pode adicionar lógica se precisar atualizar o estado `leads`
+    // no App.jsx imediatamente após a criação no Google Sheets,
+    // embora o `fetchLeadsFromSheet` já faça a sincronização periódica.
+    console.log("adicionarNovoLead chamado no App.jsx com:", novoLead);
+    // Opcional: Se você quiser adicionar o lead ao estado `leads`
+    // imediatamente sem esperar o próximo fetch, você pode fazer:
+    // setLeads((prevLeads) => [...prevLeads, novoLead]);
+    // No entanto, como a criação já ocorre via Apps Script, o fetch periódica
+    // já se encarregará de manter o estado atualizado.
+  };
+  // --- FIM DA FUNÇÃO ADICIONADA ---
 
 
   const atualizarStatusLeadAntigo = (id, novoStatus, phone) => {
@@ -256,7 +270,7 @@ const App = () => {
         const atualizados = prev.map((lead) =>
           lead.phone === phone ? { ...lead, Status: novoStatus, confirmado: true } : lead
         );
- 
+
         return atualizados;
       } else {
         // Se não existe, busca o lead na lista principal e adiciona
@@ -391,7 +405,7 @@ const App = () => {
 
     // Busca o usuário normalmente se responsavelId não for null
     let usuario = usuarios.find((u) => u.id == responsavelId);
-    
+
     if (!usuario) {
 
       return;
@@ -535,8 +549,8 @@ const App = () => {
             element={
               <Dashboard
                 leadsClosed={
-                  isAdmin 
-                    ? leadsFechados 
+                  isAdmin
+                    ? leadsFechados
                     : leadsFechados.filter((lead) => lead.Responsavel === usuarioLogado.nome)
                 }
                 leads={
@@ -545,7 +559,7 @@ const App = () => {
                     : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)
                 }
                 usuarioLogado={usuarioLogado}
-                
+
               />
             }
           />
@@ -576,7 +590,7 @@ const App = () => {
                 ultimoFechadoId={ultimoFechadoId}
                 onAbrirLead={onAbrirLead}
                 leadSelecionado={leadSelecionado}
-                
+
               />
             }
           />
@@ -610,7 +624,7 @@ const App = () => {
                 element={
                   <Usuarios
                     leads={isAdmin ? leads : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)}
-                    
+
                     usuarios={usuarios}
                     fetchLeadsFromSheet={fetchLeadsFromSheet}
                     fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
@@ -620,8 +634,8 @@ const App = () => {
               />
             </>
           )}
-          <Route path="/ranking" element={<Ranking 
-                usuarios={usuarios} 
+          <Route path="/ranking" element={<Ranking
+                usuarios={usuarios}
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
                 leads={leads} />} />
