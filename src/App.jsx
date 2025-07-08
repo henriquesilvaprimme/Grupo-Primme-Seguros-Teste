@@ -97,6 +97,7 @@ const App = () => {
 
   const fetchUsuariosFromSheet = useCallback(async () => {
     try {
+      console.log("Tentando buscar usuários de:", API_ENDPOINTS.GET_USUARIOS); // Adicionado para depuração
       const response = await fetch(API_ENDPOINTS.GET_USUARIOS);
       const data = await response.json();
       console.log("Dados de usuários recebidos do GAS:", data);
