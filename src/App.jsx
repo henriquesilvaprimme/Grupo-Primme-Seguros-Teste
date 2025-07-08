@@ -599,10 +599,10 @@ const App = () => {
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
                 />
-          <Route
-            path="/criar-lead"
-             element={<CriarLead adicionarLead={adicionarNovoLead} />}
-           />
+           <Route
+             path="/criar-lead"
+            element={<CriarLead adicionarLead={adicionarNovoLead} />}
+      />} /> // <-- O PROBLEMA ESTAVA AQUI!
           {isAdmin && (
             <>
               <Route path="/criar-usuario" element={<CriarUsuario adicionarUsuario={adicionarUsuario} />} />
