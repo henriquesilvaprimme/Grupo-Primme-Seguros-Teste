@@ -10,18 +10,12 @@ import BuscarLead from './BuscarLead';
 import CriarUsuario from './pages/CriarUsuario';
 import Usuarios from './pages/Usuarios';
 import Ranking from './pages/Ranking';
-import CriarLead from './pages/CriarLead';
 
-// URL BASE do seu Web App no Google Apps Script
-const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
+//const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 
-// URLs para as Google Sheets APIs, usando a URL base
-const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads`;
-const GOOGLE_SHEETS_USERS = GOOGLE_APPS_SCRIPT_BASE_URL; // O parâmetro 'v=pegar_usuario' será adicionado nas chamadas
-const GOOGLE_SHEETS_LEADS_FECHADOS = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`;
-const GOOGLE_SHEETS_ALTERAR_SEGURADORA = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=alterar_seguradora`;
-const GOOGLE_SHEETS_ALTERAR_USUARIO = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=alterar_usuario`;
-
+const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=getLeads';
+const GOOGLE_SHEETS_USERS = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
+const GOOGLE_SHEETS_LEADS_FECHADOS = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
 
 const App = () => {
   const navigate = useNavigate();
@@ -39,104 +33,69 @@ const App = () => {
     img.onload = () => setBackgroundLoaded(true);
   }, []);
 
+  // INÍCIO - sincronização leads via Google Sheets
   const [leads, setLeads] = useState([]);
-  const [leadSelecionado, setLeadSelecionado] = useState(null);
-
-  const formatarDataParaExibicao = (dataString) => {
-    if (!dataString) return '';
-    try {
-      let dateObj;
-      if (dataString.includes('T')) {
-        dateObj = new Date(dataString);
-      } else {
-        const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-
-        if (partesHifen) {
-          dateObj = new Date(dataString + 'T00:00:00');
-        } else if (partesBarra) {
-          dateObj = new Date(`${partesBarra[3]}-${partesBarra[2]}-${partesBarra[1]}T00:00:00`);
-        } else {
-          dateObj = new Date(dataString);
-        }
-      }
-
-      if (isNaN(dateObj.getTime())) {
-        console.warn('Data inválida para exibição:', dataString);
-        return dataString;
-      }
-
-      const dia = String(dateObj.getDate()).padStart(2, '0');
-      const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
-      const ano = dateObj.getFullYear();
-      const nomeMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-                          "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-      const mesExtenso = nomeMeses[dateObj.getMonth()];
-      const anoCurto = String(ano).substring(2);
-
-      return `${dia}/${mesExtenso}/${anoCurto}`;
-    } catch (error) {
-      console.error('Erro ao formatar data para exibição:', error);
-      return dataString;
-    }
-  };
-
+  const [leadSelecionado, setLeadSelecionado] = useState(null); // movido para cá para usar no useEffect
 
   const fetchLeadsFromSheet = async () => {
-    try {
-      const response = await fetch(`${BASE_GAS_URL}?v=getLeads`);
-      const data = await response.json();
+      try {
+        const response = await fetch(GOOGLE_SHEETS_SCRIPT_URL );
+        const data = await response.json();
 
-      console.log("Dados de Leads Recebidos do GAS:", data);
+          console.log(data)
 
-      if (Array.isArray(data)) {
-        const sortedData = data.sort((a, b) => {
-          const dateA = new Date(a.editado);
-          const dateB = new Date(b.editado);
-          return dateB - dateA;
-        });
+        if (Array.isArray(data)) {
 
-        const formattedLeads = sortedData.map((item, index) => ({
-          id: item.id ? String(item.id) : String(index + 1), // Garante que o ID é string
-          name: item.name || item.Name || '',
-          vehicleModel: item.vehiclemodel || item.vehicleModel || '',
-          vehicleYearModel: item.vehicleyearmodel || item.vehicleYearModel || '',
-          city: item.city || '',
-          phone: item.phone || item.Telefone || '',
-          insuranceType: item.insurancetype || item.insuranceType || '',
-          status: item.status || 'Selecione o status',
-          confirmado: item.confirmado === 'true' || item.confirmado === true,
-          insurer: item.insurer || '',
-          insurerConfirmed: item.insurerConfirmed === 'true' || item.insurerConfirmed === true,
-          usuarioId: item.usuarioId ? String(item.usuarioId) : null, // Garante que usuarioId é string
-          premioLiquido: item.premioLiquido || '',
-          comissao: item.comissao || '',
-          parcelamento: item.parcelamento || '',
-          VigenciaFinal: item.VigenciaFinal || '',
-          createdAt: item.data || new Date().toISOString(),
-          responsavel: item.responsavel || '',
-          editado: item.editado || ''
-        }));
+          // Ordena o array por createdAt (mais recente primeiro)
+          const sortedData = data.sort((a, b) => {
+            const dateA = new Date(a.editado);
+            const dateB = new Date(b.editado);
+            return dateB - dateA; // decrescente (mais recente no topo)
+          });
 
-        console.log("Leads formatados no frontend:", formattedLeads);
+          const formattedLeads = sortedData.map((item, index) => ({
+            id: String(item.id || index + 1), // CONVERSÃO CRÍTICA: Garante que o ID é STRING
+            name: item.name || item.Name || '',
+            vehicleModel: item.vehiclemodel || item.vehiclemodel || '',
+            vehicleYearModel: item.vehicleyearmodel || item.vehicleyearmodel || '',
+            city: item.city || '',
+            phone: item.phone || item.Telefone || '',
+            insuranceType: item.insurancetype || '',
+            status: item.status || 'Selecione o status',
+            confirmado: item.confirmado === 'true' || item.confirmado === true,
+            insurer: item.insurer || '',
+            insurerConfirmed: item.insurerConfirmed === 'true' || item.insurerConfirmed === true,
+            usuarioId: String(item.usuarioId || ''), // Garante que usuarioId é STRING
+            premioLiquido: item.premioLiquido || '',
+            comissao: item.comissao || '',
+            parcelamento: item.parcelamento || '',
+            createdAt: item.data || new Date().toISOString(),
+            responsavel: item.responsavel || '',
+            editado: item.editado || ''
+          }));
 
-        if (!leadSelecionado) {
-          setLeads(formattedLeads);
+          console.log(formattedLeads)
+
+
+          // Só atualiza leads se não houver lead selecionado para não atrapalhar o usuário
+          if (!leadSelecionado) {
+            setLeads(formattedLeads);
+          }
+        } else {
+          if (!leadSelecionado) {
+            setLeads([]);
+          }
         }
-      } else {
+      } catch (error) {
+
         if (!leadSelecionado) {
           setLeads([]);
         }
       }
-    } catch (error) {
-      console.error('Erro ao buscar leads da planilha:', error);
-      if (!leadSelecionado) {
-        setLeads([]);
-      }
-    }
-  };
+    };
 
   useEffect(() => {
+    
     fetchLeadsFromSheet();
 
     const interval = setInterval(() => {
@@ -145,20 +104,17 @@ const App = () => {
 
     return () => clearInterval(interval);
   }, [leadSelecionado]);
+  // FIM - sincronização leads
+    
 
   const fetchLeadsFechadosFromSheet = async () => {
     try {
-      const response = await fetch(`${BASE_GAS_URL}?v=pegar_clientes_fechados`)
+
+
+      const response = await fetch(GOOGLE_SHEETS_LEADS_FECHADOS)
       const data = await response.json();
 
-      console.log("Dados de Leads Fechados Recebidos do GAS:", data);
-
-      const formattedData = data.map(item => ({
-        ...item,
-        ID: String(item.ID), // Garante que o ID é string
-        VigenciaFinal: item.VigenciaFinal ? formatarDataParaExibicao(item.VigenciaFinal) : ''
-      }));
-      setLeadsFechados(formattedData);
+      setLeadsFechados(data.map(item => ({ ...item, ID: String(item.ID) }))); // CONVERSÃO CRÍTICA: Garante ID como STRING
 
     } catch (error) {
       console.error('Erro ao buscar leads fechados:', error);
@@ -167,6 +123,7 @@ const App = () => {
   };
 
   useEffect(() => {
+    
     fetchLeadsFechadosFromSheet();
 
     const interval = setInterval(() => {
@@ -176,43 +133,43 @@ const App = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const [usuarios, setUsuarios] = useState([]);
+  const [usuarios, setUsuarios] = useState([]); // Começa vazio
 
-  useEffect(() => {
-    const fetchUsuariosFromSheet = async () => {
-      try {
-        const response = await fetch(`${BASE_GAS_URL}?v=pegar_usuario`);
-        const data = await response.json();
+    useEffect(() => {
+      const fetchUsuariosFromSheet = async () => {
+        try {
+          const response = await fetch(GOOGLE_SHEETS_USERS + '?v=pegar_usuario');
+          const data = await response.json();
 
-        if (Array.isArray(data)) {
-          const formattedUsuarios = data.map((item) => ({
-            id: String(item.ID), // CONVERSÃO CRÍTICA: Garante que o ID é STRING para comparação consistente
-            usuario: item.usuario || '',
-            nome: item.nome || '',
-            email: item.email || '',
-            senha: item.senha || '',
-            status: item.status || 'Ativo',
-            tipo: item.tipo || 'Usuario',
-          }));
+          if (Array.isArray(data)) {
+            const formattedUsuarios = data.map((item, index) => ({
+              id: String(item.id || ''), // CONVERSÃO CRÍTICA: Garante que o ID é STRING
+              usuario: item.usuario || '',
+              nome: item.nome || '',
+              email: item.email || '',
+              senha: item.senha || '',
+              status: item.status || 'Ativo',
+              tipo: item.tipo || 'Usuario',
+            }));
 
-          setUsuarios(formattedUsuarios);
-        } else {
+            setUsuarios(formattedUsuarios);
+          } else {
+            setUsuarios([]);
+          }
+        } catch (error) {
+          console.error('Erro ao buscar usuários do Google Sheets:', error);
           setUsuarios([]);
         }
-      } catch (error) {
-        console.error('Erro ao buscar usuários do Google Sheets:', error);
-        setUsuarios([]);
-      }
-    };
+      };
 
-    fetchUsuariosFromSheet();
-
-    const interval = setInterval(() => {
       fetchUsuariosFromSheet();
-    }, 60000);
 
-    return () => clearInterval(interval);
-  }, []);
+      const interval = setInterval(() => {
+        fetchUsuariosFromSheet();
+      }, 60000);
+
+      return () => clearInterval(interval);
+    }, []);
 
   const [ultimoFechadoId, setUltimoFechadoId] = useState(null);
 
@@ -220,130 +177,137 @@ const App = () => {
     setUsuarios((prev) => [...prev, { ...usuario, id: String(prev.length + 1) }]); // Mantém ID como string
   };
 
-  const adicionarNovoLead = (novoLead) => {
-    setLeads((prevLeads) => {
-      if (!prevLeads.some(lead => String(lead.ID) === String(novoLead.ID))) { // Garante comparação de string
-        return [novoLead, ...prevLeads];
-      }
-      return prevLeads;
-    });
-  };
+
 
   const atualizarStatusLeadAntigo = (id, novoStatus, phone) => {
     if (novoStatus == 'Fechado') {
-      setLeadsFechados((prev) => {
+      //setUltimoFechadoId(id);
+        setLeadsFechados((prev) => {
         const atualizados = prev.map((leadsFechados) =>
-          String(leadsFechados.phone) === String(phone) ? { ...leadsFechados, Status: novoStatus, confirmado: true } : leadsFechados
+          String(leadsFechados.phone) === String(phone) ? { ...leadsFechados, Status: novoStatus, confirmado: true } : leadsFechados // Comparação como string
         );
+
         return atualizados;
       });
     }
 
-    setLeads((prev) =>
-      prev.map((lead) =>
-        String(lead.phone) === String(phone) ? { ...lead, status: novoStatus, confirmado: true } : lead
-      )
+      setLeads((prev) =>
+        prev.map((lead) =>
+          String(lead.phone) === String(phone) ? { ...lead, status: novoStatus, confirmado: true } : lead // Comparação como string
+        )
     );
   };
 
   const atualizarStatusLead = (id, novoStatus, phone) => {
-    setLeads((prev) =>
-      prev.map((lead) =>
-        String(lead.phone) === String(phone) ? { ...lead, status: novoStatus, confirmado: true } : lead
-      )
-    );
 
-    if (novoStatus === 'Fechado') {
-      setLeadsFechados((prev) => {
-        const jaExiste = prev.some((lead) => String(lead.phone) === String(phone));
 
-        if (jaExiste) {
-          const atualizados = prev.map((lead) =>
-            String(lead.phone) === String(phone) ? { ...lead, Status: novoStatus, confirmado: true } : lead
-          );
-          return atualizados;
-        } else {
-          const leadParaAdicionar = leads.find((lead) => String(lead.phone) === String(phone));
+  // Atualiza leads principal
+  setLeads((prev) =>
+    prev.map((lead) =>
+      String(lead.phone) === String(phone) ? { ...lead, status: novoStatus, confirmado: true } : lead // Comparação como string
+    )
+  );
 
-          if (leadParaAdicionar) {
-            const novoLeadFechado = {
-              ID: String(leadParaAdicionar.id) || crypto.randomUUID(), // Garante ID como string
-              name: leadParaAdicionar.name,
-              vehicleModel: leadParaAdicionar.vehicleModel,
-              vehicleYearModel: leadParaAdicionar.vehicleYearModel,
-              city: leadParaAdicionar.city,
-              phone: leadParaAdicionar.phone,
-              insurer: leadParaAdicionar.insurancetype || leadParaAdicionar.insuranceType || "",
-              Data: leadParaAdicionar.createdAt || new Date().toISOString(),
-              Responsavel: leadParaAdicionar.responsavel || "",
-              Status: "Fechado",
-              Seguradora: leadParaAdicionar.Seguradora || "",
-              PremioLiquido: leadParaAdicionar.premioLiquido || "",
-              Comissao: leadParaAdicionar.comissao || "",
-              Parcelamento: leadParaAdicionar.parcelamento || "",
-              VigenciaFinal: leadParaAdicionar.VigenciaFinal || "",
-            };
-            return [...prev, novoLeadFechado];
-          }
-          console.warn("Lead não encontrado na lista principal para adicionar aos fechados.");
-          return prev;
+  if (novoStatus === 'Fechado') {
+
+    setLeadsFechados((prev) => {
+      const jaExiste = prev.some((lead) => String(lead.phone) === String(phone)); // Comparação como string
+
+      if (jaExiste) {
+        // Se já existe, só atualiza
+        const atualizados = prev.map((lead) =>
+          String(lead.phone) === String(phone) ? { ...lead, Status: novoStatus, confirmado: true } : lead // Comparação como string
+        );
+  
+        return atualizados;
+      } else {
+        // Se não existe, busca o lead na lista principal e adiciona
+        const leadParaAdicionar = leads.find((lead) => String(lead.phone) === String(phone)); // Comparação como string
+
+        if (leadParaAdicionar) {
+          // Monta o objeto no padrão dos fechados
+          const novoLeadFechado = {
+            ID: String(leadParaAdicionar.id) || crypto.randomUUID(),  // se não tiver, cria um
+            name: leadParaAdicionar.name,
+            vehicleModel: leadParaAdicionar.vehiclemodel,
+            vehicleYearModel: leadParaAdicionar.vehicleyearmodel,
+            city: leadParaAdicionar.city,
+            phone: leadParaAdicionar.phone,
+            insurer: leadParaAdicionar.insurancetype || leadParaAdicionar.insuranceType || "",
+            Data: leadParaAdicionar.createdAt || new Date().toISOString(),
+            Responsavel: leadParaAdicionar.responsavel || "",
+            Status: "Fechado",
+            Seguradora: leadParaAdicionar.Seguradora || "",
+            PremioLiquido: leadParaAdicionar.premioLiquido || "",
+            Comissao: leadParaAdicionar.comissao || "",
+            Parcelamento: leadParaAdicionar.parcelamento || "",
+            id: String(leadParaAdicionar.id || ''), // Garante que o ID é string
+            usuario: leadParaAdicionar.usuario || "",
+            nome: leadParaAdicionar.nome || "",
+            email: leadParaAdicionar.email || "",
+            senha: leadParaAdicionar.senha || "",
+            status: leadParaAdicionar.status || "Ativo",
+            tipo: leadParaAdicionar.tipo || "Usuario",
+            "Ativo/Inativo": leadParaAdicionar["Ativo/Inativo"] || "Ativo",
+            confirmado: true
+          };
+
+
+          return [...prev, novoLeadFechado];
         }
-      });
-    }
-  };
+
+        // Caso não encontre o lead (só por segurança)
+        console.warn("Lead não encontrado na lista principal para adicionar aos fechados.");
+        return prev;
+      }
+    });
+  }
+};
+
 
   const atualizarSeguradoraLead = (id, seguradora) => {
     setLeads((prev) =>
       prev.map((lead) =>
-        String(lead.id) === String(id)
+        String(lead.id) === String(id) // Comparação como string
           ? limparCamposLead({ ...lead, insurer: seguradora })
           : lead
       )
     );
   };
 
-  const limparCamposLead = (lead) => ({
+    const limparCamposLead = (lead) => ({
     ...lead,
     premioLiquido: "",
     comissao: "",
     parcelamento: "",
-    VigenciaFinal: "",
   })
 
-  const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal) => {
-    const lead = leadsFechados.find((lead) => String(lead.ID) === String(id)); // Garante comparação de string
+  const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento) => {
 
-    if (!lead) {
-      console.error(`Lead com ID ${id} não encontrado na lista de leads fechados.`);
-      return;
-    }
+    const lead = leadsFechados.find((lead) => String(lead.ID) === String(id)); // Comparação como string
 
-    lead.Seguradora = seguradora;
-    lead.PremioLiquido = premio;
-    lead.Comissao = comissao;
-    lead.Parcelamento = parcelamento;
-    lead.VigenciaFinal = vigenciaFinal || '';
+
+    lead.Seguradora = seguradora
+    lead.PremioLiquido = premio
+    lead.Comissao = comissao
+    lead.Parcelamento = parcelamento
 
     setLeadsFechados((prev) => {
-      const atualizados = prev.map((l) =>
-        String(l.ID) === String(id) ? { // Garante comparação de string
-          ...l,
-          insurerConfirmed: true,
-          Seguradora: seguradora,
-          PremioLiquido: premio,
-          Comissao: comissao,
-          Parcelamento: parcelamento,
-          VigenciaFinal: vigenciaFinal || ''
-        } : l
+      const atualizados = prev.map((lead) =>
+        String(lead.ID) === String(id) ? { ...lead, insurerConfirmed: true } : lead // Comparação como string
       );
+
       return atualizados;
     });
 
-    try {
-      fetch(`${BASE_GAS_URL}?v=alterar_seguradora`, {
+    try{
+
+
+    // Faz a chamada para o Apps Script via fetch POST
+    fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_seguradora', {
         method: 'POST',
         mode: 'no-cors',
-        body: JSON.stringify({
+        body:JSON.stringify({
           lead: lead
         }),
         headers: {
@@ -353,38 +317,43 @@ const App = () => {
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
     }
+
   };
 
   const atualizarDetalhesLeadFechado = (id, campo, valor) => {
-    setLeadsFechados((prev) =>
+    setLeads((prev) =>
       prev.map((lead) =>
-        String(lead.ID) === String(id) ? { ...lead, [campo]: valor } : lead // Garante comparação de string
+        String(lead.id) === String(id) ? { ...lead, [campo]: valor } : lead // Comparação como string
       )
     );
   };
 
   const transferirLead = (leadId, responsavelId) => {
     if (responsavelId === null) {
+      // Se for null, desatribui o responsável
       setLeads((prev) =>
         prev.map((lead) =>
-          String(lead.id) === String(leadId) ? { ...lead, responsavel: null } : lead // Garante comparação de string
+          String(lead.id) === String(leadId) ? { ...lead, responsavel: null } : lead // Comparação como string
         )
       );
       return;
     }
 
-    let usuario = usuarios.find((u) => String(u.id) === String(responsavelId)); // Garante comparação de string
-
+    // Busca o usuário normalmente se responsavelId não for null
+    let usuario = usuarios.find((u) => String(u.id) === String(responsavelId)); // Comparação como string
+    
     if (!usuario) {
+
       return;
     }
 
     setLeads((prev) =>
       prev.map((lead) =>
-        String(lead.id) === String(leadId) ? { ...lead, responsavel: usuario.nome } : lead // Garante comparação de string
+        String(lead.id) === String(leadId) ? { ...lead, responsavel: usuario.nome } : lead // Comparação como string
       )
     );
   };
+
 
   const atualizarStatusUsuario = (id, novoStatus = null, novoTipo = null) => {
     // 1. Encontra o usuário na lista de usuários atual, garantindo que o ID seja comparado como string
@@ -395,37 +364,38 @@ const App = () => {
       return;
     }
 
-    const usuarioAtual = { ...usuarios[usuarioParaAtualizarIndex] }; // Faz uma cópia para não mutar diretamente o estado
+    // 2. Cria uma cópia profunda do objeto do usuário para não mutar o estado diretamente
+    const usuarioAtualizado = { ...usuarios[usuarioParaAtualizarIndex] };
 
-    // 2. Atualiza as propriedades no objeto copiado
+    // 3. Atualiza as propriedades no objeto copiado, se fornecidas
     if (novoStatus !== null) {
-      usuarioAtual.status = novoStatus;
+      usuarioAtualizado.status = novoStatus;
     }
     if (novoTipo !== null) {
-      usuarioAtual.tipo = novoTipo;
+      usuarioAtualizado.tipo = novoTipo;
     }
 
-    // 3. Envia o objeto atualizado para o Google Apps Script
     try {
-      fetch(`${BASE_GAS_URL}?v=alterar_usuario`, {
+      // 4. Envia o objeto atualizado para o Google Apps Script
+      fetch(GOOGLE_SHEETS_USERS + '?v=alterar_usuario', {
         method: 'POST',
-        mode: 'no-cors', // Mantenha no-cors se você está enviando do navegador para o GAS diretamente
+        mode: 'no-cors',
         body: JSON.stringify({
-          usuario: usuarioAtual // Envia o objeto de usuário com o ID e as propriedades atualizadas
+          usuario: usuarioAtualizado // Envia o objeto de usuário completo e atualizado
         }),
         headers: {
           'Content-Type': 'application/json',
         },
       });
 
-      // 4. Atualiza o estado local APENAS para o usuário específico
+      // 5. Atualiza o estado local apenas para o usuário específico
       setUsuarios((prev) => {
-        const novosUsuarios = [...prev]; // Cria uma nova cópia do array
-        novosUsuarios[usuarioParaAtualizarIndex] = usuarioAtual; // Substitui o objeto antigo pelo atualizado
+        const novosUsuarios = [...prev]; // Cria uma nova cópia do array de usuários
+        novosUsuarios[usuarioParaAtualizarIndex] = usuarioAtualizado; // Substitui o objeto antigo pelo atualizado
         return novosUsuarios;
       });
 
-      console.log(`Usuário ID ${id} atualizado para Status: ${usuarioAtual.status}, Tipo: ${usuarioAtual.tipo}`);
+      console.log(`Usuário ID ${id} atualizado para Status: ${usuarioAtualizado.status}, Tipo: ${usuarioAtualizado.tipo}`);
     } catch (error) {
       console.error('Erro ao enviar atualização de usuário:', error);
       alert('Erro ao atualizar usuário. Verifique o console para mais detalhes.');
@@ -520,8 +490,8 @@ const App = () => {
             element={
               <Dashboard
                 leadsClosed={
-                  isAdmin
-                    ? leadsFechados
+                  isAdmin  
+                    ? leadsFechados  
                     : leadsFechados.filter((lead) => lead.Responsavel === usuarioLogado.nome)
                 }
                 leads={
@@ -530,7 +500,7 @@ const App = () => {
                     : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)
                 }
                 usuarioLogado={usuarioLogado}
-
+                
               />
             }
           />
@@ -561,7 +531,7 @@ const App = () => {
                 ultimoFechadoId={ultimoFechadoId}
                 onAbrirLead={onAbrirLead}
                 leadSelecionado={leadSelecionado}
-                formatarDataParaExibicao={formatarDataParaExibicao}
+                
               />
             }
           />
@@ -575,18 +545,15 @@ const App = () => {
                 onAbrirLead={onAbrirLead}
                 isAdmin={isAdmin}
                 leadSelecionado={leadSelecionado}
+                
               />
             }
           />
-          <Route path="/buscar-lead" element={<BuscarLead
-            leads={leads}
-            fetchLeadsFromSheet={fetchLeadsFromSheet}
-            fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
-          />} />
-          <Route
-            path="/criar-lead"
-            element={<CriarLead adicionarLead={adicionarNovoLead} />}
-          />
+          <Route path="/buscar-lead" element={<BuscarLead  
+                leads={leads}  
+                fetchLeadsFromSheet={fetchLeadsFromSheet}
+                fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
+                />} />
           {isAdmin && (
             <>
               <Route path="/criar-usuario" element={<CriarUsuario adicionarUsuario={adicionarUsuario} />} />
@@ -595,6 +562,7 @@ const App = () => {
                 element={
                   <Usuarios
                     leads={isAdmin ? leads : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)}
+                    
                     usuarios={usuarios}
                     fetchLeadsFromSheet={fetchLeadsFromSheet}
                     fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
@@ -604,11 +572,11 @@ const App = () => {
               />
             </>
           )}
-          <Route path="/ranking" element={<Ranking
-            usuarios={usuarios}
-            fetchLeadsFromSheet={fetchLeadsFromSheet}
-            fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
-            leads={leads} />} />
+          <Route path="/ranking" element={<Ranking  
+                usuarios={usuarios}  
+                fetchLeadsFromSheet={fetchLeadsFromSheet}
+                fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
+                leads={leads} />} />
           <Route path="*" element={<h1 style={{ padding: 20 }}>Página não encontrada</h1>} />
         </Routes>
       </main>
