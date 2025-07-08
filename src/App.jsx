@@ -420,28 +420,24 @@ const App = () => {
     );
   };
 
+  // --- FUNÇÃO ATUALIZADA AQUI ---
   const atualizarStatusUsuario = (id, novoStatus = null, novoTipo = null) => {
-    const usuario = usuarios.find((usuario) => usuario.id === id);
-    if (!usuario) return;
-
-    if (novoStatus !== null) usuario.status = novoStatus;
-    if (novoTipo !== null) usuario.tipo = novoTipo;
-
-    try {
-      fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_usuario', {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify({
-          usuario: usuario
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-    } catch (error) {
-      console.error('Erro ao enviar lead:', error);
+    // Encontra o usuário na lista atual para obter as propriedades existentes
+    const usuarioParaAtualizar = usuarios.find((usuario) => usuario.id === id);
+    if (!usuarioParaAtualizar) {
+      console.warn(`Usuário com ID ${id} não encontrado para atualização.`);
+      return;
     }
 
+    // Prepara o payload com os dados mínimos necessários para a atualização
+    const payload = {
+      id: usuarioParaAtualizar.id, // O ID é crucial para identificar a linha no Sheets
+      // Adiciona o status e o tipo condicionalmente, se foram fornecidos
+      ...(novoStatus !== null && { status: novoStatus }),
+      ...(novoTipo !== null && { tipo: novoTipo }),
+    };
+
+    // Atualiza o estado local primeiro para uma resposta imediata na UI
     setUsuarios((prev) =>
       prev.map((usuario) =>
         usuario.id === id
@@ -453,7 +449,24 @@ const App = () => {
           : usuario
       )
     );
+
+    // Envia a atualização para o Google Sheets via Google Apps Script
+    try {
+      fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_usuario', {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify(payload), // Envia apenas o payload com 'id', 'status' e 'tipo'
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log("Payload enviado para o GAS para atualização de usuário:", payload);
+    } catch (error) {
+      console.error('Erro ao enviar atualização de usuário para o Google Sheets:', error);
+    }
   };
+  // --- FIM DA FUNÇÃO ATUALIZADA ---
+
 
   const onAbrirLead = (lead) => {
     setLeadSelecionado(lead);
