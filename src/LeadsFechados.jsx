@@ -32,6 +32,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   // Novo estado para o loader
   const [isLoading, setIsLoading] = useState(false);
 
+  // EFEITO PARA ATUALIZAR VALORES QUANDO 'leads' MUDA
   useEffect(() => {
     setValores(prevValores => {
       const novosValores = { ...prevValores };
@@ -87,6 +88,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       setIsLoading(false); // Desativa o loader
     }
   };
+
+  // NOVO useEffect para o refresh automático ao carregar a página
+  useEffect(() => {
+    handleRefresh();
+  }, []); // O array vazio garante que roda apenas uma vez ao montar o componente
 
 
   const fechadosOrdenados = [...fechados].sort((a, b) => {
