@@ -1,734 +1,333 @@
-import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 
-import Sidebar from './components/Sidebar';
-import Dashboard from './components/Dashboard';
-import Leads from './Leads';
-import LeadsFechados from './LeadsFechados';
-import LeadsPerdidos from './LeadsPerdidos';
-import BuscarLead from './BuscarLead';
-import CriarUsuario from './pages/CriarUsuario';
-import Usuarios from './pages/Usuarios';
-import Ranking from './pages/Ranking';
-import CriarLead from './pages/CriarLead';
+// Importações de componentes
+import AdminDashboard from './pages/AdminDashboard';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import UserDashboard from './pages/UserDashboard';
 
-// App.jsx
+// Contexto de Autenticação para gerenciar o estado do usuário logado
+const AuthContext = createContext(null);
 
-// 1. COPIE O URL EXATO da sua ÚLTIMA IMPLANTAÇÃO do Google Apps Script aqui.
-// Deve terminar com /exec
-const GOOGLE_SHEETS_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec'; // <-- SUBSTITUA ESTE VALOR PELO SEU URL REAL E MAIS RECENTE!
+// URLs do Google Apps Script
+// **ATENÇÃO:** SUBSTITUA ESTE VALOR PELO URL EXATO E MAIS RECENTE DA SUA IMPLANTAÇÃO DE WEB APP DO GOOGLE APPS SCRIPT.
+// Ele deve terminar com '/exec'.
+const GOOGLE_SHEETS_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec'; 
 
-// 2. Defina todas as URLs específicas que sua aplicação usará, baseadas no URL base.
-// Certifique-se de que os nomes dessas variáveis GOOGLE_SHEETS_... sejam exatamente
-// os mesmos que você usa nas suas funções de fetch.
-
+// Definição das URLs completas para as requisições
 const GOOGLE_SHEETS_GET_USERS_URL = `${GOOGLE_SHEETS_BASE_URL}?v=pegar_usuario`;
 const GOOGLE_SHEETS_ALTERAR_USUARIO_URL = `${GOOGLE_SHEETS_BASE_URL}?v=alterar_usuario`;
 const GOOGLE_SHEETS_GET_LEADS_URL = `${GOOGLE_SHEETS_BASE_URL}?v=getLeads`;
 const GOOGLE_SHEETS_GET_CLOSED_LEADS_URL = `${GOOGLE_SHEETS_BASE_URL}?v=pegar_clientes_fechados`;
-const GOOGLE_SHEETS_CREATE_LEAD_URL = `${GOOGLE_SHEETS_BASE_URL}?v=criar_lead`; // Usando 'v' para consistência
-const GOOGLE_SHEETS_SAVE_LEAD_URL = `${GOOGLE_SHEETS_BASE_URL}?v=salvar_lead`;   // Usando 'v' para consistência
-const GOOGLE_SHEETS_TRANSFER_LEAD_URL = `${GOOGLE_SHEETS_BASE_URL}?v=transferir_lead`; // Usando 'v' para consistência
-const GOOGLE_SHEETS_ALTERAR_SEGURADORA_URL = `${GOOGLE_SHEETS_BASE_URL}?v=alterar_seguradora`; // Usando 'v' para consistência
-const GOOGLE_SHEETS_CREATE_USER_URL = `${GOOGLE_SHEETS_BASE_URL}?v=criar_usuario`; // Usando 'v' para consistência
-const GOOGLE_SHEETS_RANKING_URL = `${GOOGLE_SHEETS_BASE_URL}?action=ranking_data`; // Este usa 'action' no GAS
+const GOOGLE_SHEETS_CREATE_LEAD_URL = `${GOOGLE_SHEETS_BASE_URL}?v=criar_lead`;
+const GOOGLE_SHEETS_SAVE_LEAD_URL = `${GOOGLE_SHEETS_BASE_URL}?v=salvar_lead`;
+const GOOGLE_SHEETS_TRANSFER_LEAD_URL = `${GOOGLE_SHEETS_BASE_URL}?v=transferir_lead`;
+const GOOGLE_SHEETS_ALTERAR_SEGURADORA_URL = `${GOOGLE_SHEETS_BASE_URL}?v=alterar_seguradora`;
+const GOOGLE_SHEETS_CREATE_USER_URL = `${GOOGLE_SHEETS_BASE_URL}?v=criar_usuario`;
+const GOOGLE_SHEETS_RANKING_URL = `${GOOGLE_SHEETS_BASE_URL}?action=ranking_data`; // Note que este usa 'action' conforme seu GAS
 
 
-// Seu código App.jsx continuaria aqui...
+// Provedor de Autenticação
+const AuthProvider = ({ children }) => {
+    const [user, setUser] = useState(() => {
+        // Tenta carregar o usuário do localStorage ao iniciar
+        const storedUser = localStorage.getItem('user');
+        return storedUser ? JSON.parse(storedUser) : null;
+    });
+    const navigate = useNavigate();
 
-// Exemplo de como você usaria essas URLs (isso já deve estar no seu código):
-/*
-async function fetchUsers() {
-    try {
-        const response = await fetch(GOOGLE_SHEETS_GET_USERS_URL); // <-- Usa a variável definida acima
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setUsers(data);
-    } catch (error) {
-        console.error("Erro ao buscar usuários do Google Sheets:", error);
-    }
+    const login = (userData) => {
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData)); // Salva no localStorage
+    };
+
+    const logout = () => {
+        setUser(null);
+        localStorage.removeItem('user'); // Remove do localStorage
+        navigate('/login'); // Redireciona para a página de login
+    };
+
+    return (
+        <AuthContext.Provider value={{ user, login, logout }}>
+            {children}
+        </AuthContext.Provider>
+    );
+};
+
+// Hook personalizado para usar o contexto de autenticação
+export const useAuth = () => useContext(AuthContext);
+
+// Componente principal da Aplicação
+function App() {
+    return (
+        <Router>
+            <AuthProvider>
+                <AppRoutes />
+            </AuthProvider>
+        </Router>
+    );
 }
 
-const App = () => {
-  const navigate = useNavigate();
+// Componente para gerenciar as rotas
+function AppRoutes() {
+    const { user, login } = useAuth();
+    const navigate = useNavigate();
 
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loginInput, setLoginInput] = useState('');
-  const [senhaInput, setSenhaInput] = useState('');
-  const [usuarioLogado, setUsuarioLogado] = useState(null);
-  const [leadsFechados, setLeadsFechados] = useState([]);
-  const [backgroundLoaded, setBackgroundLoaded] = useState(false);
+    // Funções de fetch para o Google Apps Script
+    // ===========================================
 
-  useEffect(() => {
-    const img = new Image();
-    img.src = '/background.png';
-    img.onload = () => setBackgroundLoaded(true);
-  }, []);
-
-  const [leads, setLeads] = useState([]);
-  const [leadSelecionado, setLeadSelecionado] = useState(null);
-
-  // Função auxiliar para formatar a data para exibição no frontend (DD/Mês/AA ou DD/MM/YYYY)
-  const formatarDataParaExibicao = (dataString) => {
-    if (!dataString) return '';
-    try {
-      let dateObj;
-      const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})$/); // Formato YYYY-MM-DD
-      const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); // Formato DD/MM/YYYY
-
-      if (partesHifen) {
-        dateObj = new Date(dataString + 'T00:00:00'); // Adiciona T00:00:00 para evitar fuso horário
-      } else if (partesBarra) {
-        dateObj = new Date(`${partesBarra[3]}-${partesBarra[2]}-${partesBarra[1]}T00:00:00`);
-      } else {
-        dateObj = new Date(dataString); // Última tentativa de parsear
-      }
-
-      if (isNaN(dateObj.getTime())) {
-        console.warn('Data inválida para exibição:', dataString);
-        return dataString; // Retorna a string original se não conseguir formatar
-      }
-
-      const dia = String(dateObj.getDate()).padStart(2, '0');
-      const mes = String(dateObj.getMonth() + 1).padStart(2, '0'); // Mês é base 0
-      const ano = dateObj.getFullYear();
-      const nomeMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-                          "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-      const mesExtenso = nomeMeses[dateObj.getMonth()];
-      const anoCurto = String(ano).substring(2);
-
-      return `${dia}/${mesExtenso}/${anoCurto}`; // Formato 08/Junho/25
-      // return `${dia}/${mes}/${ano}`; // Formato 08/06/2025
-    } catch (error) {
-      console.error('Erro ao formatar data para exibição:', error);
-      return dataString;
-    }
-  };
-
-  // Nova função para formatar a data para input[type="date"] (YYYY-MM-DD)
-  const formatarDataParaInputDate = (dataString) => {
-    if (!dataString) return '';
-    try {
-      let dateObj;
-      const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})$/); // Já YYYY-MM-DD
-      const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); // DD/MM/YYYY
-
-      if (partesHifen) {
-        // Já está no formato YYYY-MM-DD, pode retornar diretamente
-        return dataString;
-      } else if (partesBarra) {
-        // Converte DD/MM/YYYY para YYYY-MM-DD
-        return `${partesBarra[3]}-${partesBarra[2]}-${partesBarra[1]}`;
-      } else {
-        // Tenta parsear e formatar para YYYY-MM-DD
-        dateObj = new Date(dataString);
-        if (isNaN(dateObj.getTime())) {
-          console.warn('formatarDataParaInputDate: Data inválida detectada:', dataString);
-          return ''; // Retorna vazio para data inválida
-        }
-        const year = dateObj.getFullYear();
-        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const day = String(dateObj.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      }
-    } catch (error) {
-      console.error('Erro ao formatar data para input date:', error);
-      return '';
-    }
-  };
-
-
-  const fetchLeadsFromSheet = async () => {
-    try {
-      const response = await fetch(GOOGLE_SHEETS_SCRIPT_URL);
-      const data = await response.json();
-
-      console.log("Dados de Leads Recebidos do GAS:", data);
-
-      if (Array.isArray(data)) {
-        const sortedData = data.sort((a, b) => {
-          const dateA = new Date(a.editado);
-          const dateB = new Date(b.editado);
-          return dateB - dateA;
-        });
-
-        const formattedLeads = sortedData.map((item, index) => ({
-          id: item.id ? Number(item.id) : index + 1,
-          name: item.name || item.Name || '',
-          vehicleModel: item.vehiclemodel || item.vehicleModel || '', // Usando `vehicleModel` consistentemente
-          vehicleYearModel: item.vehicleyearmodel || item.vehicleYearModel || '', // Usando `vehicleYearModel` consistentemente
-          city: item.city || '',
-          phone: item.phone || item.Telefone || '',
-          insuranceType: item.insurancetype || item.insuranceType || '',
-          status: item.status || 'Selecione o status',
-          confirmado: item.confirmado === 'true' || item.confirmado === true,
-          insurer: item.insurer || '',
-          insurerConfirmed: item.insurerConfirmed === 'true' || item.insurerConfirmed === true,
-          usuarioId: item.usuarioId ? Number(item.usuarioId) : null,
-          premioLiquido: item.premioLiquido || '',
-          comissao: item.comissao || '',
-          parcelamento: item.parcelamento || '',
-          VigenciaFinal: item.VigenciaFinal || '',
-          createdAt: item.data || new Date().toISOString(),
-          responsavel: item.responsavel || '',
-          editado: item.editado || ''
-        }));
-
-        console.log("Leads formatados no frontend:", formattedLeads);
-
-        if (!leadSelecionado) {
-          setLeads(formattedLeads);
-        }
-      } else {
-        if (!leadSelecionado) {
-          setLeads([]);
-        }
-      }
-    } catch (error) {
-      console.error('Erro ao buscar leads da planilha:', error);
-      if (!leadSelecionado) {
-        setLeads([]);
-      }
-    }
-  };
-
-  useEffect(() => {
-    fetchLeadsFromSheet();
-
-    const interval = setInterval(() => {
-      fetchLeadsFromSheet();
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [leadSelecionado]);
-
-  const fetchLeadsFechadosFromSheet = async () => {
-    try {
-      const response = await fetch(GOOGLE_SHEETS_LEADS_FECHADOS)
-      const data = await response.json();
-
-      console.log("Dados de Leads Fechados Recebidos do GAS:", data);
-
-      const formattedData = data.map(item => ({
-        ...item,
-        // VigenciaFinal já vem no formato YYYY-MM-DD do GAS, então não precisamos formatar aqui
-      }));
-      setLeadsFechados(formattedData);
-
-    } catch (error) {
-      console.error('Erro ao buscar leads fechados:', error);
-      setLeadsFechados([]);
-    }
-  };
-
-  useEffect(() => {
-    fetchLeadsFechadosFromSheet();
-
-    const interval = setInterval(() => {
-      fetchLeadsFechadosFromSheet();
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const [usuarios, setUsuarios] = useState([]);
-
-  useEffect(() => {
-    const fetchUsuariosFromSheet = async () => {
-      try {
-        const response = await fetch(GOOGLE_SHEETS_USERS + '?v=pegar_usuario');
-        const data = await response.json();
-
-        if (Array.isArray(data)) {
-          const formattedUsuarios = data.map((item, index) => ({
-            id: item.id || '',
-            usuario: item.usuario || '',
-            nome: item.nome || '',
-            email: item.email || '',
-            senha: item.senha || '',
-            status: item.status || 'Ativo',
-            tipo: item.tipo || 'Usuario',
-          }));
-
-          setUsuarios(formattedUsuarios);
-        } else {
-          setUsuarios([]);
-        }
-      } catch (error) {
-        console.error('Erro ao buscar usuários do Google Sheets:', error);
-        setUsuarios([]);
-      }
-    };
-
-    fetchUsuariosFromSheet();
-
-    const interval = setInterval(() => {
-      fetchUsuariosFromSheet();
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const [ultimoFechadoId, setUltimoFechadoId] = useState(null);
-
-  const adicionarUsuario = (usuario) => {
-    setUsuarios((prev) => [...prev, { ...usuario, id: prev.length + 1 }]);
-  };
-
-  const adicionarNovoLead = (novoLead) => {
-    setLeads((prevLeads) => {
-      if (!prevLeads.some(lead => lead.ID === novoLead.ID)) {
-        return [novoLead, ...prevLeads];
-      }
-      return prevLeads;
-    });
-  };
-
-  const atualizarStatusLeadAntigo = (id, novoStatus, phone) => {
-    if (novoStatus == 'Fechado') {
-      setLeadsFechados((prev) => {
-        const atualizados = prev.map((leadsFechados) =>
-          leadsFechados.phone === phone ? { ...leadsFechados, Status: novoStatus, confirmado: true } : leadsFechados
-        );
-        return atualizados;
-      });
-    }
-
-    setLeads((prev) =>
-      prev.map((lead) =>
-        lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
-      )
-    );
-  };
-
-  const atualizarStatusLead = (id, novoStatus, phone) => {
-    setLeads((prev) =>
-      prev.map((lead) =>
-        lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
-      )
-    );
-
-    if (novoStatus === 'Fechado') {
-      setLeadsFechados((prev) => {
-        const jaExiste = prev.some((lead) => lead.phone === phone);
-
-        if (jaExiste) {
-          const atualizados = prev.map((lead) =>
-            lead.phone === phone ? { ...lead, Status: novoStatus, confirmado: true } : lead
-          );
-          return atualizados;
-        } else {
-          const leadParaAdicionar = leads.find((lead) => lead.phone === phone);
-
-          if (leadParaAdicionar) {
-            const novoLeadFechado = {
-              ID: leadParaAdicionar.id || crypto.randomUUID(),
-              name: leadParaAdicionar.name,
-              vehicleModel: leadParaAdicionar.vehicleModel, // Corrigido: usando a propriedade mapeada
-              vehicleYearModel: leadParaAdicionar.vehicleYearModel, // Corrigido: usando a propriedade mapeada
-              city: leadParaAdicionar.city,
-              phone: leadParaAdicionar.phone,
-              insurer: leadParaAdicionar.insurancetype || leadParaAdicionar.insuranceType || "",
-              Data: leadParaAdicionar.createdAt || new Date().toISOString(),
-              Responsavel: leadParaAdicionar.responsavel || "",
-              Status: "Fechado",
-              Seguradora: leadParaAdicionar.Seguradora || "",
-              PremioLiquido: leadParaAdicionar.premioLiquido || "",
-              Comissao: leadParaAdicionar.comissao || "",
-              Parcelamento: leadParaAdicionar.parcelamento || "",
-              VigenciaFinal: leadParaAdicionar.VigenciaFinal || "",
-              id: leadParaAdicionar.id || null,
-              usuario: leadParaAdicionar.usuario || "",
-              nome: leadParaAdicionar.nome || "",
-              email: leadParaAdicionar.email || "",
-              senha: leadParaAdicionar.senha || "", // <<-- CORREÇÃO AQUI!
-              status: leadParaAdicionar.status || "Ativo",
-              tipo: leadParaAdicionar.tipo || "Usuario",
-              "Ativo/Inativo": leadParaAdicionar["Ativo/Inativo"] || "Ativo",
-              confirmado: true
-            };
-            return [...prev, novoLeadFechado];
-          }
-          console.warn("Lead não encontrado na lista principal para adicionar aos fechados.");
-          return prev;
-        }
-      });
-    }
-  };
-
-  const atualizarSeguradoraLead = (id, seguradora) => {
-    setLeads((prev) =>
-      prev.map((lead) =>
-        lead.id === id
-          ? limparCamposLead({ ...lead, insurer: seguradora })
-          : lead
-      )
-    );
-  };
-
-  const limparCamposLead = (lead) => ({
-    ...lead,
-    premioLiquido: "",
-    comissao: "",
-    parcelamento: "",
-    VigenciaFinal: "",
-  })
-
-  // === MUDANÇA CRÍTICA AQUI: ENVIANDO 'vigenciaFinal' no FORMATO YYYY-MM-DD ===
-  const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal) => {
-    const lead = leadsFechados.find((lead) => lead.ID == id);
-
-    if (!lead) {
-      console.error(`Lead com ID ${id} não encontrado na lista de leads fechados.`);
-      return;
-    }
-
-    lead.Seguradora = seguradora;
-    lead.PremioLiquido = premio;
-    lead.Comissao = comissao;
-    lead.Parcelamento = parcelamento;
-    // AQUI É O PONTO CRÍTICO: VigenciaFinal já deve vir como YYYY-MM-DD do input date
-    lead.VigenciaFinal = vigenciaFinal || '';
-
-    setLeadsFechados((prev) => {
-      const atualizados = prev.map((l) =>
-        l.ID === id ? {
-          ...l,
-          insurerConfirmed: true,
-          Seguradora: seguradora,
-          PremioLiquido: premio,
-          Comissao: comissao,
-          Parcelamento: parcelamento,
-          VigenciaFinal: vigenciaFinal || '' // ATUALIZANDO ESTADO LOCAL COM O VALOR YYYY-MM-DD
-        } : l
-      );
-      return atualizados;
-    });
-
-    try {
-      // Use o URL do seu script com a função alterar_seguradora
-      fetch('https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_seguradora', {
-        method: 'POST',
-        mode: 'no-cors', // Mantenha no-cors se você está enviando do navegador para o GAS diretamente
-        body: JSON.stringify({
-          lead: lead // O objeto 'lead' já contém VigenciaFinal no formato YYYY-MM-DD
-        }),
-        headers: {
-          'Content-Type': 'application/json', // É uma boa prática, mesmo com no-cors pode ajudar a clareza
-        },
-      });
-    } catch (error) {
-      console.error('Erro ao enviar lead:', error);
-    }
-  };
-
-  const atualizarDetalhesLeadFechado = (id, campo, valor) => {
-    setLeadsFechados((prev) =>
-      prev.map((lead) =>
-        lead.ID === id ? { ...lead, [campo]: valor } : lead
-      )
-    );
-  };
-
-  const transferirLead = (leadId, responsavelId) => {
-    if (responsavelId === null) {
-      setLeads((prev) =>
-        prev.map((lead) =>
-          lead.id === leadId ? { ...lead, responsavel: null } : lead
-        )
-      );
-      return;
-    }
-
-    let usuario = usuarios.find((u) => u.id == responsavelId);
-
-    if (!usuario) {
-      return;
-    }
-
-    setLeads((prev) =>
-      prev.map((lead) =>
-        lead.id === leadId ? { ...lead, responsavel: usuario.nome } : lead
-      )
-    );
-  };
-
-  // --- FUNÇÃO ATUALIZADA AQUI ---
-  const atualizarStatusUsuario = (id, novoStatus = null, novoTipo = null) => {
-    // Encontra o usuário na lista atual para obter as propriedades existentes
-    const usuarioParaAtualizar = usuarios.find((usuario) => usuario.id === id);
-    if (!usuarioParaAtualizar) {
-      console.warn(`Usuário com ID ${id} não encontrado para atualização.`);
-      return;
-    }
-
-    // Prepara o payload com os dados mínimos necessários para a atualização
-    const payload = {
-      id: usuarioParaAtualizar.id, // O ID é crucial para identificar a linha no Sheets
-      // Adiciona o status e o tipo condicionalmente, se foram fornecidos
-      ...(novoStatus !== null && { status: novoStatus }),
-      ...(novoTipo !== null && { tipo: novoTipo }),
-    };
-
-    // Atualiza o estado local primeiro para uma resposta imediata na UI
-    setUsuarios((prev) =>
-      prev.map((usuario) =>
-        usuario.id === id
-          ? {
-              ...usuario,
-              ...(novoStatus !== null ? { status: novoStatus } : {}),
-              ...(novoTipo !== null ? { tipo: novoTipo } : {}),
+    // Função para buscar usuários
+    const fetchUsers = useCallback(async () => {
+        try {
+            const response = await fetch(GOOGLE_SHEETS_GET_USERS_URL);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-          : usuario
-      )
-    );
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error("Erro ao buscar usuários do Google Sheets:", error);
+            return [];
+        }
+    }, []);
 
-    // Envia a atualização para o Google Sheets via Google Apps Script
-    try {
-      fetch('https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_usuario', {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify(payload), // Envia apenas o payload com 'id', 'status' e 'tipo'
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      console.log("Payload enviado para o GAS para atualização de usuário:", payload);
-    } catch (error) {
-      console.error('Erro ao enviar atualização de usuário para o Google Sheets:', error);
-    }
-  };
-  // --- FIM DA FUNÇÃO ATUALIZADA ---
+    // Função para buscar leads
+    const fetchLeads = useCallback(async () => {
+        try {
+            const response = await fetch(GOOGLE_SHEETS_GET_LEADS_URL);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error("Erro ao buscar leads da planilha:", error);
+            return [];
+        }
+    }, []);
+
+    // Função para buscar leads fechados
+    const fetchClosedLeads = useCallback(async () => {
+        try {
+            const response = await fetch(GOOGLE_SHEETS_GET_CLOSED_LEADS_URL);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error("Erro ao buscar leads fechados:", error);
+            return [];
+        }
+    }, []);
+
+    // Função para buscar dados de ranking
+    const fetchRankingData = useCallback(async () => {
+        try {
+            const response = await fetch(GOOGLE_SHEETS_RANKING_URL);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error("Erro ao buscar dados de ranking:", error);
+            return [];
+        }
+    }, []);
+
+    // Função para criar lead
+    const createLead = useCallback(async (leadData) => {
+        try {
+            const response = await fetch(GOOGLE_SHEETS_CREATE_LEAD_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(leadData),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Erro ao criar lead');
+            }
+            return { success: true, data: data };
+        } catch (error) {
+            console.error("Erro ao criar lead:", error);
+            return { success: false, message: error.message };
+        }
+    }, []);
+
+    // Função para salvar (atualizar) status de lead
+    const saveLead = useCallback(async (leadId, newStatus) => {
+        try {
+            const response = await fetch(GOOGLE_SHEETS_SAVE_LEAD_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ id: leadId, status: newStatus }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Erro ao salvar lead');
+            }
+            return { success: true, data: data };
+        } catch (error) {
+            console.error("Erro ao salvar lead:", error);
+            return { success: false, message: error.message };
+        }
+    }, []);
+
+    // Função para transferir lead
+    const transferLead = useCallback(async (leadId, newResponsavel) => {
+        try {
+            const response = await fetch(GOOGLE_SHEETS_TRANSFER_LEAD_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ lead: { id: leadId, responsavel: newResponsavel } }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Erro ao transferir lead');
+            }
+            return { success: true, data: data };
+        } catch (error) {
+            console.error("Erro ao transferir lead:", error);
+            return { success: false, message: error.message };
+        }
+    }, []);
+
+    // Função para alterar detalhes da seguradora (e financeiro) de um lead fechado
+    const alterarSeguradora = useCallback(async (leadData) => {
+        try {
+            const response = await fetch(GOOGLE_SHEETS_ALTERAR_SEGURADORA_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ lead: leadData }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Erro ao alterar seguradora');
+            }
+            return { success: true, data: data };
+        } catch (error) {
+            console.error("Erro ao alterar seguradora:", error);
+            return { success: false, message: error.message };
+        }
+    }, []);
+
+    // Função para criar usuário
+    const createUser = useCallback(async (userData) => {
+        try {
+            const response = await fetch(GOOGLE_SHEETS_CREATE_USER_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(userData),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Erro ao criar usuário');
+            }
+            return { success: true, data: data };
+        } catch (error) {
+            console.error("Erro ao criar usuário:", error);
+            return { success: false, message: error.message };
+        }
+    }, []);
+
+    // Função para alterar usuário (status e tipo)
+    const alterarUsuario = useCallback(async (userData) => {
+        try {
+            // No seu GAS, a ação é 'alterar_usuario' e espera 'id', 'status', 'tipo' diretamente no body.
+            const response = await fetch(GOOGLE_SHEETS_ALTERAR_USUARIO_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                // Envia o id, status e tipo diretamente no corpo.
+                body: JSON.stringify({ 
+                    id: userData.id, 
+                    status: userData.status, 
+                    tipo: userData.tipo 
+                }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Erro ao alterar usuário');
+            }
+            return { success: true, data: data };
+        } catch (error) {
+            console.error("Erro ao alterar usuário:", error);
+            return { success: false, message: error.message };
+        }
+    }, []);
 
 
-  const onAbrirLead = (lead) => {
-    setLeadSelecionado(lead);
+    useEffect(() => {
+        // Redireciona com base no estado do usuário
+        if (!user && window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+            navigate('/login');
+        } else if (user && window.location.pathname === '/login') {
+            if (user.tipo === 'Admin') {
+                navigate('/admin-dashboard');
+            } else if (user.tipo === 'Usuario' || user.tipo === 'Usuário Comum') {
+                navigate('/user-dashboard');
+            }
+        }
+    }, [user, navigate]);
 
-    let path = '/leads';
-    if (lead.status === 'Fechado') path = '/leads-fechados';
-    else if (lead.status === 'Perdido') path = '/leads-perdidos';
-
-    navigate(path);
-  };
-
-  const handleLogin = () => {
-    const usuarioEncontrado = usuarios.find(
-      (u) => u.usuario === loginInput && u.senha === senhaInput && u.status === 'Ativo'
-    );
-
-    if (usuarioEncontrado) {
-      setIsAuthenticated(true);
-      setUsuarioLogado(usuarioEncontrado);
-    } else {
-      alert('Login ou senha inválidos ou usuário inativo.');
-    }
-  };
-
-  if (!isAuthenticated) {
+    // Passa as funções de fetch para os componentes que as necessitam via props
+    // ou useContext se preferir centralizar mais.
     return (
-      <div
-        className={`flex items-center justify-center min-h-screen bg-cover bg-center transition-opacity duration-1000 ${
-          backgroundLoaded ? 'opacity-100' : 'opacity-0'
-        }`}
-        style={{
-          backgroundImage: `url('/background.png')`,
-        }}
-      >
-        <div className="bg-blue-900 bg-opacity-60 text-white p-10 rounded-2xl shadow-2xl w-full max-w-sm">
-          <div className="flex flex-col items-center mb-6">
-            <div className="w-12 h-12 mb-2 flex items-center justify-center text-4xl text-yellow-400">
-              👑
-            </div>
-            <h1 className="text-xl font-semibold">GRUPO</h1>
-            <h2 className="text-2xl font-bold text-white">PRIMME SEGUROS</h2>
-            <p className="text-sm text-white">CORRETORA DE SEGUROS</p>
-          </div>
-
-          <input
-            type="text"
-            placeholder="Usuário"
-            value={loginInput}
-            onChange={(e) => setLoginInput(e.target.value)}
-            className="w-full mb-4 px-4 py-2 rounded text-black"
-          />
-          <input
-            type="password"
-            placeholder="Senha"
-            value={senhaInput}
-            onChange={(e) => setSenhaInput(e.target.value)}
-            className="w-full mb-2 px-4 py-2 rounded text-black"
-          />
-          <div className="text-right text-sm mb-4">
-            <a href="#" className="text-white underline">
-              Esqueci minha senha
-            </a>
-          </div>
-          <button
-            onClick={handleLogin}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-          >
-            ENTRAR
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const isAdmin = usuarioLogado?.tipo === 'Admin';
-
-  return (
-    <div style={{ display: 'flex', height: '100vh' }}>
-      <Sidebar isAdmin={isAdmin} nomeUsuario={usuarioLogado} />
-
-      <main style={{ flex: 1, overflow: 'auto' }}>
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route
-            path="/dashboard"
-            element={
-              <Dashboard
-                leadsClosed={
-                  isAdmin
-                    ? leadsFechados
-                    : leadsFechados.filter((lead) => lead.Responsavel === usuarioLogado.nome)
-                }
-                leads={
-                  isAdmin
-                    ? leads
-                    : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)
-                }
-                usuarioLogado={usuarioLogado}
-
-              />
-            }
-          />
-          <Route
-            path="/leads"
-            element={
-              <Leads
-                leads={isAdmin ? leads : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)}
-                usuarios={usuarios}
-                onUpdateStatus={atualizarStatusLead}
-                fetchLeadsFromSheet={fetchLeadsFromSheet}
-                transferirLead={transferirLead}
-                usuarioLogado={usuarioLogado}
-              />
-            }
-          />
-          <Route
-            path="/leads-fechados"
-            element={
-              <LeadsFechados
-                leads={isAdmin ? leadsFechados : leadsFechados.filter((lead) => lead.Responsavel === usuarioLogado.nome)}
-                usuarios={usuarios}
-                onUpdateInsurer={atualizarSeguradoraLead}
-                onConfirmInsurer={confirmarSeguradoraLead} // Esta função agora aceita VigenciaFinal
-                onUpdateDetalhes={atualizarDetalhesLeadFechado}
-                fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
-                isAdmin={isAdmin}
-                ultimoFechadoId={ultimoFechadoId}
-                onAbrirLead={onAbrirLead}
-                leadSelecionado={leadSelecionado}
-                formatarDataParaExibicao={formatarDataParaExibicao} // Passa a função para o LeadsFechados
-                formatarDataParaInputDate={formatarDataParaInputDate} // Passa a nova função
-              />
-            }
-          />
-          <Route
-            path="/leads-perdidos"
-            element={
-              <LeadsPerdidos
-                leads={isAdmin ? leads : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)}
-                usuarios={usuarios}
-                fetchLeadsFromSheet={fetchLeadsFromSheet}
-                onAbrirLead={onAbrirLead}
-                isAdmin={isAdmin}
-                leadSelecionado={leadSelecionado}
-              />
-            }
-          />
-          <Route path="/buscar-lead" element={<BuscarLead
-            leads={leads}
-            fetchLeadsFromSheet={fetchLeadsFromSheet}
-            fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
-          />} />
-          <Route
-            path="/criar-lead"
-            element={<CriarLead adicionarLead={adicionarNovoLead} />}
-          />
-          {isAdmin && (
-            <>
-              <Route path="/criar-usuario" element={<CriarUsuario adicionarUsuario={adicionarUsuario} />} />
-              <Route
-                path="/usuarios"
-                element={
-                  <Usuarios
-                    leads={isAdmin ? leads : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)}
-
-                    usuarios={usuarios}
-                    fetchLeadsFromSheet={fetchLeadsFromSheet}
-                    fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
-                    atualizarStatusUsuario={atualizarStatusUsuario}
-                  />
-                }
-              />
-            </>
-          )}
-          <Route path="/ranking" element={<Ranking
-            usuarios={usuarios}
-            fetchLeadsFromSheet={fetchLeadsFromSheet}
-            fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
-            leads={leads} />} />
-          <Route path="*" element={<h1 style={{ padding: 20 }}>Página não encontrada</h1>} />
+            <Route path="/login" element={<Login onLogin={login} fetchUsers={fetchUsers} />} />
+            <Route path="/register" element={<Register createUser={createUser} />} />
+            {user && user.tipo === 'Admin' && (
+                <Route
+                    path="/admin-dashboard"
+                    element={
+                        <AdminDashboard
+                            fetchUsers={fetchUsers}
+                            fetchLeads={fetchLeads}
+                            fetchClosedLeads={fetchClosedLeads}
+                            fetchRankingData={fetchRankingData}
+                            saveLead={saveLead}
+                            transferLead={transferLead}
+                            alterarSeguradora={alterarSeguradora}
+                            alterarUsuario={alterarUsuario}
+                        />
+                    }
+                />
+            )}
+            {user && (user.tipo === 'Usuario' || user.tipo === 'Usuário Comum') && (
+                <Route
+                    path="/user-dashboard"
+                    element={
+                        <UserDashboard
+                            fetchLeads={fetchLeads}
+                            fetchClosedLeads={fetchClosedLeads}
+                            createLead={createLead}
+                            saveLead={saveLead}
+                            alterarSeguradora={alterarSeguradora}
+                        />
+                    }
+                />
+            )}
+            <Route path="*" element={
+                <div style={{ padding: '20px', textAlign: 'center' }}>
+                    <h1>404 - Página Não Encontrada</h1>
+                    <p>Volte para a <a href="/login">página de login</a>.</p>
+                </div>
+            } />
         </Routes>
-      </main>
-    </div>
-  );
-};
-
-// Nova função para formatar a data de YYYY-MM-DD para DD/Mês/AA para exibição
-// Esta função é APENAS para exibição, NUNCA para enviar ao GAS.
-const formatarDataParaDDMMYYYY = (dataString) => {
-  if (!dataString) return '';
-
-  try {
-    let dateObj;
-    // Tenta reconhecer o formato YYYY-MM-DD (que o GAS enviaria)
-    const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (partesHifen) {
-      dateObj = new Date(`${partesHifen[1]}-${partesHifen[2]}-${partesHifen[3]}T00:00:00`); // Cria com YYYY-MM-DD
-    } else {
-      // Se não for YYYY-MM-DD, tenta parsear DD/MM/YYYY (do Sheets como texto)
-      const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-      if (partesBarra) {
-        dateObj = new Date(`${partesBarra[3]}-${partesBarra[2]}-${partesBarra[1]}T00:00:00`);
-      } else {
-        // Última tentativa de parsear qualquer formato válido
-        dateObj = new Date(dataString);
-      }
-    }
-
-    if (isNaN(dateObj.getTime())) {
-      console.warn('formatarDataParaDDMMYYYY: Data inválida detectada:', dataString);
-      return dataString; // Retorna a string original se inválido
-    }
-
-    const dia = String(dateObj.getDate()).padStart(2, '0');
-    const mesIndex = dateObj.getMonth();
-    const ano = dateObj.getFullYear();
-    const nomeMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-                       "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-    const mesExtenso = nomeMeses[mesIndex];
-    const anoCurto = String(ano).substring(2);
-
-    return `${dia}/${mesExtenso}/${anoCurto}`; // Ex: 08/Junho/25
-  } catch (e) {
-    console.error("Erro na função formatarDataParaDDMMYYYY:", e);
-    return dataString; // Em caso de erro, retorna a string original
-  }
-};
-
+    );
+}
 
 export default App;
