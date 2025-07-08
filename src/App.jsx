@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // Added useCallback
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 
 import Sidebar from './components/Sidebar';
@@ -11,11 +11,9 @@ import CriarUsuario from './pages/CriarUsuario';
 import Usuarios from './pages/Usuarios';
 import Ranking from './pages/Ranking';
 
-//const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwgeZteouyVWzrCvgHHQttx-5Bekgs_k-5EguO9Sn2p-XFrivFg9S7_gGKLdoDfCa08/exec';
-
-const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=getLeads';
-const GOOGLE_SHEETS_USERS = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec';
-const GOOGLE_SHEETS_LEADS_FECHADOS = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=pegar_clientes_fechados'
+// Consolidate your GAS URLs.
+// It's good practice to have a base URL and append parameters.
+const BASE_GAS_URL = 'https://script.google.com/macros/s/AKfycbzJ_WH3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec';
 
 const App = () => {
   const navigate = useNavigate();
@@ -26,6 +24,10 @@ const App = () => {
   const [usuarioLogado, setUsuarioLogado] = useState(null);
   const [leadsFechados, setLeadsFechados] = useState([]);
   const [backgroundLoaded, setBackgroundLoaded] = useState(false);
+  const [leads, setLeads] = useState([]);
+  const [leadSelecionado, setLeadSelecionado] = useState(null);
+  const [usuarios, setUsuarios] = useState([]);
+  const [ultimoFechadoId, setUltimoFechadoId] = useState(null); // This state seems unused in your current code.
 
   useEffect(() => {
     const img = new Image();
@@ -33,421 +35,421 @@ const App = () => {
     img.onload = () => setBackgroundLoaded(true);
   }, []);
 
-  // INÍCIO - sincronização leads via Google Sheets
-  const [leads, setLeads] = useState([]);
-  const [leadSelecionado, setLeadSelecionado] = useState(null); // movido para cá para usar no useEffect
+  // Use useCallback to memoize fetch functions to avoid unnecessary re-renders
+  // and issues with useEffect dependencies.
 
-  const fetchLeadsFromSheet = async () => {
-      try {
-        const response = await fetch(GOOGLE_SHEETS_SCRIPT_URL );
-        const data = await response.json();
+  const fetchLeadsFromSheet = useCallback(async () => {
+    try {
+      const response = await fetch(`${BASE_GAS_URL}?v=getLeads`);
+      const data = await response.json();
 
-         console.log(data)
+      if (Array.isArray(data)) {
+        const sortedData = data.sort((a, b) => {
+          const dateA = new Date(a.editado);
+          const dateB = new Date(b.editado);
+          return dateB - dateA; // decrescente (mais recente no topo)
+        });
 
-        if (Array.isArray(data)) {
+        const formattedLeads = sortedData.map((item, index) => ({
+          id: item.id ? Number(item.id) : index + 1,
+          name: item.name || item.Name || '',
+          vehicleModel: item.vehiclemodel || item.vehiclemodel || '',
+          vehicleYearModel: item.vehicleyearmodel || item.vehicleyearmodel || '',
+          city: item.city || '',
+          phone: item.phone || item.Telefone || '',
+          insuranceType: item.insurancetype || '',
+          status: item.status || 'Selecione o status',
+          confirmado: item.confirmado === 'true' || item.confirmado === true,
+          insurer: item.insurer || '',
+          insurerConfirmed: item.insurerConfirmed === 'true' || item.insurerConfirmed === true,
+          usuarioId: item.usuarioId ? Number(item.usuarioId) : null,
+          premioLiquido: item.premioLiquido || '',
+          comissao: item.comissao || '',
+          parcelamento: item.parcelamento || '',
+          createdAt: item.data || new Date().toISOString(),
+          responsavel: item.responsavel || '',
+          editado: item.editado || ''
+        }));
 
-          // Ordena o array por createdAt (mais recente primeiro)
-          const sortedData = data.sort((a, b) => {
-            const dateA = new Date(a.editado);
-            const dateB = new Date(b.editado);
-            return dateB - dateA; // decrescente (mais recente no topo)
-          });
-
-          const formattedLeads = sortedData.map((item, index) => ({
-            id: item.id ? Number(item.id) : index + 1,
-            name: item.name || item.Name || '',
-            vehicleModel: item.vehiclemodel || item.vehiclemodel || '',
-            vehicleYearModel: item.vehicleyearmodel || item.vehicleyearmodel || '',
-            city: item.city || '',
-            phone: item.phone || item.Telefone || '',
-            insuranceType: item.insurancetype || '',
-            status: item.status || 'Selecione o status',
-            confirmado: item.confirmado === 'true' || item.confirmado === true,
-            insurer: item.insurer || '',
-            insurerConfirmed: item.insurerConfirmed === 'true' || item.insurerConfirmed === true,
-            usuarioId: item.usuarioId ? Number(item.usuarioId) : null,
-            premioLiquido: item.premioLiquido || '',
-            comissao: item.comissao || '',
-            parcelamento: item.parcelamento || '',
-            createdAt: item.data || new Date().toISOString(),
-            responsavel: item.responsavel || '',
-            editado: item.editado || ''
-          }));
-
-          console.log(formattedLeads)
-
-
-          // Só atualiza leads se não houver lead selecionado para não atrapalhar o usuário
-          if (!leadSelecionado) {
-            setLeads(formattedLeads);
-          }
-        } else {
-          if (!leadSelecionado) {
-            setLeads([]);
-          }
+        if (!leadSelecionado) {
+          setLeads(formattedLeads);
         }
-      } catch (error) {
-
+      } else {
         if (!leadSelecionado) {
           setLeads([]);
         }
       }
-    };
+    } catch (error) {
+      console.error('Erro ao buscar leads:', error);
+      if (!leadSelecionado) {
+        setLeads([]);
+      }
+    }
+  }, [leadSelecionado]); // leadSelecionado as a dependency for useCallback
 
-  useEffect(() => {
-    
-    fetchLeadsFromSheet();
-
-    const interval = setInterval(() => {
-      fetchLeadsFromSheet();
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [leadSelecionado]);
-  // FIM - sincronização leads
-   
-
-  const fetchLeadsFechadosFromSheet = async () => {
+  const fetchLeadsFechadosFromSheet = useCallback(async () => {
     try {
-
-
-      const response = await fetch(GOOGLE_SHEETS_LEADS_FECHADOS)
+      const response = await fetch(`${BASE_GAS_URL}?v=pegar_clientes_fechados`);
       const data = await response.json();
-
-      setLeadsFechados(data); // atribui direto
-
+      setLeadsFechados(data);
     } catch (error) {
       console.error('Erro ao buscar leads fechados:', error);
       setLeadsFechados([]);
     }
-  };
+  }, []); // No dependencies, as it fetches all closed leads
 
+  const fetchUsuariosFromSheet = useCallback(async () => {
+    try {
+      const response = await fetch(`${BASE_GAS_URL}?v=pegar_usuario`);
+      const data = await response.json();
+
+      if (Array.isArray(data)) {
+        const formattedUsuarios = data.map((item, index) => ({
+          id: item.ID || item.id || '', // Using item.ID based on your GAS output for 'pegar_usuario'
+          usuario: item.usuario || '',
+          nome: item.nome || '',
+          email: item.email || '',
+          senha: item.senha || '',
+          status: item.status || 'Ativo',
+          tipo: item.tipo || 'Usuario',
+        }));
+        setUsuarios(formattedUsuarios);
+      } else {
+        setUsuarios([]);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar usuários do Google Sheets:', error);
+      setUsuarios([]);
+    }
+  }, []); // No dependencies, as it fetches all users
+
+  // Initial data fetch and polling setup
   useEffect(() => {
-    
+    fetchLeadsFromSheet();
     fetchLeadsFechadosFromSheet();
+    fetchUsuariosFromSheet();
 
-    const interval = setInterval(() => {
-      fetchLeadsFechadosFromSheet();
-    }, 60000);
+    const leadsInterval = setInterval(fetchLeadsFromSheet, 60000);
+    const leadsFechadosInterval = setInterval(fetchLeadsFechadosFromSheet, 60000);
+    const usuariosInterval = setInterval(fetchUsuariosFromSheet, 60000);
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      clearInterval(leadsInterval);
+      clearInterval(leadsFechadosInterval);
+      clearInterval(usuariosInterval);
+    };
+  }, [fetchLeadsFromSheet, fetchLeadsFechadosFromSheet, fetchUsuariosFromSheet]); // Dependencies for useEffect
 
-  const [usuarios, setUsuarios] = useState([]); // Começa vazio
+  // Function to add a new user (called from CriarUsuario)
+  const adicionarUsuario = async (usuario) => {
+    try {
+      // Find the next available ID by checking existing users
+      const newId = usuarios.length > 0 ? Math.max(...usuarios.map(u => parseInt(u.id))) + 1 : 1;
 
-    useEffect(() => {
-      const fetchUsuariosFromSheet = async () => {
-        try {
-          const response = await fetch(GOOGLE_SHEETS_USERS + '?v=pegar_usuario');
-          const data = await response.json();
-
-          if (Array.isArray(data)) {
-            const formattedUsuarios = data.map((item, index) => ({
-              id: item.id || '',
-              usuario: item.usuario || '',
-              nome: item.nome || '',
-              email: item.email || '',
-              senha: item.senha || '',
-              status: item.status || 'Ativo',
-              tipo: item.tipo || 'Usuario',
-            }));
-
-            setUsuarios(formattedUsuarios);
-          } else {
-            setUsuarios([]);
-          }
-        } catch (error) {
-          console.error('Erro ao buscar usuários do Google Sheets:', error);
-          setUsuarios([]);
-        }
+      const newUser = {
+        ...usuario,
+        id: newId, // Assign the new ID
+        status: usuario.status || 'Ativo',
+        tipo: usuario.tipo || 'Usuario',
       };
 
-      fetchUsuariosFromSheet();
-
-      const interval = setInterval(() => {
-        fetchUsuariosFromSheet();
-      }, 60000);
-
-      return () => clearInterval(interval);
-    }, []);
-
-  /*const [usuarios, setUsuarios] = useState([
-    {
-      id: 1,
-      usuario: '1', // login
-      nome: 'Administrador 1',
-      email: 'admin1@example.com',
-      senha: '1',
-      status: 'Ativo',
-      tipo: 'Admin',
-    },
-    {
-      id: 2,
-      usuario: 'maria', // login
-      nome: 'Maria Oliveira',
-      email: 'maria@example.com',
-      senha: 'senha123',
-      status: 'Ativo',
-      tipo: 'Usuario',
-    },
-    {
-      id: 3,
-      usuario: 'joao', // login
-      nome: 'João Souza',
-      email: 'joao@example.com',
-      senha: 'joaopass',
-      status: 'Ativo',
-      tipo: 'Usuario',
-    },
-    {
-      id: 4,
-      usuario: 'admin2', // login
-      nome: 'Administrador 2',
-      email: 'admin2@example.com',
-      senha: 'adminpass',
-      status: 'Ativo',
-      tipo: 'Admin',
-    },
-  ]);*/
-
-  const [ultimoFechadoId, setUltimoFechadoId] = useState(null);
-
-  const adicionarUsuario = (usuario) => {
-    setUsuarios((prev) => [...prev, { ...usuario, id: prev.length + 1 }]);
-  };
-
-
-
-  const atualizarStatusLeadAntigo = (id, novoStatus, phone) => {
-    if (novoStatus == 'Fechado') {
-      //setUltimoFechadoId(id);
-        setLeadsFechados((prev) => {
-        const atualizados = prev.map((leadsFechados) =>
-          leadsFechados.phone === phone ? { ...leadsFechados, Status: novoStatus, confirmado: true } : leadsFechados
-        );
-
-        return atualizados;
+      const response = await fetch(`${BASE_GAS_URL}?v=criar_usuario`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8', // Crucial for GAS doPost
+        },
+        body: JSON.stringify(newUser),
       });
-    }
 
-      setLeads((prev) =>
-        prev.map((lead) =>
-          lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
-        )
-    );
-  };
+      const data = await response.json(); // Assuming GAS returns a JSON response now
 
-  const atualizarStatusLead = (id, novoStatus, phone) => {
-
-
-  // Atualiza leads principal
-  setLeads((prev) =>
-    prev.map((lead) =>
-      lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
-    )
-  );
-
-  if (novoStatus === 'Fechado') {
-
-    setLeadsFechados((prev) => {
-      const jaExiste = prev.some((lead) => lead.phone === phone);
-
-      if (jaExiste) {
-        // Se já existe, só atualiza
-        const atualizados = prev.map((lead) =>
-          lead.phone === phone ? { ...lead, Status: novoStatus, confirmado: true } : lead
-        );
- 
-        return atualizados;
+      if (data.status === 'success') {
+        setUsuarios((prev) => [...prev, newUser]); // Update local state
+        alert('Usuário criado com sucesso!');
+        fetchUsuariosFromSheet(); // Re-fetch to ensure sync
       } else {
-        // Se não existe, busca o lead na lista principal e adiciona
-        const leadParaAdicionar = leads.find((lead) => lead.phone === phone);
-
-        if (leadParaAdicionar) {
-          // Monta o objeto no padrão dos fechados
-          const novoLeadFechado = {
-            ID: leadParaAdicionar.id || crypto.randomUUID(),  // se não tiver, cria um
-            name: leadParaAdicionar.name,
-            vehicleModel: leadParaAdicionar.vehiclemodel,
-            vehicleYearModel: leadParaAdicionar.vehicleyearmodel,
-            city: leadParaAdicionar.city,
-            phone: leadParaAdicionar.phone,
-            insurer: leadParaAdicionar.insurancetype || leadParaAdicionar.insuranceType || "",
-            Data: leadParaAdicionar.createdAt || new Date().toISOString(),
-            Responsavel: leadParaAdicionar.responsavel || "",
-            Status: "Fechado",
-            Seguradora: leadParaAdicionar.Seguradora || "",
-            PremioLiquido: leadParaAdicionar.premioLiquido || "",
-            Comissao: leadParaAdicionar.comissao || "",
-            Parcelamento: leadParaAdicionar.parcelamento || "",
-            id: leadParaAdicionar.id || null,
-            usuario: leadParaAdicionar.usuario || "",
-            nome: leadParaAdicionar.nome || "",
-            email: leadParaAdicionar.email || "",
-            senha: leadParaAdicionar.senha || "",
-            status: leadParaAdicionar.status || "Ativo",
-            tipo: leadParaAdicionar.tipo || "Usuario",
-            "Ativo/Inativo": leadParaAdicionar["Ativo/Inativo"] || "Ativo",
-            confirmado: true
-          };
-
-
-          return [...prev, novoLeadFechado];
-        }
-
-        // Caso não encontre o lead (só por segurança)
-        console.warn("Lead não encontrado na lista principal para adicionar aos fechados.");
-        return prev;
+        alert(data.message || 'Erro ao criar usuário.');
       }
-    });
-  }
-};
-
-
-  const atualizarSeguradoraLead = (id, seguradora) => {
-    setLeads((prev) =>
-      prev.map((lead) =>
-        lead.id === id
-          ? limparCamposLead({ ...lead, insurer: seguradora })
-          : lead
-      )
-    );
+    } catch (error) {
+      console.error('Erro ao criar usuário:', error);
+      alert('Erro ao comunicar com o servidor para criar usuário.');
+    }
   };
 
-    const limparCamposLead = (lead) => ({
+  const limparCamposLead = (lead) => ({
     ...lead,
     premioLiquido: "",
     comissao: "",
     parcelamento: "",
-  })
+  });
 
-  const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento) => {
+  const atualizarStatusLead = async (id, novoStatus, phone) => {
+    try {
+      // Find the lead to get its original data before updating status
+      const leadToUpdate = leads.find((lead) => lead.phone === phone);
+      if (!leadToUpdate) {
+        console.error("Lead não encontrado para atualização de status.");
+        return;
+      }
 
-    const lead = leadsFechados.find((lead) => lead.ID == id);
-
-
-    lead.Seguradora = seguradora
-    lead.PremioLiquido = premio
-    lead.Comissao = comissao
-    lead.Parcelamento = parcelamento
-
-    setLeadsFechados((prev) => {
-      const atualizados = prev.map((lead) =>
-        lead.ID === id ? { ...lead, insurerConfirmed: true } : lead
+      // Optimistic UI update: update local state immediately
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
+        )
       );
 
-      return atualizados;
-    });
+      if (novoStatus === 'Fechado') {
+        const jaExiste = leadsFechados.some((lead) => lead.phone === phone);
 
-    try{
+        if (jaExiste) {
+          setLeadsFechados((prev) => {
+            const atualizados = prev.map((lead) =>
+              lead.phone === phone ? { ...lead, Status: novoStatus, confirmado: true } : lead
+            );
+            return atualizados;
+          });
+        } else {
+          const novoLeadFechado = {
+            ID: leadToUpdate.id || crypto.randomUUID(),
+            name: leadToUpdate.name,
+            vehicleModel: leadToUpdate.vehiclemodel,
+            vehicleYearModel: leadToUpdate.vehicleyearmodel,
+            city: leadToUpdate.city,
+            phone: leadToUpdate.phone,
+            insurer: leadToUpdate.insurancetype || leadToUpdate.insuranceType || "",
+            Data: leadToUpdate.createdAt || new Date().toISOString(),
+            Responsavel: leadToUpdate.responsavel || "",
+            Status: "Fechado",
+            Seguradora: leadToUpdate.Seguradora || "",
+            PremioLiquido: leadToUpdate.premioLiquido || "",
+            Comissao: leadToUpdate.comissao || "",
+            Parcelamento: leadToUpdate.parcelamento || "",
+            id: leadToUpdate.id || null, // Keep original ID if available, for matching
+            usuario: leadToUpdate.usuario || "",
+            nome: leadToUpdate.nome || "",
+            email: leadToUpdate.email || "",
+            senha: leadToUpdate.senha || "",
+            status: leadToUpdate.status || "Ativo", // This refers to user status in some contexts, be careful
+            tipo: leadToUpdate.tipo || "Usuario", // This refers to user type
+            "Ativo/Inativo": leadToUpdate["Ativo/Inativo"] || "Ativo", // Check this column name
+            confirmado: true
+          };
+          setLeadsFechados((prev) => [...prev, novoLeadFechado]);
+        }
+      }
 
-
-    // Faz a chamada para o Apps Script via fetch POST
-   fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_seguradora', {
+      // Now, send the update to Google Apps Script
+      const response = await fetch(`${BASE_GAS_URL}?v=alterar_status`, {
         method: 'POST',
-        mode: 'no-cors',
-        body:JSON.stringify({
-          lead: lead
-        }),
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'text/plain;charset=utf-8', // Crucial for GAS doPost
         },
+        body: JSON.stringify({ phone: phone, status: novoStatus }),
       });
-    } catch (error) {
-      console.error('Erro ao enviar lead:', error);
-    }
 
+      const data = await response.json(); // Assuming GAS returns JSON
+      if (data.status === 'success') {
+        console.log('Status do lead atualizado no Google Sheets:', data.message);
+        // Re-fetch data after a successful update to ensure full consistency, especially for new Leads Fechados/Perdidos
+        fetchLeadsFromSheet();
+        fetchLeadsFechadosFromSheet();
+      } else {
+        console.error('Erro ao atualizar status do lead no Google Sheets:', data.message);
+        // Rollback UI if update failed on backend
+        setLeads((prev) =>
+          prev.map((lead) =>
+            lead.phone === phone ? { ...lead, status: leadToUpdate.status, confirmado: leadToUpdate.confirmado } : lead
+          )
+        );
+        alert('Erro ao atualizar status do lead no servidor.');
+      }
+    } catch (error) {
+      console.error('Erro na requisição para atualizar status do lead:', error);
+      alert('Erro de comunicação com o servidor ao atualizar status.');
+    }
   };
 
+  const confirmarSeguradoraLead = async (id, premio, seguradora, comissao, parcelamento, vigenciaFinal) => {
+    try {
+      const lead = leadsFechados.find((l) => l.ID == id);
+      if (!lead) {
+        console.error("Lead fechado não encontrado para confirmar seguradora.");
+        return;
+      }
+
+      // Create a copy to update and send to GAS, ensuring correct keys for GAS
+      const updatedLeadData = {
+        ID: lead.ID,
+        Seguradora: seguradora,
+        PremioLiquido: parseFloat(premio), // Ensure number format
+        Comissao: parseFloat(comissao),   // Ensure number format
+        Parcelamento: parcelamento,       // Keep as string if it's "12x"
+        VigenciaFinal: vigenciaFinal // Add new field for VigenciaFinal
+      };
+
+      // Optimistic UI update
+      setLeadsFechados((prev) =>
+        prev.map((l) =>
+          l.ID === id
+            ? {
+                ...l,
+                Seguradora: seguradora,
+                PremioLiquido: premio,
+                Comissao: comissao,
+                Parcelamento: parcelamento,
+                VigenciaFinal: vigenciaFinal, // Update locally
+                insurerConfirmed: true,
+              }
+            : l
+        )
+      );
+
+      const response = await fetch(`${BASE_GAS_URL}?v=alterar_seguradora`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8', // Crucial for GAS doPost
+        },
+        body: JSON.stringify({ lead: updatedLeadData }),
+      });
+
+      const data = await response.json(); // Assuming GAS returns JSON
+      if (data.status === 'success') {
+        console.log('Seguradora e detalhes atualizados no Google Sheets:', data.message);
+        fetchLeadsFechadosFromSheet(); // Re-fetch to ensure sync
+      } else {
+        console.error('Erro ao atualizar seguradora no Google Sheets:', data.message);
+        // Rollback UI if update failed on backend
+        setLeadsFechados((prev) =>
+          prev.map((l) => (l.ID === id ? { ...lead, insurerConfirmed: false } : l))
+        );
+        alert('Erro ao atualizar seguradora no servidor.');
+      }
+    } catch (error) {
+      console.error('Erro na requisição para confirmar seguradora:', error);
+      alert('Erro de comunicação com o servidor ao confirmar seguradora.');
+    }
+  };
+
+  const transferirLead = async (leadId, responsavelId) => {
+    try {
+      // Find the lead to update and its original responsavel
+      const leadToUpdate = leads.find((lead) => lead.id === leadId);
+      if (!leadToUpdate) {
+        console.error("Lead não encontrado para transferência.");
+        return;
+      }
+
+      let usuarioNome = null;
+      if (responsavelId !== null) {
+        let usuario = usuarios.find((u) => u.id == responsavelId);
+        if (!usuario) {
+          console.error("Usuário responsável não encontrado.");
+          return;
+        }
+        usuarioNome = usuario.nome;
+      }
+
+      // Optimistic UI update
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.id === leadId ? { ...lead, responsavel: usuarioNome } : lead
+        )
+      );
+
+      // Send update to GAS
+      const response = await fetch(`${BASE_GAS_URL}?v=alterar_atribuido`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8', // Crucial for GAS doPost
+        },
+        body: JSON.stringify({ id: leadId, usuarioId: responsavelId }), // Send lead ID and new user ID
+      });
+
+      const data = await response.json(); // Assuming GAS returns JSON
+      if (data.status === 'success') {
+        console.log('Lead transferido no Google Sheets:', data.message);
+        fetchLeadsFromSheet(); // Re-fetch to ensure sync
+      } else {
+        console.error('Erro ao transferir lead no Google Sheets:', data.message);
+        // Rollback UI if update failed on backend
+        setLeads((prev) =>
+          prev.map((lead) =>
+            lead.id === leadId ? { ...lead, responsavel: leadToUpdate.responsavel } : lead
+          )
+        );
+        alert('Erro ao transferir lead no servidor.');
+      }
+    } catch (error) {
+      console.error('Erro na requisição para transferir lead:', error);
+      alert('Erro de comunicação com o servidor ao transferir lead.');
+    }
+  };
+
+
+  const atualizarStatusUsuario = async (id, novoStatus = null, novoTipo = null) => {
+    try {
+      const usuario = usuarios.find((u) => u.id === id);
+      if (!usuario) return;
+
+      // Prepare data for GAS: only send what's relevant to the update
+      const updateData = {
+        usuario: {
+          id: id,
+          status: novoStatus !== null ? novoStatus : usuario.status,
+          tipo: novoTipo !== null ? novoTipo : usuario.tipo,
+        },
+      };
+
+      // Optimistic UI update
+      setUsuarios((prev) =>
+        prev.map((u) =>
+          u.id === id
+            ? {
+                ...u,
+                ...(novoStatus !== null ? { status: novoStatus } : {}),
+                ...(novoTipo !== null ? { tipo: novoTipo } : {}),
+              }
+            : u
+        )
+      );
+
+      const response = await fetch(`${BASE_GAS_URL}?v=alterar_usuario`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8', // Crucial for GAS doPost
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      const data = await response.json(); // Assuming GAS returns JSON
+      if (data.status === 'success') {
+        console.log('Status/Tipo do usuário atualizado no Google Sheets:', data.message);
+        fetchUsuariosFromSheet(); // Re-fetch to ensure sync
+      } else {
+        console.error('Erro ao atualizar usuário no Google Sheets:', data.message);
+        // Rollback UI if update failed on backend (requires storing original state)
+        alert('Erro ao atualizar usuário no servidor.');
+      }
+    } catch (error) {
+      console.error('Erro na requisição para atualizar usuário:', error);
+      alert('Erro de comunicação com o servidor ao atualizar usuário.');
+    }
+  };
+
+
+  // No direct `atualizarSeguradoraLead` function in your original code that uses this.
+  // It seems `confirmarSeguradoraLead` handles the update.
+
   const atualizarDetalhesLeadFechado = (id, campo, valor) => {
+    // This function likely updates only local state.
+    // If these changes also need to be persisted, you'll need another GAS call.
     setLeads((prev) =>
       prev.map((lead) =>
         lead.id === id ? { ...lead, [campo]: valor } : lead
       )
     );
   };
-
-  /*const transferirLead = (leadId, responsavel) => {
-    console.log("leadid", leadId, "usuarioid", responsavel);
-
-    setLeads((prev) => {
-      const atualizados = prev.map((lead) =>
-        lead.id === leadId ? { ...lead, responsavel } : lead
-      );
-      console.log("leads atualizados:", atualizados);
-      return atualizados;
-    });
-  };*/
-
-  const transferirLead = (leadId, responsavelId) => {
-    if (responsavelId === null) {
-      // Se for null, desatribui o responsável
-      setLeads((prev) =>
-        prev.map((lead) =>
-          lead.id === leadId ? { ...lead, responsavel: null } : lead
-        )
-      );
-      return;
-    }
-
-    // Busca o usuário normalmente se responsavelId não for null
-    let usuario = usuarios.find((u) => u.id == responsavelId);
-    
-    if (!usuario) {
-
-      return;
-    }
-
-    setLeads((prev) =>
-      prev.map((lead) =>
-        lead.id === leadId ? { ...lead, responsavel: usuario.nome } : lead
-      )
-    );
-  };
-
-
-  const atualizarStatusUsuario = (id, novoStatus = null, novoTipo = null) => {
-
-
-  const usuario = usuarios.find((usuario) => usuario.id === id);
-  if (!usuario) return;
-
-  // Atualizar só o que foi passado
-  if (novoStatus !== null) usuario.status = novoStatus;
-  if (novoTipo !== null) usuario.tipo = novoTipo;
-
-  try {
-    // Faz a chamada para o Apps Script via fetch POST
-    fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_usuario', {
-      method: 'POST',
-      mode: 'no-cors',
-      body: JSON.stringify({
-        usuario: usuario
-      }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-  } catch (error) {
-    console.error('Erro ao enviar lead:', error);
-  }
-
-  // Atualizar localmente também
-  setUsuarios((prev) =>
-    prev.map((usuario) =>
-      usuario.id === id
-        ? {
-            ...usuario,
-            ...(novoStatus !== null ? { status: novoStatus } : {}),
-            ...(novoTipo !== null ? { tipo: novoTipo } : {}),
-          }
-        : usuario
-    )
-  );
-};
-
-
-
 
   const onAbrirLead = (lead) => {
     setLeadSelecionado(lead);
@@ -536,8 +538,8 @@ const App = () => {
             element={
               <Dashboard
                 leadsClosed={
-                  isAdmin 
-                    ? leadsFechados 
+                  isAdmin
+                    ? leadsFechados
                     : leadsFechados.filter((lead) => lead.Responsavel === usuarioLogado.nome)
                 }
                 leads={
@@ -546,7 +548,6 @@ const App = () => {
                     : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)
                 }
                 usuarioLogado={usuarioLogado}
-                
               />
             }
           />
@@ -569,7 +570,7 @@ const App = () => {
               <LeadsFechados
                 leads={isAdmin ? leadsFechados : leadsFechados.filter((lead) => lead.Responsavel === usuarioLogado.nome)}
                 usuarios={usuarios}
-                onUpdateInsurer={atualizarSeguradoraLead}
+                // Removed onUpdateInsurer as confirmarSeguradoraLead seems to be the main point of update
                 onConfirmInsurer={confirmarSeguradoraLead}
                 onUpdateDetalhes={atualizarDetalhesLeadFechado}
                 fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
@@ -577,7 +578,6 @@ const App = () => {
                 ultimoFechadoId={ultimoFechadoId}
                 onAbrirLead={onAbrirLead}
                 leadSelecionado={leadSelecionado}
-                
               />
             }
           />
@@ -591,15 +591,19 @@ const App = () => {
                 onAbrirLead={onAbrirLead}
                 isAdmin={isAdmin}
                 leadSelecionado={leadSelecionado}
-                
               />
             }
           />
-          <Route path="/buscar-lead" element={<BuscarLead 
-                leads={leads} 
+          <Route
+            path="/buscar-lead"
+            element={
+              <BuscarLead
+                leads={leads}
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
-                />} />
+              />
+            }
+          />
           {isAdmin && (
             <>
               <Route path="/criar-usuario" element={<CriarUsuario adicionarUsuario={adicionarUsuario} />} />
@@ -608,7 +612,6 @@ const App = () => {
                 element={
                   <Usuarios
                     leads={isAdmin ? leads : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)}
-                    
                     usuarios={usuarios}
                     fetchLeadsFromSheet={fetchLeadsFromSheet}
                     fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
@@ -618,11 +621,17 @@ const App = () => {
               />
             </>
           )}
-          <Route path="/ranking" element={<Ranking 
-                usuarios={usuarios} 
+          <Route
+            path="/ranking"
+            element={
+              <Ranking
+                usuarios={usuarios}
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
-                leads={leads} />} />
+                leads={leads}
+              />
+            }
+          />
           <Route path="*" element={<h1 style={{ padding: 20 }}>Página não encontrada</h1>} />
         </Routes>
       </main>
