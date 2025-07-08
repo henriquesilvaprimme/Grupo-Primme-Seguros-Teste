@@ -18,7 +18,6 @@ import Ranking from './pages/Ranking';
 const App = () => {
   const navigate = useNavigate();
 
-  // ... (seus estados existentes) ...
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginInput, setLoginInput] = useState('');
   const [senhaInput, setSenhaInput] = useState('');
@@ -27,7 +26,7 @@ const App = () => {
   const [backgroundLoaded, setBackgroundLoaded] = useState(false);
   const [leads, setLeads] = useState([]);
   const [leadSelecionado, setLeadSelecionado] = useState(null);
-  const [usuarios, setUsuarios] = useState([]);
+  const [usuarios, setUsuarios] = useState([]); // Array de usuários
   const [ultimoFechadoId, setUltimoFechadoId] = useState(null);
 
   useEffect(() => {
@@ -36,10 +35,9 @@ const App = () => {
     img.onload = () => setBackgroundLoaded(true);
   }, []);
 
-  // Funções de fetch memoizadas com useCallback
+  // --- Funções de Fetch Memoizadas com useCallback ---
   const fetchLeadsFromSheet = useCallback(async () => {
     try {
-      // Usando a URL do API_ENDPOINTS
       const response = await fetch(API_ENDPOINTS.GET_LEADS);
       const data = await response.json();
 
@@ -47,7 +45,7 @@ const App = () => {
         const sortedData = data.sort((a, b) => {
           const dateA = new Date(a.editado);
           const dateB = new Date(b.editado);
-          return dateB - dateA; // decrescente (mais recente no topo)
+          return dateB - dateA;
         });
 
         const formattedLeads = sortedData.map((item, index) => ({
@@ -89,7 +87,6 @@ const App = () => {
 
   const fetchLeadsFechadosFromSheet = useCallback(async () => {
     try {
-      // Usando a URL do API_ENDPOINTS
       const response = await fetch(API_ENDPOINTS.GET_LEADS_FECHADOS);
       const data = await response.json();
       setLeadsFechados(data);
@@ -101,9 +98,9 @@ const App = () => {
 
   const fetchUsuariosFromSheet = useCallback(async () => {
     try {
-      // Usando a URL do API_ENDPOINTS
       const response = await fetch(API_ENDPOINTS.GET_USUARIOS);
       const data = await response.json();
+      console.log("Dados de usuários recebidos do GAS:", data); // Log para depuração
 
       if (Array.isArray(data)) {
         const formattedUsuarios = data.map((item) => ({
@@ -116,8 +113,10 @@ const App = () => {
           tipo: item.tipo || 'Usuario',
         }));
         setUsuarios(formattedUsuarios);
+        console.log("Usuários formatados e definidos:", formattedUsuarios); // Log para depuração
       } else {
         setUsuarios([]);
+        console.warn("Dados de usuários não são um array:", data);
       }
     } catch (error) {
       console.error('Erro ao buscar usuários do Google Sheets:', error);
@@ -125,8 +124,26 @@ const App = () => {
     }
   }, []);
 
-  // ... (Restante do seu código useEffect e funções de manipulação de dados) ...
+  // --- Efeitos para carregar dados e configurar o polling ---
+  useEffect(() => {
+    fetchLeadsFromSheet();
+    fetchLeadsFechadosFromSheet();
+    fetchUsuariosFromSheet(); // Garante que os usuários são buscados ao iniciar
 
+    // Polling para manter os dados atualizados (intervalos de 1 minuto)
+    const leadsInterval = setInterval(fetchLeadsFromSheet, 60000);
+    const leadsFechadosInterval = setInterval(fetchLeadsFechadosFromSheet, 60000);
+    const usuariosInterval = setInterval(fetchUsuariosFromSheet, 60000);
+
+    return () => {
+      clearInterval(leadsInterval);
+      clearInterval(leadsFechadosInterval);
+      clearInterval(usuariosInterval);
+    };
+  }, [fetchLeadsFromSheet, fetchLeadsFechadosFromSheet, fetchUsuariosFromSheet]);
+
+
+  // --- Funções de Manipulação de Dados ---
   const adicionarUsuario = async (usuario) => {
     try {
       const newId = usuarios.length > 0 ? Math.max(...usuarios.map(u => parseInt(u.id))) + 1 : 1;
@@ -138,7 +155,7 @@ const App = () => {
         tipo: usuario.tipo || 'Usuario',
       };
 
-      const response = await fetch(API_ENDPOINTS.POST_CRIAR_USUARIO, { // Usando a URL do API_ENDPOINTS
+      const response = await fetch(API_ENDPOINTS.POST_CRIAR_USUARIO, {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
@@ -149,9 +166,10 @@ const App = () => {
       const data = await response.json();
 
       if (data.status === 'success') {
+        // Optimistic update: add new user to state immediately
         setUsuarios((prev) => [...prev, newUser]);
         alert('Usuário criado com sucesso!');
-        fetchUsuariosFromSheet();
+        fetchUsuariosFromSheet(); // Re-fetch para sincronizar e garantir que o ID do GAS seja o correto
       } else {
         alert(data.message || 'Erro ao criar usuário.');
       }
@@ -171,6 +189,7 @@ const App = () => {
     const originalStatus = leadToUpdate.status;
     const originalConfirmado = leadToUpdate.confirmado;
 
+    // Atualização otimista do UI
     setLeads((prev) =>
       prev.map((lead) =>
         lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
@@ -189,7 +208,7 @@ const App = () => {
         });
       } else {
         const novoLeadFechado = {
-          ID: leadToUpdate.id || crypto.randomUUID(),
+          ID: leadToUpdate.id || crypto.randomUUID(), // Usar ID existente ou gerar um novo UUID
           name: leadToUpdate.name,
           vehicleModel: leadToUpdate.vehiclemodel,
           vehicleYearModel: leadToUpdate.vehicleyearmodel,
@@ -203,14 +222,16 @@ const App = () => {
           PremioLiquido: leadToUpdate.premioLiquido || "",
           Comissao: leadToUpdate.comissao || "",
           Parcelamento: leadToUpdate.parcelamento || "",
-          id: leadToUpdate.id || null,
+          // Adicionando campos necessários para o objeto 'leadFechado'
+          // Estes campos viriam dos dados iniciais do leadToUpdate ou seriam nulos/vazios
+          id: leadToUpdate.id || null, // ID numérico, se existir no lead original
           usuario: leadToUpdate.usuario || "",
           nome: leadToUpdate.nome || "",
           email: leadToUpdate.email || "",
           senha: leadToUpdate.senha || "",
-          status: leadToUpdate.status || "Ativo",
-          tipo: leadToUpdate.tipo || "Usuario",
-          "Ativo/Inativo": leadToUpdate["Ativo/Inativo"] || "Ativo",
+          status: leadToUpdate.status || "Ativo", // Status do usuário, se aplicável
+          tipo: leadToUpdate.tipo || "Usuario", // Tipo do usuário, se aplicável
+          "Ativo/Inativo": leadToUpdate["Ativo/Inativo"] || "Ativo", // Status ativo/inativo do usuário
           confirmado: true
         };
         setLeadsFechados((prev) => [...prev, novoLeadFechado]);
@@ -218,7 +239,7 @@ const App = () => {
     }
 
     try {
-      const response = await fetch(API_ENDPOINTS.POST_ALTERAR_STATUS, { // Usando a URL do API_ENDPOINTS
+      const response = await fetch(API_ENDPOINTS.POST_ALTERAR_STATUS, {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
@@ -286,7 +307,7 @@ const App = () => {
     );
 
     try {
-      const response = await fetch(API_ENDPOINTS.POST_ALTERAR_SEGURADORA, { // Usando a URL do API_ENDPOINTS
+      const response = await fetch(API_ENDPOINTS.POST_ALTERAR_SEGURADORA, {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
@@ -340,7 +361,7 @@ const App = () => {
     );
 
     try {
-      const response = await fetch(API_ENDPOINTS.POST_ALTERAR_ATRIBUIDO, { // Usando a URL do API_ENDPOINTS
+      const response = await fetch(API_ENDPOINTS.POST_ALTERAR_ATRIBUIDO, {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
@@ -400,7 +421,7 @@ const App = () => {
     );
 
     try {
-      const response = await fetch(API_ENDPOINTS.POST_ALTERAR_USUARIO, { // Usando a URL do API_ENDPOINTS
+      const response = await fetch(API_ENDPOINTS.POST_ALTERAR_USUARIO, {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
@@ -433,15 +454,12 @@ const App = () => {
   };
 
 
-  // ... (resto do seu componente App.jsx) ...
-
   const atualizarDetalhesLeadFechado = (id, campo, valor) => {
     setLeads((prev) =>
       prev.map((lead) =>
         lead.id === id ? { ...lead, [campo]: valor } : lead
       )
     );
-    // Para persistir essas mudanças, uma chamada ao GAS seria necessária aqui
   };
 
   const onAbrirLead = (lead) => {
@@ -454,19 +472,30 @@ const App = () => {
     navigate(path);
   };
 
+  // --- Lógica de Login ---
   const handleLogin = () => {
+    console.log("Tentando login com:", loginInput, senhaInput);
+    console.log("Usuários disponíveis para comparação:", usuarios);
+
+    // Garante que 'usuario' e 'senha' do input são tratados como strings
     const usuarioEncontrado = usuarios.find(
-      (u) => u.usuario === loginInput && u.senha === senhaInput && u.status === 'Ativo'
+      (u) =>
+        String(u.usuario).trim() === String(loginInput).trim() &&
+        String(u.senha).trim() === String(senhaInput).trim() &&
+        String(u.status).trim() === 'Ativo'
     );
 
     if (usuarioEncontrado) {
+      console.log("Usuário encontrado:", usuarioEncontrado);
       setIsAuthenticated(true);
       setUsuarioLogado(usuarioEncontrado);
     } else {
+      console.warn("Nenhum usuário encontrado com as credenciais ou status inativo.");
       alert('Login ou senha inválidos ou usuário inativo.');
     }
   };
 
+  // --- Renderização Condicional do Login ---
   if (!isAuthenticated) {
     return (
       <div
@@ -517,6 +546,7 @@ const App = () => {
     );
   }
 
+  // --- Layout Principal (Após Login) ---
   const isAdmin = usuarioLogado?.tipo === 'Admin';
 
   return (
