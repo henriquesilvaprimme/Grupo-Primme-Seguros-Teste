@@ -20,12 +20,12 @@ const formatarDataParaExibicao = (dataString) => {
   if (!dataString) return '';
   try {
     let dateObj;
-    // Tenta reconhecer o formato YYYY-MM-DD (que o GAS enviaria)
+    // Tenta reconhecer o formato ISO 8601 (que o GAS enviaria)
     const partesHifen = dataString.match(/^(\d{4})-(\d{2})-(\d{2})(T.*)?$/); // Inclui T para ISO
     if (partesHifen) {
       dateObj = new Date(dataString); // Date constructor pode lidar com ISO 8601
     } else {
-      // Se não for YYYY-MM-DD, tenta parsear DD/MM/YYYY (do Sheets como texto)
+      // Se não for ISO 8601, tenta parsear DD/MM/YYYY (do Sheets como texto)
       const partesBarra = dataString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
       if (partesBarra) {
         dateObj = new Date(`${partesBarra[3]}-${partesBarra[2]}-${partesBarra[1]}T00:00:00`);
@@ -439,7 +439,7 @@ const App = () => {
     );
 
     try {
-      const response = await fetch(API_ENDPOINTS.POST_ALTERAR_USUARIO, {
+      const response = await fetch(API_ENDpoints.POST_ALTERAR_USUARIO, {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
