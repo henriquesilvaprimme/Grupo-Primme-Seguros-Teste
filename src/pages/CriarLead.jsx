@@ -8,10 +8,11 @@ const CriarLead = ({ adicionarLead }) => {
   const [anoModelo, setAnoModelo] = useState('');
   const [cidade, setCidade] = useState('');
   const [telefone, setTelefone] = useState('');
-  const [tipoSeguro, setTipoSeguro] = useState(''); // Estado para o tipo de seguro
-  const [responsavel, setResponsavel] = useState(''); // Estado para o responsável selecionado
-  const [usuariosAtivos, setUsuariosAtivos] = useState([]); // Estado para armazenar os usuários ativos
-  const [mensagemSucesso, setMensagemSucesso] = useState(''); // Novo estado para a mensagem de sucesso
+  const [tipoSeguro, setTipoSeguro] = useState('');
+  const [responsavel, setResponsavel] = useState('');
+  const [vigenciaFinal, setVigenciaFinal] = useState(''); // NOVO ESTADO PARA VIGÊNCIA FINAL
+  const [usuariosAtivos, setUsuariosAtivos] = useState([]);
+  const [mensagemSucesso, setMensagemSucesso] = useState('');
 
   const navigate = useNavigate();
 
@@ -20,9 +21,7 @@ const CriarLead = ({ adicionarLead }) => {
     const fetchUsuariosAtivos = async () => {
       try {
         // ATENÇÃO: SUBSTITUA ESTE URL PELA URL DO SEU GOOGLE APPS SCRIPT REAL.
-        // É a URL do aplicativo da web (Web App URL) após a implantação do seu script GAS.
-        // Exemplo: 'https://script.google.com/macros/s/SEU_ID_DO_SCRIPT/exec?v=listar_usuarios_ativos'
-        const YOUR_GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=listar_usuarios_ativos'; 
+        const YOUR_GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?v=listar_usuarios_ativos'; 
 
         const response = await fetch(YOUR_GAS_WEB_APP_URL);
         
@@ -45,17 +44,16 @@ const CriarLead = ({ adicionarLead }) => {
   }, []);
 
   const handleCriar = () => {
-    // Limpa a mensagem de sucesso anterior ao tentar criar um novo lead
     setMensagemSucesso(''); 
 
-    // Validação dos campos obrigatórios
-    if (!nome || !modeloVeiculo || !anoModelo || !cidade || !telefone || !tipoSeguro || !responsavel) {
+    // Validação dos campos obrigatórios (adicione vigenciaFinal aqui se for obrigatório)
+    if (!nome || !modeloVeiculo || !anoModelo || !cidade || !telefone || !tipoSeguro || !responsavel || !vigenciaFinal) { // Vigência Final adicionada à validação
       setMensagemSucesso('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
 
     const novoLead = {
-      id: Date.now(), // ID único para o lead (será substituído pelo ID gerado no GAS)
+      id: Date.now(),
       nome,
       modeloVeiculo,
       anoModelo,
@@ -63,8 +61,9 @@ const CriarLead = ({ adicionarLead }) => {
       telefone,
       tipoSeguro,
       responsavel,
-      status: 'Fechado', // Status fixo como "Fechado"
-      dataCriacao: new Date().toLocaleDateString('pt-BR'), // Data de criação (será substituída pela data do GAS)
+      vigenciaFinal, // NOVO CAMPO ADICIONADO AO OBJETO DO LEAD
+      status: 'Fechado',
+      dataCriacao: new Date().toLocaleDateString('pt-BR'),
     };
 
     criarLeadFunc(novoLead);
@@ -72,7 +71,7 @@ const CriarLead = ({ adicionarLead }) => {
 
   const criarLeadFunc = async (lead) => {
     try {
-      const YOUR_GAS_WEB_APP_URL_FOR_LEADS = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=criar_lead'; 
+      const YOUR_GAS_WEB_APP_URL_FOR_LEADS = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?v=criar_lead'; 
 
       await fetch(YOUR_GAS_WEB_APP_URL_FOR_LEADS, {
         method: 'POST',
@@ -83,17 +82,14 @@ const CriarLead = ({ adicionarLead }) => {
         },
       });
       console.log('Lead enviado. Verifique seu Google Sheet.');
-      // Define a mensagem de sucesso sem usar alert
       setMensagemSucesso('✅ Lead criado com sucesso!'); 
 
-      // Opcional: Redirecionar após um breve atraso para o usuário ver a mensagem
       setTimeout(() => {
         navigate('/leads'); 
-      }, 1500); // Redireciona após 1.5 segundos
+      }, 1500);
 
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
-      // Define a mensagem de erro
       setMensagemSucesso('Houve um erro ao criar o lead. Tente novamente.');
     }
   };
@@ -159,11 +155,21 @@ const CriarLead = ({ adicionarLead }) => {
           onChange={(e) => setTipoSeguro(e.target.value)}
           className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
         >
-          <option value=""> </option> {/* Opção " " */}
+          <option value="">Em branco</option>
           <option value="Novo">Novo</option>
           <option value="Renovacao">Renovação</option>
           <option value="Indicacao">Indicação</option>
         </select>
+      </div>
+
+      <div>
+        <label className="block text-gray-700">Vigência Final</label>
+        <input
+          type="date" // Tipo 'date' para seleção de data
+          value={vigenciaFinal}
+          onChange={(e) => setVigenciaFinal(e.target.value)}
+          className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
       </div>
 
       <div>
@@ -182,13 +188,11 @@ const CriarLead = ({ adicionarLead }) => {
         </select>
       </div>
 
-      {/* O campo Status não precisa de input, pois é fixo */}
       <div className="text-gray-700">
         Status: <span className="font-semibold">Fechado</span>
       </div>
 
-      {/* Botão centralizado */}
-      <div className="flex justify-center"> {/* Adicionado para centralizar */}
+      <div className="flex justify-center">
         <button
           onClick={handleCriar}
           className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition"
@@ -197,7 +201,6 @@ const CriarLead = ({ adicionarLead }) => {
         </button>
       </div>
 
-      {/* Mensagem de sucesso/erro */}
       {mensagemSucesso && (
         <p className={`mt-4 text-center ${mensagemSucesso.startsWith('✅') ? 'text-green-600' : 'text-red-600'}`}>
           {mensagemSucesso}
