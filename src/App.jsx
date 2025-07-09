@@ -69,6 +69,7 @@ const App = () => {
             premioLiquido: item.premioLiquido || '',
             comissao: item.comissao || '',
             parcelamento: item.parcelamento || '',
+            vigenciaFinal: item.VigenciaFinal || '', // Adicionado VigenciaFinal
             createdAt: item.data || new Date().toISOString(),
             responsavel: item.responsavel || '',
             editado: item.editado || ''
@@ -309,8 +310,8 @@ const App = () => {
             PremioLiquido: leadParaAdicionar.premioLiquido || "",
             Comissao: leadParaAdicionar.comissao || "",
             Parcelamento: leadParaAdicionar.parcelamento || "",
-            VigenciaFinal: leadParaAdicionar.VigenciaFinal || "", // Adicionado VigenciaFinal
-            Editado: leadParaAdicionar.Editado || "", // Adicionado Editado
+            VigenciaFinal: leadParaAdicionar.vigenciaFinal || "", // Adicionado VigenciaFinal
+            Editado: leadParaAdicionar.editado || "", // Adicionado Editado
             id: leadParaAdicionar.id || null,
             usuario: leadParaAdicionar.usuario || "",
             nome: leadParaAdicionar.nome || "",
