@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Lead from './components/Lead';
+import { RefreshCcw } from 'lucide-react'; // Importado para o ícone de refresh
 
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 
@@ -22,7 +23,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setIsLoading(true); // Ativa o loader
     try {
       // Chama a função fetchLeadsFromSheet passada como prop
-      await fetchLeadsFromSheet(); 
+      await fetchLeadsFromSheet();
     } catch (error) {
       console.error('Erro ao buscar leads atualizados:', error);
     } finally {
@@ -179,40 +180,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   return (
     <div style={{ padding: '20px', position: 'relative' }}>
-      {/* Loader de carregamento */}
+      {/* Loader de carregamento (overlay da página interna com fundo branco) */}
       {isLoading && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'rgba(255, 255, 255, 0.8)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 9999,
-          }}
-        >
-          <div
-            style={{
-              border: '8px solid #f3f3f3',
-              borderTop: '8px solid #3498db',
-              borderRadius: '50%',
-              width: '50px',
-              height: '50px',
-              animation: 'spin 1s linear infinite',
-            }}
-          ></div>
-          <style>
-            {`
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-            `}
-          </style>
+        <div className="absolute inset-0 bg-white flex justify-center items-center z-10">
+          <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
+          <p className="ml-4 text-lg text-gray-700">Carregando leads...</p>
         </div>
       )}
 
@@ -234,7 +206,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             onClick={handleRefreshLeads} // Chamando a nova função para lidar com o refresh
             disabled={isLoading} // Desabilita o botão enquanto estiver carregando
           >
-            🔄
+            {isLoading ? ( // Mostra o spinner se estiver carregando
+              <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              <RefreshCcw size={20} />
+            )}
           </button>
         </div>
 
@@ -317,7 +296,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       </div>
 
       {isLoading ? ( // Mostra a mensagem de carregamento quando isLoading for true
-        <p>Carregando leads...</p>
+        <p>Carregando LEADS...</p>
       ) : gerais.length === 0 ? (
         <p>Não há leads pendentes para os filtros aplicados.</p>
       ) : (
