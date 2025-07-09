@@ -57,7 +57,7 @@ const Ranking = ({ usuarios }) => {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-50">
         <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
-        <p className="ml-4 text-lg text-gray-700">Carregando dados do ranking...</p>
+        <p className="ml-4 text-lg text-gray-700">Carregando RANKING...</p>
       </div>
     );
   }
