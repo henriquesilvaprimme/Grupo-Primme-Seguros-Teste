@@ -2,33 +2,26 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const Dashboard = ({ leads }) => {
-  // Estado para armazenar os leads da aba "Leads Fechados" com Seguradora atribuída
+  // Estado para armazenar os leads da aba "Leads Fechados" já filtrados pelo GAS
   const [leadsFechadosComSeguradora, setLeadsFechadosComSeguradora] = useState([]);
   const [loadingFechados, setLoadingFechados] = useState(true);
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
 
   // Função para buscar APENAS os leads da aba 'Leads Fechados'
-  // O filtro da seguradora será feito AQUI no frontend, para garantir.
+  // Agora, esperamos que o GAS já tenha feito a maior parte do filtro.
   const buscarLeadsFechadosDoSheets = async () => {
     try {
       const response = await axios.get(
         'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
       );
 
-      // Log para verificar os dados brutos retornados pela API
-      console.log("Dados brutos de 'pegar_clientes_fechados':", response.data);
-
-      // FILTRAGEM ROBUSTA NO FRONTEND:
-      // 1. Verifica se a propriedade 'Seguradora' existe.
-      // 2. Converte para string e remove espaços em branco (trim).
-      // 3. Garante que o valor não é uma string vazia.
+      // Opcional: Adicionar um filtro no frontend como "segurança extra"
+      // Se o GAS estiver fazendo o trabalho perfeito, este filtro pode ser mais simples ou removido.
+      // Mantive a versão robusta para caso haja inconsistências nos dados.
       const filteredLeads = response.data.filter(
-        (lead) => lead.Seguradora && String(lead.Seguradora).trim() !== ''
+        (lead) => lead.Status === 'Fechado' && lead.Seguradora && String(lead.Seguradora).trim() !== ''
       );
-
-      // Log para verificar os leads filtrados
-      console.log("Leads filtrados com seguradora:", filteredLeads);
 
       setLeadsFechadosComSeguradora(filteredLeads);
     } catch (error) {
@@ -40,7 +33,7 @@ const Dashboard = ({ leads }) => {
 
   useEffect(() => {
     buscarLeadsFechadosDoSheets();
-  }, []); // Executa apenas uma vez ao montar o componente
+  }, []);
 
   // --- CONTADORES ---
   // Estes contadores continuam usando a prop 'leads' (da aba geral 'Leads')
@@ -50,8 +43,7 @@ const Dashboard = ({ leads }) => {
   const leadsSemContato = leads.filter((lead) => lead.status === 'Sem Contato').length;
 
   // ESTE É O CONTADOR QUE VOCÊ QUERIA FOCAR:
-  // Usa o novo estado 'leadsFechadosComSeguradora' que vem da aba 'Leads Fechados'
-  // e já foi filtrado para ter seguradora atribuída.
+  // Usa o estado 'leadsFechadosComSeguradora' que vem da aba 'Leads Fechados'
   const leadsFechados = leadsFechadosComSeguradora.length;
 
   // Contadores por seguradora baseados em 'leadsFechadosComSeguradora' (correto)
