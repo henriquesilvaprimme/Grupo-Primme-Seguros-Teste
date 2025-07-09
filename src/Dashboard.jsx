@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const Dashboard = ({ leads }) => {
-  const [leadsClosed, setLeads] = useState([]);
+  const [leadsClosed, setLeadsClosed] = useState([]); // Renomeado para evitar conflito com 'leads' da prop
   const [loading, setLoading] = useState(true);
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
@@ -12,7 +12,11 @@ const Dashboard = ({ leads }) => {
       const response = await axios.get(
         'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
       );
-      setLeads(response.data);
+      // Filtra os leads para incluir apenas os com status 'Fechado' e seguradora atribuída
+      const filteredLeads = response.data.filter(
+        (lead) => lead.status === 'Fechado' && lead.Seguradora
+      );
+      setLeadsClosed(filteredLeads);
     } catch (error) {
       console.error('Erro ao buscar leads:', error);
     } finally {
@@ -31,7 +35,7 @@ const Dashboard = ({ leads }) => {
   const leadsEmContato = leads.filter((lead) => lead.status === 'Em Contato').length;
   const leadsSemContato = leads.filter((lead) => lead.status === 'Sem Contato').length;
 
-  // Contadores por seguradora baseados em leadsClosed
+  // Contadores por seguradora baseados em leadsClosed (já filtrados na busca)
   const portoSeguro = leadsClosed.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
   const azulSeguros = leadsClosed.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
   const itauSeguros = leadsClosed.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
