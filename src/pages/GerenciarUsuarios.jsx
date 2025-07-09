@@ -88,7 +88,7 @@ const GerenciarUsuarios = () => {
   // Funções de toggle que atualizam o estado local e disparam o envio ao GAS
   const handleToggleStatus = (id, statusAtual) => {
     const novoStatus = statusAtual === 'Ativo' ? 'Inativo' : 'Ativo';
-    setMensagemFeedback('Atualizando status...'); // Feedback imediato
+    setMensagemFeedback(''); // Feedback imediato
 
     // 1. Atualiza o estado local imediatamente para feedback visual instantâneo
     setUsuarios(prevUsuarios =>
