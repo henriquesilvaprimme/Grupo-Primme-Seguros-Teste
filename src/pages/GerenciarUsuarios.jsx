@@ -14,10 +14,18 @@ const GerenciarUsuarios = () => {
     setIsLoading(true);
     setMensagemFeedback('');
     try {
+      // Requisição GET para pegar usuários (pode ser mode: 'cors' ou 'no-cors' aqui)
+      // Mantendo 'cors' para a requisição GET para permitir a leitura dos dados
       const response = await fetch(`${GOOGLE_SHEETS_BASE_URL}?v=pegar_usuario`, {
-        mode: 'cors'
+        method: 'GET', // Explicitamente GET
+        mode: 'cors' // Mantido 'cors' para a leitura inicial dos dados.
+                     // Se preferir 'no-cors' aqui, não será possível verificar response.ok nem response.json()
       });
-      const data = await response.json();
+
+      if (!response.ok) { // Este check só funciona com mode: 'cors'
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json(); // Leitura da resposta só funciona com mode: 'cors'
 
       if (Array.isArray(data)) {
         setUsuarios(data);
@@ -45,6 +53,7 @@ const GerenciarUsuarios = () => {
     setIsLoading(true);
 
     const dadosParaEnviar = {
+      action: 'alterar_usuario', // Adicionamos uma ação para o GAS identificar
       usuario: {
         id: usuarioId,
         status: novoStatus,
@@ -53,26 +62,29 @@ const GerenciarUsuarios = () => {
     };
 
     try {
-      const response = await fetch(`${GOOGLE_SHEETS_BASE_URL}?v=alterar_usuario`, {
+      // Requisição POST com mode: 'no-cors' conforme sua preferência
+      const response = await fetch(GOOGLE_SHEETS_BASE_URL, { // Não precisa mais do ?v=
         method: 'POST',
-        mode: 'no-cors', // Mantido no-cors para consistência com o CriarLead.jsx
+        mode: 'no-cors', // MANTIDO 'no-cors' conforme instrução
         headers: {
-          'Content-Type': 'text/plain;charset=utf-8', // Importante para o GAS
+          'Content-Type': 'text/plain;charset=utf-8', // Importante para o GAS no modo no-cors com JSON stringificado
         },
         body: JSON.stringify(dadosParaEnviar),
       });
 
+      // No modo no-cors, não podemos ler a resposta (response.ok, response.json()).
+      // A única forma de ter certeza do sucesso é verificar os logs do Apps Script
+      // ou re-buscar os dados do Sheets.
       console.log('Requisição de atualização de usuário enviada (modo no-cors).');
-      console.log('É necessário verificar os logs de execução do Google Apps Script para confirmar o sucesso.');
+      console.log('Para confirmar o sucesso da operação, verifique os logs de execução do Google Apps Script ou o Google Sheet diretamente.');
 
-      // No modo no-cors, não podemos ler a resposta, então presumimos sucesso e atualizamos o estado local
-      // Após a requisição, re-buscamos os usuários para refletir as mudanças do Sheets
-      await buscarUsuarios(); 
-      setMensagemFeedback('✅ Usuário atualizado com sucesso! (Verifique o Google Sheet para confirmação)');
+      // Re-buscamos os usuários para refletir as mudanças do Sheets
+      await buscarUsuarios();
+      setMensagemFeedback('✅ Solicitação de atualização enviada. Verifique o Google Sheet e os logs do Apps Script para confirmação.');
 
     } catch (error) {
-      console.error('Erro ao atualizar usuário:', error);
-      setMensagemFeedback('❌ Erro ao atualizar usuário. Tente novamente.');
+      console.error('Erro ao enviar requisição de atualização:', error);
+      setMensagemFeedback('❌ Erro ao enviar solicitação de atualização. Verifique sua conexão.');
     } finally {
       setIsLoading(false);
     }
@@ -125,7 +137,7 @@ const GerenciarUsuarios = () => {
                       </td>
                       <td className="py-3 px-6 text-left">
                         <select
-                          value={usuario.tipo === 'Usuario' ? 'Usuário Comum' : usuario.tipo} // Ajuste para o valor do select
+                          value={usuario.tipo === 'Usuario' ? 'Usuário Comum' : usuario.tipo}
                           onChange={(e) => handleAtualizarUsuario(usuario.id, usuario.status, e.target.value === 'Usuário Comum' ? 'Usuario' : e.target.value)}
                           className="px-2 py-1 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
                         >
@@ -134,7 +146,6 @@ const GerenciarUsuarios = () => {
                         </select>
                       </td>
                       <td className="py-3 px-6 text-center">
-                        {/* Botões de ação podem ser adicionados aqui se necessário, mas os selects já atualizam */}
                         <span className="text-gray-500">Atualizado automaticamente</span>
                       </td>
                     </tr>
