@@ -1,34 +1,65 @@
-import React, { useState, useEffect } from 'react'; // Reintroduzindo useState e useEffect
-import axios from 'axios'; // Reintroduzindo axios
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 // URL para buscar leads fechados diretamente do Dashboard
 const GOOGLE_SHEETS_LEADS_FECHADOS_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados';
 
-// O Dashboard AGORA só precisa da prop 'leads' (gerais) e 'usuarioLogado'
+// Função auxiliar para formatar a data para o input type="date" (YYYY-MM-DD)
+const formatarDataParaInput = (data) => {
+  if (!data) return '';
+  const d = new Date(data);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const Dashboard = ({ leads, usuarioLogado }) => {
-  // Estado para armazenar os leads da aba "Leads Fechados" com Seguradora atribuída
   const [leadsFechadosDoDashboard, setLeadsFechadosDoDashboard] = useState([]);
   const [loadingFechados, setLoadingFechados] = useState(true);
-  const [dataInicio, setDataInicio] = useState('');
-  const [dataFim, setDataFim] = useState('');
 
-  // Função para buscar os leads da aba 'Leads Fechados' diretamente aqui no Dashboard
+  // --- Lógica para as datas padrão ---
+  const hoje = new Date();
+  const primeiroDiaMesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+
+  // Estados dos filtros de data, inicializados com as datas padrão
+  const [dataInicio, setDataInicio] = useState(formatarDataParaInput(primeiroDiaMesAtual));
+  const [dataFim, setDataFim] = useState(formatarDataParaInput(hoje));
+
   const buscarLeadsFechadosDoSheets = async () => {
-    setLoadingFechados(true); // Inicia o estado de carregamento
+    setLoadingFechados(true);
     try {
       const response = await axios.get(GOOGLE_SHEETS_LEADS_FECHADOS_URL);
 
       console.log("Dados brutos de 'pegar_clientes_fechados' (vindo do GAS para o Dashboard):", response.data);
 
-      // Aplica o filtro de segurança (Status 'Fechado' e Seguradora preenchida)
-      // Se o usuário não for Admin, filtra também pelo responsável
       const filteredLeads = response.data.filter(
         (lead) => {
           const isFechado = lead.Status === 'Fechado';
           const hasSeguradora = lead.Seguradora && String(lead.Seguradora).trim() !== '';
           const isResponsavel = usuarioLogado?.tipo === 'Admin' || lead.Responsavel === usuarioLogado?.nome;
 
-          return isFechado && hasSeguradora && isResponsavel;
+          // --- NOVO: Lógica de filtro por data ---
+          let isWithinDateRange = true;
+          if (dataInicio && lead.Data) {
+            const leadDate = new Date(lead.Data);
+            const startDate = new Date(dataInicio);
+            // Define a hora para meia-noite para garantir comparação correta
+            leadDate.setHours(0, 0, 0, 0);
+            startDate.setHours(0, 0, 0, 0);
+            isWithinDateRange = isWithinDateRange && (leadDate >= startDate);
+          }
+          if (dataFim && lead.Data) {
+            const leadDate = new Date(lead.Data);
+            const endDate = new Date(dataFim);
+            // Define a hora para o final do dia para incluir o dia inteiro
+            leadDate.setHours(0, 0, 0, 0);
+            endDate.setHours(23, 59, 59, 999); // Inclui o dia final
+            isWithinDateRange = isWithinDateRange && (leadDate <= endDate);
+          }
+          // --- FIM DA LÓGICA DE FILTRO POR DATA ---
+
+          return isFechado && hasSeguradora && isResponsavel && isWithinDateRange;
         }
       );
 
@@ -37,46 +68,37 @@ const Dashboard = ({ leads, usuarioLogado }) => {
       setLeadsFechadosDoDashboard(filteredLeads);
     } catch (error) {
       console.error('Erro ao buscar leads fechados específicos no Dashboard:', error);
-      setLeadsFechadosDoDashboard([]); // Limpa os leads em caso de erro
+      setLeadsFechadosDoDashboard([]);
     } finally {
-      setLoadingFechados(false); // Finaliza o estado de carregamento
+      setLoadingFechados(false);
     }
   };
 
   useEffect(() => {
-    // Executa a busca ao montar o componente e sempre que o usuário logado mudar
-    // Isso garante que o filtro por responsável seja aplicado corretamente
+    // A busca é re-executada quando as datas de início/fim ou o usuário logado mudam
     buscarLeadsFechadosDoSheets();
 
-    // Opcional: Adicionar um intervalo para atualização periódica, se necessário
-    const interval = setInterval(buscarLeadsFechadosDoSheets, 60000); // A cada 1 minuto
-    return () => clearInterval(interval); // Limpa o intervalo ao desmontar
-  }, [usuarioLogado]); // Dependência para re-executar se o usuário logado mudar
+    const interval = setInterval(buscarLeadsFechadosDoSheets, 60000);
+    return () => clearInterval(interval);
+  }, [usuarioLogado, dataInicio, dataFim]); // Adicionadas dependências dataInicio e dataFim
 
   // --- CONTADORES ---
-  // Estes contadores continuam usando a prop 'leads' (da aba geral 'Leads')
   const totalLeads = leads.length;
   const leadsPerdidos = leads.filter((lead) => lead.status === 'Perdido').length;
   const leadsEmContato = leads.filter((lead) => lead.status === 'Em Contato').length;
   const leadsSemContato = leads.filter((lead) => lead.status === 'Sem Contato').length;
-
-  // ESTE É O CONTADOR DE 'LEADS FECHADOS':
-  // Ele AGORA usa o estado 'leadsFechadosDoDashboard' que é buscado diretamente aqui.
   const leadsFechados = leadsFechadosDoDashboard.length;
 
-  // Contadores por seguradora baseados em 'leadsFechadosDoDashboard' (CORRETO)
   const portoSeguro = leadsFechadosDoDashboard.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
   const azulSeguros = leadsFechadosDoDashboard.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
   const itauSeguros = leadsFechadosDoDashboard.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
   const demais = leadsFechadosDoDashboard.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
 
-  // Calcular total de prêmio líquido global (também baseado em 'leadsFechadosDoDashboard')
   const totalPremioLiquido = leadsFechadosDoDashboard.reduce(
     (acc, curr) => acc + (Number(curr.PremioLiquido) || 0),
     0
   );
 
-  // Calcular média ponderada de comissão global (também baseado em 'leadsFechadosDoDashboard')
   const somaPonderadaComissao = leadsFechadosDoDashboard.reduce((acc, lead) => {
     const premio = Number(lead.PremioLiquido) || 0;
     const comissao = Number(lead.Comissao) || 0;
@@ -86,7 +108,6 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const comissaoMediaGlobal =
     totalPremioLiquido > 0 ? (somaPonderadaComissao / totalPremioLiquido) * 100 : 0;
 
-  // Estilo comum para as caixas
   const boxStyle = {
     padding: '10px',
     borderRadius: '5px',
@@ -103,21 +124,26 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     <div style={{ padding: '20px' }}>
       <h1>Dashboard</h1>
 
+      {/* --- Filtros de Data Restaurados --- */}
       <div style={{ marginBottom: '20px', display: 'flex', gap: '20px' }}>
         <div>
-          <label>Data Início: </label>
+          <label htmlFor="dataInicio">Data Início: </label>
           <input
+            id="dataInicio"
             type="date"
             value={dataInicio}
             onChange={(e) => setDataInicio(e.target.value)}
+            className="p-2 border rounded"
           />
         </div>
         <div>
-          <label>Data Fim: </label>
+          <label htmlFor="dataFim">Data Fim: </label>
           <input
+            id="dataFim"
             type="date"
             value={dataFim}
             onChange={(e) => setDataFim(e.target.value)}
+            className="p-2 border rounded"
           />
         </div>
       </div>
