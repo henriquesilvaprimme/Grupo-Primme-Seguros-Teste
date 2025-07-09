@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 
+// Importe os componentes do seu projeto
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Leads from './Leads';
@@ -10,27 +11,15 @@ import BuscarLead from './BuscarLead';
 import CriarUsuario from './pages/CriarUsuario';
 import Usuarios from './pages/Usuarios';
 import Ranking from './pages/Ranking';
-import CriarLead from './pages/CriarLead';
-import GerenciarUsuarios from './GerenciarUsuarios'; // Importe o novo componente
+import CriarLead from './pages/CriarLead'; // Importe CriarLead da pasta 'pages'
+import GerenciarUsuarios from './GerenciarUsuarios'; // Importe o novo componente GerenciarUsuarios
 
-function App() {
-  return (
-    <div className="App">
-      <h1>Sistema de Gerenciamento</h1>
-      <CriarLead /> {/* Seu componente existente */}
-      <hr style={{ margin: '40px 0' }} />
-      <GerenciarUsuarios /> {/* O novo componente de gerenciamento de usuários */}
-    </div>
-  );
-}
-
-export default App;
-
+// Constantes para os URLs do Google Apps Script
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=getLeads';
 const GOOGLE_SHEETS_USERS = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
-const GOOGLE_SHEETS_LEADS_FECHADOS = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
+const GOOGLE_SHEETS_LEADS_FECHADOS = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados';
 
-const App = () => {
+function App() {
   const navigate = useNavigate();
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -40,6 +29,7 @@ const App = () => {
   const [leadsFechados, setLeadsFechados] = useState([]);
   const [backgroundLoaded, setBackgroundLoaded] = useState(false);
 
+  // Carrega a imagem de fundo
   useEffect(() => {
     const img = new Image();
     img.src = '/background.png';
@@ -290,7 +280,7 @@ const App = () => {
               usuario: leadParaAdicionar.usuario || "",
               nome: leadParaAdicionar.nome || "",
               email: leadParaAdicionar.email || "",
-              senha: leadParaAdicionar.senha || "", // <<-- CORREÇÃO AQUI!
+              senha: leadParaAdicionar.senha || "",
               status: leadParaAdicionar.status || "Ativo",
               tipo: leadParaAdicionar.tipo || "Usuario",
               "Ativo/Inativo": leadParaAdicionar["Ativo/Inativo"] || "Ativo",
@@ -456,7 +446,9 @@ const App = () => {
       setIsAuthenticated(true);
       setUsuarioLogado(usuarioEncontrado);
     } else {
-      alert('Login ou senha inválidos ou usuário inativo.');
+      // Usar um modal personalizado ou mensagem na tela em vez de alert()
+      // Exemplo: setMensagemErroLogin('Login ou senha inválidos ou usuário inativo.');
+      alert('Login ou senha inválidos ou usuário inativo.'); 
     }
   };
 
@@ -619,7 +611,7 @@ const App = () => {
       </main>
     </div>
   );
-};
+}
 
 // Nova função para formatar a data de YYYY-MM-DD para DD/Mês/AA para exibição
 // Esta função é APENAS para exibição, NUNCA para enviar ao GAS.
@@ -662,6 +654,5 @@ const formatarDataParaDDMMYYYY = (dataString) => {
     return dataString; // Em caso de erro, retorna a string original
   }
 };
-
 
 export default App;
