@@ -1,28 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import axios from 'axios'; // Mantenha axios se outras funções ainda o usarem
 
 // Importe os componentes do seu projeto
 import Sidebar from './components/Sidebar';
-import Dashboard from './components/Dashboard';
+import Dashboard from './components/Dashboard'; // Dashboard agora é autônomo para leads fechados
 import Leads from './Leads';
 import LeadsFechados from './LeadsFechados';
 import LeadsPerdidos from './LeadsPerdidos';
 import BuscarLead from './BuscarLead';
 import CriarUsuario from './pages/CriarUsuario';
-// Importamos GerenciarUsuarios, que agora cuidará de 'Ativar/Inativar' e 'Admin'
 import GerenciarUsuarios from './pages/GerenciarUsuarios';
 import Ranking from './pages/Ranking';
 import CriarLead from './pages/CriarLead';
 
 // Constantes para os URLs do Google Apps Script
-// URL para buscar leads gerais
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=getLeads';
-// URL para buscar leads fechados
-const GOOGLE_SHEETS_LEADS_FECHADOS = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados';
-// URL para buscar USUÁRIOS (APENAS PARA LOGIN/AUTENTICAÇÃO AQUI)
-// O GerenciarUsuarios terá a responsabilidade de CRUD de usuários.
-const GOOGLE_SHEETS_USERS_AUTH_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_usuario';
+// A URL para leads fechados NÃO É MAIS USADA DIRETAMENTE AQUI para o estado leadsFechados,
+// mas pode ser usada se LeadsFechados.jsx ainda precisar dela ou em outras funções
+// const GOOGLE_SHEETS_LEADS_FECHADOS = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados';
 
+const GOOGLE_SHEETS_USERS_AUTH_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_usuario';
 
 function App() {
   const navigate = useNavigate();
@@ -33,9 +31,17 @@ function App() {
   const [usuarioLogado, setUsuarioLogado] = useState(null);
   const [backgroundLoaded, setBackgroundLoaded] = useState(false);
 
-  // Estado e lógica para leads
+  // Estado e lógica para leads gerais (da aba "Leads")
   const [leads, setLeads] = useState([]);
-  const [leadsFechados, setLeadsFechados] = useState([]);
+
+  // **REMOVIDO:** O estado 'leadsFechados' e sua função 'setLeadsFechados'
+  // NÃO SÃO MAIS GERENCIADOS DIRETAMENTE AQUI para serem passados ao Dashboard.
+  // O Dashboard agora é autônomo para essa busca.
+  // No entanto, se 'LeadsFechados.jsx' ainda precisar dessa lista,
+  // precisaremos reavaliar se a busca deve ser feita nele ou mantida aqui.
+  // Por ora, para o Dashboard, ele é independente.
+  const [leadsFechados, setLeadsFechados] = useState([]); // Mantido para LeadsFechados.jsx por enquanto.
+
   const [leadSelecionado, setLeadSelecionado] = useState(null);
 
   // --- MANTEMOS 'usuarios' APENAS PARA FINS DE AUTENTICAÇÃO AQUI NO App.jsx ---
@@ -49,10 +55,9 @@ function App() {
   }, []);
 
   // --- NOVO: Função para buscar USUÁRIOS APENAS PARA O LOGIN ---
-  // A lógica completa de gerenciamento de usuários estará em GerenciarUsuarios.jsx
   const fetchUsuariosForLogin = async () => {
     try {
-      const response = await fetch(GOOGLE_SHEETS_USERS_AUTH_URL, { mode: 'cors' }); // Pode ser 'cors' aqui para ler os usuários para login
+      const response = await fetch(GOOGLE_SHEETS_USERS_AUTH_URL, { mode: 'cors' });
       const data = await response.json();
 
       if (Array.isArray(data)) {
@@ -83,7 +88,7 @@ function App() {
   }, []);
 
 
-  // FUNÇÕES RELACIONADAS A LEADS (NÃO MEXEMOS NELAS)
+  // FUNÇÕES RELACIONADAS A LEADS GERAIS (DA ABA "LEADS")
   const formatarDataParaExibicao = (dataString) => {
     if (!dataString) return '';
     try {
@@ -179,9 +184,11 @@ function App() {
     return () => clearInterval(interval);
   }, [leadSelecionado]);
 
+  // **MANTIDA** para ser passada para LeadsFechados.jsx
+  // Se LeadsFechados.jsx também se tornar autônomo, esta função e o estado leadsFechados podem ser movidos para lá.
   const fetchLeadsFechadosFromSheet = async () => {
     try {
-      const response = await fetch(GOOGLE_SHEETS_LEADS_FECHADOS)
+      const response = await fetch('https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados')
       const data = await response.json();
 
       const formattedData = data.map(item => ({
@@ -203,13 +210,12 @@ function App() {
     }, 60000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, []); // Mantido aqui para a rota LeadsFechados.jsx
 
-  const [ultimoFechadoId, setUltimoFechadoId] = useState(null); // Mantido por ser relacionado a leads
+
+  const [ultimoFechadoId, setUltimoFechadoId] = useState(null);
 
   const adicionarUsuario = (usuario) => {
-    // Esta função ainda existe para ser passada para CriarUsuario.jsx
-    // Mas a busca e gestão de usuários existentes é do GerenciarUsuarios.jsx
     setUsuarios((prev) => [...prev, { ...usuario, id: prev.length + 1 }]);
   };
 
@@ -474,11 +480,8 @@ function App() {
             path="/dashboard"
             element={
               <Dashboard
-                leadsClosed={
-                  isAdmin
-                    ? leadsFechados
-                    : leadsFechados.filter((lead) => lead.Responsavel === usuarioLogado.nome)
-                }
+                // leadsClosed não é mais passado. O Dashboard buscará seus próprios dados.
+                // Passamos apenas os leads gerais e o usuário logado para filtros.
                 leads={
                   isAdmin
                     ? leads
@@ -493,7 +496,7 @@ function App() {
             element={
               <Leads
                 leads={isAdmin ? leads : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)}
-                usuarios={usuarios} // Ainda passa 'usuarios' para Leads se ele precisar exibir nomes ou IDs de usuários
+                usuarios={usuarios}
                 onUpdateStatus={atualizarStatusLead}
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 transferirLead={transferirLead}
@@ -505,8 +508,10 @@ function App() {
             path="/leads-fechados"
             element={
               <LeadsFechados
+                // LeadsFechados.jsx AINDA usa o estado leadsFechados do App.jsx
+                // e a função fetchLeadsFechadosFromSheet
                 leads={isAdmin ? leadsFechados : leadsFechados.filter((lead) => lead.Responsavel === usuarioLogado.nome)}
-                usuarios={usuarios} // Ainda passa 'usuarios' para LeadsFechados se ele precisar exibir nomes ou IDs de usuários
+                usuarios={usuarios}
                 onUpdateInsurer={atualizarSeguradoraLead}
                 onConfirmInsurer={confirmarSeguradoraLead}
                 onUpdateDetalhes={atualizarDetalhesLeadFechado}
@@ -524,7 +529,7 @@ function App() {
             element={
               <LeadsPerdidos
                 leads={isAdmin ? leads : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)}
-                usuarios={usuarios} // Ainda passa 'usuarios' para LeadsPerdidos
+                usuarios={usuarios}
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 onAbrirLead={onAbrirLead}
                 isAdmin={isAdmin}
@@ -544,15 +549,14 @@ function App() {
           {isAdmin && (
             <>
               <Route path="/criar-usuario" element={<CriarUsuario adicionarUsuario={adicionarUsuario} />} />
-              {/* O componente Usuarios será substituído por GerenciarUsuarios */}
               <Route
                 path="/usuarios"
-                element={<GerenciarUsuarios />} // GerenciarUsuarios agora é o único responsável
+                element={<GerenciarUsuarios />}
               />
             </>
           )}
           <Route path="/ranking" element={<Ranking
-            usuarios={usuarios} // 'usuarios' ainda é necessário para o Ranking
+            usuarios={usuarios}
             fetchLeadsFromSheet={fetchLeadsFromSheet}
             fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
             leads={leads} />} />
