@@ -1,232 +1,190 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff } from 'lucide-react'; // Importe os ícones do lucide-react
 
-const GerenciarUsuarios = () => {
+// Certifique-se de que esta URL é a da SUA ÚLTIMA IMPLANTAÇÃO do Apps Script.
+// Ela deve ser a mesma URL base usada para as requisições POST/GET.
+const GOOGLE_SHEETS_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec'; // <-- ATUALIZE ESTA LINHA COM A URL REAL DA SUA IMPLANTAÇÃO
+
+const GerenciarUsuarios = ({ leads, fetchLeadsFromSheet, fetchLeadsFechadosFromSheet }) => {
   const [usuarios, setUsuarios] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [mensagemFeedback, setMensagemFeedback] = useState('');
-  const [senhaVisivel, setSenhaVisivel] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const GOOGLE_SHEETS_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
-
-  // Função para buscar todos os usuários (somente na montagem inicial)
-  const buscarUsuarios = async () => {
-    setIsLoading(true);
-    setMensagemFeedback('');
+  // Função para buscar usuários do Google Sheets
+  const fetchUsuariosFromSheet = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(`${GOOGLE_SHEETS_BASE_URL}?v=pegar_usuario`, {
-        method: 'GET',
-        mode: 'cors'
-      });
-
+      // Usa o parâmetro 'v=pegar_usuario' para a função doGet no Apps Script
+      const response = await fetch(`${GOOGLE_SHEETS_BASE_URL}?v=pegar_usuario`);
+      
+      // Verifica se a resposta da rede foi OK
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
       }
+
       const data = await response.json();
 
       if (Array.isArray(data)) {
-        setUsuarios(data);
+        const formattedUsuarios = data.map((item) => ({
+          id: item.id || '',
+          usuario: item.usuario || '',
+          nome: item.nome || '',
+          email: item.email || '',
+          senha: item.senha || '', // Cuidado ao exibir senhas. Idealmente, não traga a senha para o frontend.
+          status: item.status || 'Ativo',
+          tipo: item.tipo || 'Usuario',
+        }));
+        setUsuarios(formattedUsuarios);
       } else {
+        console.warn('Dados recebidos não são um array:', data);
         setUsuarios([]);
-        console.warn('Resposta inesperada ao buscar usuários:', data);
-        setMensagemFeedback('⚠️ Resposta inesperada ao carregar usuários. Verifique o console.');
       }
-    } catch (error) {
-      console.error('Erro ao buscar usuários:', error);
-      setMensagemFeedback('❌ Erro ao carregar usuários. Verifique sua conexão ou o Apps Script.');
+    } catch (err) {
+      console.error('Erro ao buscar usuários do Google Sheets:', err);
+      setError('Erro ao carregar usuários. Tente novamente mais tarde.');
+      setUsuarios([]);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  // Carregar usuários APENAS na montagem inicial do componente
+  // useEffect para buscar usuários e configurar o intervalo de atualização
   useEffect(() => {
-    buscarUsuarios();
-  }, []); // Array de dependências vazio garante que roda uma única vez
+    fetchUsuariosFromSheet(); // Busca inicial ao montar o componente
 
-  // Função para atualizar o status ou tipo de um usuário (em segundo plano)
-  // Esta função agora LIDA APENAS COM O ENVIO AO GAS
-  const enviarAtualizacaoUsuarioAoGAS = async (usuarioId, novoStatus, novoTipo) => {
-    const usuarioParaAtualizar = usuarios.find(u => u.id === usuarioId);
+    // Configura o intervalo para buscar atualizações a cada 60 segundos
+    const interval = setInterval(() => {
+      console.log('Atualizando lista de usuários...');
+      fetchUsuariosFromSheet();
+    }, 60000); 
+
+    // Limpa o intervalo quando o componente é desmontado para evitar vazamentos de memória
+    return () => clearInterval(interval);
+  }, []); // Dependência vazia para rodar apenas uma vez na montagem
+
+  // Função para atualizar status ou tipo de usuário no Google Sheets
+  const atualizarStatusUsuario = async (id, novoStatus = null, novoTipo = null) => {
+    const usuarioParaAtualizar = usuarios.find((u) => String(u.id) === String(id)); // Comparar como string
     if (!usuarioParaAtualizar) {
-      console.error('Usuário não encontrado no estado local para enviar atualização ao GAS.');
+      console.warn(`Usuário com ID ${id} não encontrado localmente para atualização.`);
       return;
     }
 
-    const dadosParaEnviar = {
-      action: 'alterar_usuario',
-      usuario: {
-        ...usuarioParaAtualizar, // Mantém todos os dados existentes
-        id: usuarioId,
-        status: novoStatus !== null ? novoStatus : usuarioParaAtualizar.status,
-        tipo: novoTipo !== null ? novoTipo : usuarioParaAtualizar.tipo,
-      },
-    };
+    // Criar uma cópia profunda para enviar, evitando mutar o estado diretamente
+    const usuarioParaEnviar = { ...usuarioParaAtualizar };
+
+    if (novoStatus !== null) usuarioParaEnviar.status = novoStatus;
+    if (novoTipo !== null) usuarioParaEnviar.tipo = novoTipo;
 
     try {
-      await fetch(GOOGLE_SHEETS_BASE_URL, {
+      console.log('Enviando solicitação de atualização para Apps Script:', usuarioParaEnviar);
+      
+      // Usa o parâmetro 'v=alterar_usuario' para a função doPost no Apps Script
+      const response = await fetch(`${GOOGLE_SHEETS_BASE_URL}?v=alterar_usuario`, {
         method: 'POST',
-        mode: 'no-cors',
+        mode: 'no-cors', // Permite requisições entre diferentes origens sem exigir cabeçalhos CORS complexos
+        body: JSON.stringify({ usuario: usuarioParaEnviar }),
         headers: {
-          'Content-Type': 'text/plain;charset=utf-8',
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(dadosParaEnviar),
       });
 
-      console.log(`Solicitação de atualização para o usuário ${usuarioId} enviada ao Apps Script (modo no-cors).`);
-      console.log('Verifique os logs de execução do Google Apps Script para confirmação de sucesso.');
+      // No modo 'no-cors', 'response.ok' sempre será true e não teremos acesso ao corpo da resposta.
+      // A confirmação de sucesso deve vir dos logs do Apps Script.
+      console.log('Solicitação de atualização para o usuário enviada ao Apps Script (modo no-cors).');
+      console.log('Por favor, verifique os logs de execução do Google Apps Script para confirmação de sucesso e possíveis erros.');
 
-    } catch (error) {
-      console.error(`Erro ao enviar requisição de atualização para o usuário ${usuarioId}:`, error);
-      setMensagemFeedback('❌ Erro ao enviar solicitação de atualização ao servidor. Verifique sua conexão.');
-    }
-    // Remove o indicador de carregamento e feedback após a tentativa de envio
-    // setMensagemFeedback(''); // Poderíamos limpar aqui, mas um feedback temporário pode ser útil.
-    // setIsLoading(false);
-  };
+      // Otimisticamente, atualiza o estado local para que a UI responda imediatamente
+      setUsuarios((prev) =>
+        prev.map((u) =>
+          String(u.id) === String(id) // Comparar como string
+            ? {
+                ...u,
+                ...(novoStatus !== null ? { status: novoStatus } : {}),
+                ...(novoTipo !== null ? { tipo: novoTipo } : {}),
+              }
+            : u
+        )
+      );
 
-  // Funções de toggle que atualizam o estado local e disparam o envio ao GAS
-  const handleToggleStatus = (id, statusAtual) => {
-    const novoStatus = statusAtual === 'Ativo' ? 'Inativo' : 'Ativo';
-    setMensagemFeedback(''); // Feedback imediato
-
-    // 1. Atualiza o estado local imediatamente para feedback visual instantâneo
-    setUsuarios(prevUsuarios =>
-      prevUsuarios.map(u =>
-        u.id === id
-          ? { ...u, status: novoStatus }
-          : u
-      )
-    );
-
-    // 2. Dispara o envio para o Google Apps Script em segundo plano
-    const usuarioAtual = usuarios.find(u => u.id === id);
-    if (usuarioAtual) {
-      enviarAtualizacaoUsuarioAoGAS(id, novoStatus, usuarioAtual.tipo);
+    } catch (err) {
+      console.error('Erro ao enviar atualização de usuário para o Apps Script:', err);
+      alert('Erro ao atualizar usuário. Por favor, tente novamente.');
     }
   };
 
-  const handleToggleTipo = (id, tipoAtual) => {
-    const novoTipo = tipoAtual === 'Admin' ? 'Usuario' : 'Admin'; // 'Usuario' é o valor interno para o GAS
-    setMensagemFeedback('Atualizando tipo...'); // Feedback imediato
+  if (loading) {
+    return <div className="p-4 text-center">Carregando usuários...</div>;
+  }
 
-    // 1. Atualiza o estado local imediatamente para feedback visual instantâneo
-    setUsuarios(prevUsuarios =>
-      prevUsuarios.map(u =>
-        u.id === id
-          ? { ...u, tipo: novoTipo }
-          : u
-      )
-    );
-
-    // 2. Dispara o envio para o Google Apps Script em segundo plano
-    const usuarioAtual = usuarios.find(u => u.id === id);
-    if (usuarioAtual) {
-      enviarAtualizacaoUsuarioAoGAS(id, usuarioAtual.status, novoTipo);
-    }
-  };
-
-  const toggleVisibilidadeSenha = (id) => {
-    setSenhaVisivel((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
+  if (error) {
+    return <div className="p-4 text-center text-red-600">{error}</div>;
+  }
 
   return (
-    <div className="p-6">
-      <h2 className="text-3xl font-bold mb-6 text-indigo-700">Gerenciar Usuários</h2>
-
-      {/* Exibindo mensagem de feedback de forma mais temporária/discreta, se desejar */}
-      {mensagemFeedback && (
-        <p className={`mt-4 font-semibold text-center ${mensagemFeedback.includes('✅') ? 'text-green-600' : (mensagemFeedback.includes('❌') ? 'text-red-600' : 'text-gray-500')}`}>
-          {mensagemFeedback}
-        </p>
-      )}
-
-      {isLoading ? (
-        <p className="text-center text-indigo-500">Carregando usuários...</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white rounded-lg shadow-md">
-            <thead className="bg-indigo-100">
+    <div className="p-4">
+      <h2 className="text-2xl font-bold mb-4">Gerenciar Usuários</h2>
+      
+      {usuarios.length > 0 ? (
+        <div className="overflow-x-auto rounded-lg shadow-md">
+          <table className="min-w-full bg-white">
+            <thead className="bg-gray-100">
               <tr>
-                <th className="py-3 px-6 text-left">Nome</th>
-                <th className="py-3 px-6 text-left">E-mail</th>
-                <th className="py-3 px-6 text-left">Senha</th>
-                <th className="py-3 px-6 text-left">Status</th>
-                <th className="py-3 px-6 text-left">Tipo</th>
-                <th className="py-3 px-6 text-left">Ações</th>
+                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">ID</th>
+                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Nome</th>
+                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Usuário</th>
+                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Email</th>
+                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Status</th>
+                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Tipo</th>
+                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {usuarios.length > 0 ? (
-                usuarios.map((usuario) => (
-                  <tr key={usuario.id} className="border-b hover:bg-gray-50 transition">
-                    <td className="py-3 px-6">{usuario.nome}</td>
-                    <td className="py-3 px-6">{usuario.email}</td>
-                    <td className="py-3 px-6">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type={senhaVisivel[usuario.id] ? 'text' : 'password'}
-                          value={usuario.senha || ''}
-                          readOnly
-                          className="border rounded px-2 py-1 w-32 text-sm"
-                        />
-                        <button
-                          onClick={() => toggleVisibilidadeSenha(usuario.id)}
-                          className="text-gray-500 hover:text-gray-700"
-                        >
-                          {senhaVisivel[usuario.id] ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                    </td>
-                    <td className="py-3 px-6">
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                          usuario.status === 'Ativo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                        }`}
-                      >
-                        {usuario.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-6">
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                          usuario.tipo === 'Admin' ? 'bg-blue-100 text-blue-700' : ''
-                        }`}
-                      >
-                        {usuario.tipo === 'Admin' ? 'Admin' : 'Usuário Comum'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-6 flex gap-4 items-center">
-                      <button
-                        onClick={() => handleToggleStatus(usuario.id, usuario.status)}
-                        className={`px-4 py-2 rounded-lg font-medium ${
-                          usuario.status === 'Ativo'
-                            ? 'bg-red-500 text-white hover:bg-red-600'
-                            : 'bg-green-500 text-white hover:bg-green-600'
-                        } transition`}
-                      >
-                        {usuario.status === 'Ativo' ? 'Desativar' : 'Ativar'}
-                      </button>
-                      <label className="flex items-center gap-1 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={usuario.tipo === 'Admin'}
-                          onChange={() => handleToggleTipo(usuario.id, usuario.tipo)}
-                          className="form-checkbox h-4 w-4 text-blue-600"
-                        />
-                        Admin
-                      </label>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="6" className="py-3 px-6 text-center text-gray-500">Nenhum usuário encontrado.</td>
+              {usuarios.map((usuario) => (
+                <tr key={usuario.id} className="border-b border-gray-200 hover:bg-gray-50">
+                  <td className="py-3 px-4 text-sm text-gray-800">{usuario.id}</td>
+                  <td className="py-3 px-4 text-sm text-gray-800">{usuario.nome}</td>
+                  <td className="py-3 px-4 text-sm text-gray-800">{usuario.usuario}</td>
+                  <td className="py-3 px-4 text-sm text-gray-800">{usuario.email}</td>
+                  <td className="py-3 px-4 text-sm text-gray-800">
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                      usuario.status === 'Ativo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {usuario.status}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-sm text-gray-800">
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                      usuario.tipo === 'Admin' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+                    }`}>
+                      {usuario.tipo}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-sm">
+                    <button
+                      onClick={() => atualizarStatusUsuario(usuario.id, usuario.status === 'Ativo' ? 'Inativo' : 'Ativo', null)}
+                      className={`px-4 py-2 rounded-md text-white transition-colors duration-200 ${
+                        usuario.status === 'Ativo' ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
+                      } mr-2`}
+                    >
+                      {usuario.status === 'Ativo' ? 'Desativar' : 'Ativar'}
+                    </button>
+                    <select
+                      value={usuario.tipo}
+                      onChange={(e) => atualizarStatusUsuario(usuario.id, null, e.target.value)}
+                      className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                    >
+                      <option value="Usuario">Usuário</option>
+                      <option value="Admin">Admin</option>
+                    </select>
+                  </td>
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
+      ) : (
+        <p className="text-center text-gray-600">Nenhum usuário encontrado.</p>
       )}
     </div>
   );
