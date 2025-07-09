@@ -205,7 +205,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
   return (
     <div style={{ padding: '20px', position: 'relative' }}>
-      {/* Loader de carregamento */}
+      {/* Loader de carregamento de página completa */}
       {isLoading && (
         <div
           style={{
@@ -214,23 +214,25 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             left: 0,
             width: '100%',
             height: '100%',
-            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+            backgroundColor: 'rgba(255, 255, 255, 0.8)', // Fundo semi-transparente
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            zIndex: 9999,
+            zIndex: 9999, // Garante que fique acima de outros elementos
           }}
         >
           <div
             style={{
-              border: '8px solid #f3f3f3',
-              borderTop: '8px solid #3498db',
+              border: '8px solid #f3f3f3', // Cor do anel externo
+              borderTop: '8px solid #3498db', // Cor do anel interno (azul)
               borderRadius: '50%',
               width: '50px',
               height: '50px',
-              animation: 'spin 1s linear infinite',
+              animation: 'spin 1s linear infinite', // Animação de rotação
             }}
           ></div>
+          <p style={{ marginLeft: '1rem', fontSize: '1.2rem', color: '#333' }}>Carregando leads fechados...</p>
+          {/* Definição da animação CSS */}
           <style>
             {`
               @keyframes spin {
