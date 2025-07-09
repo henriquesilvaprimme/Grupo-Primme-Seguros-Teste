@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { RefreshCcw } from 'lucide-react'; // Importado para o ícone de refresh
 
 const Ranking = ({ usuarios }) => {
+  // Renomeado para isLoading para consistência com o outro componente
   const [isLoading, setIsLoading] = useState(true);
   const [dadosLeads, setLeads] = useState([]);
 
+  // Estado para filtro por mês/ano (formato yyyy-mm)
   const [dataInput, setDataInput] = useState(() => {
     const hoje = new Date();
     const ano = hoje.getFullYear();
@@ -14,17 +16,21 @@ const Ranking = ({ usuarios }) => {
 
   const [filtroData, setFiltroData] = useState(dataInput);
 
+  // Função para converter data no formato dd/mm/aaaa para yyyy-mm-dd
   const converterDataParaISO = (dataStr) => {
     if (!dataStr) return '';
     if (dataStr.includes('/')) {
       const partes = dataStr.split('/');
       if (partes.length === 3) {
+        // dd/mm/aaaa -> yyyy-mm-dd
         return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
       }
     }
+    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo yyyy-mm
     return dataStr.slice(0, 7);
   };
 
+  // Nova função para buscar dados e controlar o loader
   const handleRefresh = async () => {
     setIsLoading(true); // Ativa o loader
     try {
@@ -41,10 +47,22 @@ const Ranking = ({ usuarios }) => {
     }
   };
 
+  // Chama handleRefresh automaticamente quando o componente é montado (ou a aba é acessada)
   useEffect(() => {
     handleRefresh();
-  }, []);
+  }, []); // O array vazio de dependências garante que isso só rode uma vez na montagem
 
+  // Loader de carregamento de página completa
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
+        <p className="ml-4 text-lg text-gray-700">Carregando dados do ranking...</p>
+      </div>
+    );
+  }
+
+  // Se não estiver carregando e houver erro, exibe a mensagem de erro (mantido do seu código anterior)
   if (!Array.isArray(usuarios) || !Array.isArray(dadosLeads)) {
     return <div style={{ padding: 20 }}>Erro: dados não carregados corretamente.</div>;
   }
@@ -79,6 +97,7 @@ const Ranking = ({ usuarios }) => {
   };
 
   const usuariosComContagem = ativos.map((usuario) => {
+    // Filtrar leads fechados do usuário com status "Fechado", seguradora preenchida e data dentro do filtro (yyyy-mm)
     const leadsUsuario = dadosLeads.filter((l) => {
       const responsavelOk = l.Responsavel === usuario.nome;
       const statusOk = l.Status === 'Fechado';
@@ -152,45 +171,24 @@ const Ranking = ({ usuarios }) => {
   };
 
   const aplicarFiltroData = () => {
-    // Quando o filtro é aplicado, também queremos mostrar o loader enquanto os dados são reprocessados
-    // Já que o handleRefresh busca os dados brutos novamente, ele já cuida do loader.
-    // Mas se o filtro só recalcula, você precisaria de um `setIsLoading(true)` aqui e um `setIsLoading(false)` após o cálculo.
-    // Por simplicidade, vamos manter a lógica atual de recarregar tudo com o handleRefresh.
-    // Se a lógica do filtro for apenas de reprocessamento local, o loader não se aplicaria
-    // mas se for buscar novos dados filtrados do backend, seria necessário.
-    // Para esta versão, se clicar em "Filtrar" e for uma operação local rápida, o loader pode não aparecer.
-    // Se o filtro envolver nova requisição, chame handleRefresh() aqui.
-    // Por enquanto, apenas atualize o filtro localmente.
+    // Isso vai recalcular o ranking com base no novo filtro de dataInput
+    // O loader de página completa não se aplica aqui, pois os dados brutos já foram carregados.
     setFiltroData(dataInput);
   };
 
-  // Se você quer o loader de página completa ANTES do `return` principal, mova-o para cá
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
-        <p className="ml-4 text-lg text-gray-700">Carregando dados do ranking...</p>
-      </div>
-    );
-  }
-
-  // Se houver erro E não estiver carregando, exibe a mensagem de erro
-  if (error) {
-    return <div className="p-6 text-center text-red-600 font-medium text-lg">{error}</div>;
-  }
-
   return (
-    <div className="p-6"> {/* Removido o style inline e aplicado com Tailwind */}
-      <div className="flex items-center gap-3 mb-6"> {/* Removido o style inline e aplicado com Tailwind */}
-        <h1 className="text-3xl font-bold text-indigo-700">Ranking de Usuários</h1> {/* Removido o style inline e aplicado com Tailwind */}
+    <div style={{ padding: 20, position: 'relative' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <h1 style={{ margin: 0 }}>Ranking de Usuários</h1>
 
         <button
           title="Clique para atualizar os dados"
-          onClick={handleRefresh}
-          className="p-2 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 transition-all duration-200 ease-in-out flex items-center justify-center shadow-sm"
-          disabled={isLoading} // Desabilita o botão enquanto estiver carregando
+          onClick={handleRefresh} // Chamando a nova função handleRefresh
+          // Aqui, o botão também pode mostrar um spinner se quiser, assim como em GerenciarUsuarios
+          // mas para manter 'igual ao anterior sem mudar nada', deixarei apenas o ícone.
         >
-          {isLoading ? ( // Mostra o spinner se estiver carregando (já que o loader principal já cuida de tudo)
+          {/* Implementando o RefreshCcw do lucide-react para consistência */}
+          {isLoading ? ( // Mostra o spinner se estiver carregando
             <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -201,12 +199,30 @@ const Ranking = ({ usuarios }) => {
         </button>
       </div>
 
+      {/* Filtro data: canto direito */}
       <div
-        className="flex items-center gap-2 justify-end mt-2 mb-6" // Adicionado mb-6 para espaçamento inferior
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          minWidth: '230px',
+          justifyContent: 'flex-end',
+          marginTop: '8px',
+          marginBottom: '24px',
+        }}
       >
         <button
           onClick={aplicarFiltroData}
-          className="bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-lg transition-all duration-200 ease-in-out whitespace-nowrap"
+          style={{
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            padding: '6px 14px',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            marginRight: '8px',
+          }}
         >
           Filtrar
         </button>
@@ -214,7 +230,13 @@ const Ranking = ({ usuarios }) => {
           type="month"
           value={dataInput}
           onChange={(e) => setDataInput(e.target.value)}
-          className="p-2 rounded-lg border border-gray-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 w-36" // Adicionado classes Tailwind para melhor visual
+          style={{
+            padding: '6px 10px',
+            borderRadius: '6px',
+            border: '1px solid #ccc',
+            cursor: 'pointer',
+            minWidth: '140px',
+          }}
           title="Filtrar leads pela data (mês/ano)"
           onKeyDown={(e) => {
             if (e.key === 'Enter') aplicarFiltroData();
@@ -222,14 +244,15 @@ const Ranking = ({ usuarios }) => {
         />
       </div>
 
-      {!Array.isArray(usuarios) || !Array.isArray(dadosLeads) || rankingOrdenado.length === 0 ? (
-        <p className="text-center text-gray-600 text-lg py-4">
-          Nenhum usuário ativo com leads fechados para o período selecionado ou dados não carregados.
-        </p>
+      {rankingOrdenado.length === 0 ? (
+        <p>Nenhum usuário ativo com leads fechados para o período selecionado.</p>
       ) : (
         <div
-          className="grid gap-6"
-          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(600px, 1fr))' }} // Mantido gridTemplateColumns inline para flexibilidade
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(600px, 1fr))',
+            gap: '24px',
+          }}
         >
           {rankingOrdenado.map((usuario, index) => {
             const contadores = [
@@ -243,43 +266,98 @@ const Ranking = ({ usuarios }) => {
             return (
               <div
                 key={usuario.id}
-                className="relative border border-gray-300 rounded-lg p-6 bg-white shadow-md"
+                style={{
+                  position: 'relative',
+                  border: '1px solid #ccc',
+                  borderRadius: '12px',
+                  padding: '24px',
+                  backgroundColor: '#fff',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                }}
               >
                 <div
-                  className="absolute top-3 right-3 bg-gray-800 text-white rounded-lg px-2.5 py-1 text-lg font-bold"
+                  style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '12px',
+                    backgroundColor: '#333',
+                    color: '#fff',
+                    borderRadius: '8px',
+                    padding: '4px 10px',
+                    fontSize: '1.1rem',
+                    fontWeight: 'bold',
+                  }}
                 >
                   {getMedalha(index)}
                 </div>
 
-                <div className="flex items-center mb-6 gap-5">
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginBottom: '24px',
+                    gap: '20px',
+                  }}
+                >
                   <div
-                    className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center text-3xl text-gray-700 flex-shrink-0"
+                    style={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      backgroundColor: '#f0f0f0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '32px',
+                      color: '#888',
+                      flexShrink: 0,
+                    }}
                   >
                     {usuario.nome?.charAt(0)?.toUpperCase() || '?'}
                   </div>
-                  <div className="text-2xl font-bold text-gray-800">
+                  <div
+                    style={{
+                      fontSize: '1.4rem',
+                      fontWeight: 'bold',
+                    }}
+                  >
                     {usuario.nome || 'Sem Nome'}
                   </div>
                 </div>
 
                 <div
-                  className="grid text-center border-t border-b border-gray-200"
-                  style={{ gridTemplateColumns: `repeat(${contadores.length}, 1fr)` }} // Mantido gridTemplateColumns inline
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${contadores.length}, 1fr)`,
+                    textAlign: 'center',
+                    borderTop: '1px solid #eee',
+                    borderBottom: '1px solid #eee',
+                  }}
                 >
                   {contadores.map((item, idx) => (
                     <div
                       key={item.label}
-                      className="py-3 px-2 whitespace-nowrap"
-                      style={{ borderLeft: idx === 0 ? 'none' : '1px solid #eee' }} // Mantido borderLeft inline
+                      style={{
+                        padding: '12px 8px',
+                        borderLeft: idx === 0 ? 'none' : '1px solid #eee',
+                        whiteSpace: 'nowrap',
+                      }}
                     >
                       <div
-                        className="font-semibold text-sm"
-                        style={{ color: item.color }} // Mantido color inline
+                        style={{
+                          fontWeight: '600',
+                          fontSize: '0.9rem',
+                          color: item.color,
+                        }}
                       >
                         {item.label}
                       </div>
                       <div
-                        className="text-2xl mt-1.5 font-bold"
+                        style={{
+                          fontSize: '1.3rem',
+                          marginTop: '6px',
+                          fontWeight: 'bold',
+                        }}
                       >
                         {item.count}
                       </div>
@@ -288,23 +366,29 @@ const Ranking = ({ usuarios }) => {
                 </div>
 
                 <div
-                  className="text-center border-t border-gray-200 pt-3 text-gray-600 font-semibold mt-4" // Removido marginTop do style e adicionado mt-4 do Tailwind
+                  style={{
+                    textAlign: 'center',
+                    borderTop: '1px solid #eee',
+                    paddingTop: '12px',
+                    color: '#555',
+                    fontWeight: '600',
+                  }}
                 >
-                  <div className="mb-2">
+                  <div style={{ marginBottom: '8px' }}>
                     <span>Prêmio Líquido: </span>
-                    <span className="font-bold">
+                    <span style={{ fontWeight: 'bold' }}>
                       {formatarMoeda(usuario.premioLiquido)}
                     </span>
                   </div>
-                  <div className="mb-2">
+                  <div style={{ marginBottom: '8px' }}>
                     <span>Comissão: </span>
-                    <span className="font-bold">
+                    <span style={{ fontWeight: 'bold' }}>
                       {formatarComissao(usuario.comissao)}
                     </span>
                   </div>
                   <div>
                     <span>Parcelamento: </span>
-                    <span className="font-bold">
+                    <span style={{ fontWeight: 'bold' }}>
                       {formatarParcelamento(usuario.parcelamento)}
                     </span>
                   </div>
