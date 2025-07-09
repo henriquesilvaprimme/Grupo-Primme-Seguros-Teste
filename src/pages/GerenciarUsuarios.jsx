@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, RefreshCcw } from 'lucide-react'; // Adicionado RefreshCcw para o ícone de refresh
+import { Eye, EyeOff, RefreshCcw } from 'lucide-react';
 
 // Certifique-se de que esta URL é a da SUA ÚLTIMA IMPLANTAÇÃO do Apps Script.
 // Ela deve ser a mesma URL base usada para as requisições POST/GET.
@@ -12,7 +12,6 @@ const GerenciarUsuarios = () => {
   const [senhaVisivel, setSenhaVisivel] = useState({});
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Função para buscar usuários do Google Sheets
   const fetchUsuariosFromSheet = async () => {
     setError(null);
     try {
@@ -49,13 +48,11 @@ const GerenciarUsuarios = () => {
     }
   };
 
-  // Função para lidar com o refresh e ativar/desativar o loader
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await fetchUsuariosFromSheet();
   };
 
-  // useEffect para buscar usuários na montagem e configurar o intervalo de atualização
   useEffect(() => {
     setLoading(true);
     fetchUsuariosFromSheet();
@@ -68,26 +65,36 @@ const GerenciarUsuarios = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Função para atualizar status ou tipo de usuário no Google Sheets
   const atualizarStatusUsuario = async (id, novoStatus = null, novoTipo = null) => {
-    const usuarioParaAtualizar = usuarios.find((u) => String(u.id) === String(id));
-    if (!usuarioParaAtualizar) {
+    const usuarioParaAtualizarIndex = usuarios.findIndex((u) => String(u.id) === String(id));
+    if (usuarioParaAtualizarIndex === -1) {
       console.warn(`Usuário com ID ${id} não encontrado localmente para atualização.`);
       return;
     }
 
-    const usuarioParaEnviar = { ...usuarioParaAtualizar };
+    const usuarioAtual = usuarios[usuarioParaAtualizarIndex];
+    const novoEstadoUsuario = { ...usuarioAtual };
 
-    if (novoStatus !== null) usuarioParaEnviar.status = novoStatus;
-    if (novoTipo !== null) usuarioParaEnviar.tipo = novoTipo;
+    if (novoStatus !== null) novoEstadoUsuario.status = novoStatus;
+    if (novoTipo !== null) novoEstadoUsuario.tipo = novoTipo;
+
+    // --- ATUALIZAÇÃO OTIMISTA: Atualiza o estado local IMEDIATAMENTE ---
+    setUsuarios((prev) =>
+      prev.map((u, index) =>
+        index === usuarioParaAtualizarIndex
+          ? novoEstadoUsuario
+          : u
+      )
+    );
+    // ------------------------------------------------------------------
 
     try {
-      console.log('Enviando solicitação de atualização para Apps Script:', usuarioParaEnviar);
+      console.log('Enviando solicitação de atualização para Apps Script:', novoEstadoUsuario);
 
       await fetch(`${GOOGLE_SHEETS_BASE_URL}?v=alterar_usuario`, {
         method: 'POST',
         mode: 'no-cors',
-        body: JSON.stringify({ usuario: usuarioParaEnviar }),
+        body: JSON.stringify({ usuario: novoEstadoUsuario }),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -96,21 +103,11 @@ const GerenciarUsuarios = () => {
       console.log('Solicitação de atualização para o usuário enviada ao Apps Script (modo no-cors).');
       console.log('Por favor, verifique os logs de execução do Google Apps Script para confirmação de sucesso e possíveis erros.');
 
-      // Otimisticamente, atualiza o estado local para que a UI responda imediatamente
-      setUsuarios((prev) =>
-        prev.map((u) =>
-          String(u.id) === String(id)
-            ? {
-                ...u,
-                ...(novoStatus !== null ? { status: novoStatus } : {}),
-                ...(novoTipo !== null ? { tipo: novoTipo } : {}),
-              }
-            : u
-        )
-      );
     } catch (err) {
       console.error('Erro ao enviar atualização de usuário para o Apps Script:', err);
       alert('Erro ao atualizar usuário. Por favor, tente novamente.');
+      // Opcional: Aqui você pode reverter a alteração no estado local se a API falhar
+      // setUsuarios(prev => prev.map((u, index) => index === usuarioParaAtualizarIndex ? usuarioAtual : u));
     }
   };
 
