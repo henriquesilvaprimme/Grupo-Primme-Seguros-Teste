@@ -30,7 +30,7 @@ const Dashboard = ({ leads }) => {
 
   // Contadores existentes
   const totalLeads = leads.length;
-  const leadsFechados = leads.filter((lead) => lead.status === 'Fechado').length;
+  const leadsFechados = leadsClosed.length;
   const leadsPerdidos = leads.filter((lead) => lead.status === 'Perdido').length;
   const leadsEmContato = leads.filter((lead) => lead.status === 'Em Contato').length;
   const leadsSemContato = leads.filter((lead) => lead.status === 'Sem Contato').length;
