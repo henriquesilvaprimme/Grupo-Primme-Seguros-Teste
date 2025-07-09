@@ -1,25 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-// O componente Dashboard AGORA RECEBE a prop 'leads' novamente
-// Essa prop 'leads' DEVE conter os dados da aba geral 'Leads'
 const Dashboard = ({ leads }) => {
+  // Estado para armazenar os leads da aba "Leads Fechados" com Seguradora atribuída
   const [leadsFechadosComSeguradora, setLeadsFechadosComSeguradora] = useState([]);
-  const [loadingFechados, setLoadingFechados] = useState(true); // Novo estado de loading para os leads fechados
+  const [loadingFechados, setLoadingFechados] = useState(true);
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
 
-  // Função para buscar APENAS os leads da aba 'Leads Fechados' com Seguradora atribuída
-  const buscarLeadsFechadosEspecificos = async () => {
+  // Função para buscar APENAS os leads da aba 'Leads Fechados'
+  // O filtro da seguradora será feito AQUI no frontend, para garantir.
+  const buscarLeadsFechadosDoSheets = async () => {
     try {
       const response = await axios.get(
         'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
       );
-      // Filtra para garantir que apenas leads com Seguradora preenchida sejam contados.
-      // Assumimos que o endpoint 'pegar_clientes_fechados' do GAS já traz apenas os leads 'Fechados'.
+
+      // Log para verificar os dados brutos retornados pela API
+      console.log("Dados brutos de 'pegar_clientes_fechados':", response.data);
+
+      // FILTRAGEM ROBUSTA NO FRONTEND:
+      // 1. Verifica se a propriedade 'Seguradora' existe.
+      // 2. Converte para string e remove espaços em branco (trim).
+      // 3. Garante que o valor não é uma string vazia.
       const filteredLeads = response.data.filter(
-        (lead) => lead.Seguradora && lead.Seguradora.toString().trim() !== ''
+        (lead) => lead.Seguradora && String(lead.Seguradora).trim() !== ''
       );
+
+      // Log para verificar os leads filtrados
+      console.log("Leads filtrados com seguradora:", filteredLeads);
+
       setLeadsFechadosComSeguradora(filteredLeads);
     } catch (error) {
       console.error('Erro ao buscar leads fechados específicos:', error);
@@ -29,7 +39,7 @@ const Dashboard = ({ leads }) => {
   };
 
   useEffect(() => {
-    buscarLeadsFechadosEspecificos();
+    buscarLeadsFechadosDoSheets();
   }, []); // Executa apenas uma vez ao montar o componente
 
   // --- CONTADORES ---
@@ -41,6 +51,7 @@ const Dashboard = ({ leads }) => {
 
   // ESTE É O CONTADOR QUE VOCÊ QUERIA FOCAR:
   // Usa o novo estado 'leadsFechadosComSeguradora' que vem da aba 'Leads Fechados'
+  // e já foi filtrado para ter seguradora atribuída.
   const leadsFechados = leadsFechadosComSeguradora.length;
 
   // Contadores por seguradora baseados em 'leadsFechadosComSeguradora' (correto)
@@ -75,8 +86,7 @@ const Dashboard = ({ leads }) => {
   };
 
   if (loadingFechados) {
-    // Você pode adicionar um loader específico para este contador, se desejar
-    return <div style={{ padding: '20px', textAlign: 'center' }}>Carregando leads fechados...</div>;
+    return <div style={{ padding: '20px', textAlign: 'center' }}>Carregando dados de leads fechados...</div>;
   }
 
   return (
