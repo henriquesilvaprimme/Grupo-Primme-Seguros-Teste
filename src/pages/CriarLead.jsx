@@ -21,8 +21,6 @@ const CriarLead = ({ adicionarLead }) => {
     const fetchUsuariosAtivos = async () => {
       try {
         // ATENÇÃO: SUBSTITUA ESTE URL PELA URL DO SEU GOOGLE APPS SCRIPT REAL.
-        // É a URL do aplicativo da web (Web App URL) após a implantação do seu script GAS.
-        // Exemplo: 'https://script.google.com/macros/s/SEU_ID_DO_SCRIPT/exec?v=listar_usuarios_ativos'
         const YOUR_GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?v=listar_usuarios_ativos'; 
 
         const response = await fetch(YOUR_GAS_WEB_APP_URL);
@@ -167,10 +165,12 @@ const CriarLead = ({ adicionarLead }) => {
       <div>
         <label className="block text-gray-700">Vigência Final</label>
         <input
-          type="text" // ALTERADO PARA TIPO TEXTO
+          type="text"
           value={vigenciaFinal}
           onChange={(e) => setVigenciaFinal(e.target.value)}
-          placeholder="Ex: DD/MM/AAAA" // Sugestão para o usuário
+          placeholder="DD/MM/AAAA" // Exemplo de formato
+          inputMode="numeric" // Sugere teclado numérico em dispositivos móveis
+          pattern="\d{2}/\d{2}/\d{4}" // Valida formato DD/MM/AAAA
           className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
       </div>
