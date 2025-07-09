@@ -10,7 +10,7 @@ const formatDateForDisplay = (dateValue) => {
   }
 
   let date;
-  // Tenta converter de YYYY-MM-DD para objeto Date
+  // Tenta converter de YYYY-MM-DD para objeto Date (formato que o GAS envia)
   if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
     date = new Date(dateValue + 'T00:00:00'); // Adiciona T00:00:00 para evitar problemas de fuso horário
   } else if (dateValue instanceof Date) {
@@ -51,10 +51,14 @@ const formatDateInput = (value) => {
 };
 
 
-const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdateDetalhes, fetchLeadsFechadosFromSheet, isAdmin }) => {
+const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdateDetalhes, fetchLeadsFechadosFromSheet, isAdmin, formatarDataParaExibicao }) => {
+  // Loga os leads recebidos para depuração
+  console.log("LeadsFechados.jsx: Leads recebidos como prop:", leads);
+
   const fechados = leads.filter(lead => lead.Status === 'Fechado');
 
-  console.log("usuarioLogado", isAdmin)
+  console.log("LeadsFechados.jsx: Leads filtrados (Status 'Fechado'):", fechados);
+  console.log("usuarioLogado (isAdmin):", isAdmin);
 
   // Obtém o mês e ano atual no formato 'YYYY-MM'
   const getMesAnoAtual = () => {
@@ -99,6 +103,16 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
               // Inicializa VigenciaFinal para novos leads fechados, formatando para DD/MM/AAAA
               VigenciaFinal: lead.VigenciaFinal ? formatDateForDisplay(lead.VigenciaFinal) : '',
             };
+          } else {
+            // Atualiza valores existentes se o lead já estiver no estado 'valores'
+            novosValores[lead.ID] = {
+              ...novosValores[lead.ID],
+              PremioLiquido: lead.PremioLiquido !== undefined ? Math.round(parseFloat(lead.PremioLiquido) * 100) : novosValores[lead.ID].PremioLiquido,
+              Comissao: lead.Comissao ? String(lead.Comissao) : novosValores[lead.ID].Comissao,
+              Parcelamento: lead.Parcelamento || novosValores[lead.ID].Parcelamento,
+              insurer: lead.Seguradora || novosValores[lead.ID].insurer,
+              VigenciaFinal: lead.VigenciaFinal ? formatDateForDisplay(lead.VigenciaFinal) : novosValores[lead.ID].VigenciaFinal,
+            };
           }
         });
 
@@ -124,7 +138,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
   const aplicarFiltroData = () => {
     setFiltroData(dataInput);
-    console.log(dataInput)
+    console.log("LeadsFechados.jsx: Filtro de data aplicado:", dataInput);
   };
 
   // Função para lidar com o refresh e ativar/desativar o loader
@@ -133,7 +147,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     try {
       await fetchLeadsFechadosFromSheet(); // Chama a função para buscar dados
     } catch (error) {
-      console.error('Erro ao atualizar leads fechados:', error);
+      console.error('LeadsFechados.jsx: Erro ao atualizar leads fechados:', error);
     } finally {
       setIsLoading(false); // Desativa o loader
     }
@@ -145,18 +159,24 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   }, []); // O array vazio garante que roda apenas uma vez ao montar o componente
 
 
-  const fechadosOrdenados = [...fechados].sort((a, b) => {
-    const dataA = new Date(a.Data);
-    const dataB = new Date(b.Data);
-    return dataB - dataA; // mais recente primeiro
-  });
-
-
-  const leadsFiltrados = fechadosOrdenados.filter(lead => {
-    const nomeMatch = normalizarTexto(lead.name || '').includes(normalizarTexto(filtroNome || ''));
-    const dataMatch = filtroData ? lead.Data?.startsWith(filtroData) : true;
+  const leadsFiltrados = fechados.filter(lead => {
+    const nomeMatch = normalizarTexto(lead.Name || '').includes(normalizarTexto(filtroNome || ''));
+    
+    // Ajusta a lógica de filtro de data para usar 'Data Criação'
+    const dataCriacaoLead = lead['Data Criação'] || '';
+    const dataMatch = filtroData ? dataCriacaoLead.startsWith(filtroData) : true;
+    
+    console.log(`Lead: ${lead.Name}, Data Criação: ${dataCriacaoLead}, Filtro Data: ${filtroData}, Data Match: ${dataMatch}`);
     return nomeMatch && dataMatch;
+  }).sort((a, b) => {
+    // Ordena por 'Data Criação' (mais recente primeiro)
+    const dateA = new Date(a['Data Criação']);
+    const dateB = new Date(b['Data Criação']);
+    return dateB - dateA;
   });
+
+  console.log("LeadsFechados.jsx: Leads filtrados e ordenados:", leadsFiltrados);
+
 
   const formatarMoeda = (valorCentavos) => {
     if (isNaN(valorCentavos) || valorCentavos === null) return '';
@@ -448,12 +468,15 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
           return (
             <div key={lead.ID} style={containerStyle}>
               <div style={{ flex: 1 }}>
-                <h3>{lead.name}</h3>
-                <p><strong>Modelo:</strong> {lead.vehicleModel}</p>
-                <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
-                <p><strong>Cidade:</strong> {lead.city}</p>
-                <p><strong>Telefone:</strong> {lead.phone}</p>
-                <p><strong>Tipo de Seguro:</strong> {lead.insurer}</p>
+                <h3>{lead.Name}</h3> {/* Usando lead.Name conforme o GAS */}
+                <p><strong>Modelo:</strong> {lead['Modelo Veiculo']}</p> {/* Usando lead['Modelo Veiculo'] */}
+                <p><strong>Ano/Modelo:</strong> {lead['Ano Modelo']}</p> {/* Usando lead['Ano Modelo'] */}
+                <p><strong>Cidade:</strong> {lead.Cidade}</p>
+                <p><strong>Telefone:</strong> {lead.Telefone}</p>
+                <p><strong>Tipo de Seguro:</strong> {lead['Tipo Seguro']}</p> {/* Usando lead['Tipo Seguro'] */}
+                <p><strong>Data Criação:</strong> {formatarDataParaExibicao(lead['Data Criação'])}</p> {/* Formatando data de criação */}
+                <p><strong>Editado em:</strong> {formatarDataParaExibicao(lead.Editado)}</p> {/* Formatando data de edição */}
+
 
                 {responsavel && (
                   <p style={{ marginTop: '10px', color: '#007bff' }}>
@@ -499,7 +522,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                     }));
                     onUpdateInsurer(lead.ID, valor);
                   }}
-                  disabled={lead.Seguradora}
+                  disabled={!!lead.Seguradora}
                   style={{
                     padding: '8px',
                     border: '2px solid #ccc',
@@ -535,7 +558,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                     placeholder="Comissão (%)"
                     value={valores[lead.ID]?.Comissao || ''}
                     onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
-                    disabled={lead.Seguradora}
+                    disabled={!!lead.Seguradora}
                     maxLength={4}
                     style={inputWithPrefixStyle}
                   />
@@ -544,7 +567,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 <select
                   value={valores[lead.ID]?.Parcelamento || ''}
                   onChange={(e) => handleParcelamentoChange(lead.ID, e.target.value)}
-                  disabled={lead.Seguradora}
+                  disabled={!!lead.Seguradora}
                   style={{
                     padding: '8px',
                     border: '1px solid #ccc',
