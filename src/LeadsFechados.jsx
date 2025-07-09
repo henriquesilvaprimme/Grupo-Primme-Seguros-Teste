@@ -220,7 +220,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       {isLoading && (
         <div className="absolute inset-0 bg-white flex justify-center items-center z-10">
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
-          <p className="ml-4 text-lg text-gray-700">Carregando dados dos leads fechados...</p>
+          <p className="ml-4 text-lg text-gray-700">Carregando LEADS FECHADOS...</p>
         </div>
       )}
 
