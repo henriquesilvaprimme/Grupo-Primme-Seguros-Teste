@@ -1,64 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
-// Nova função auxiliar para formatar a data para exibição no input de texto (DD/MM/AAAA)
-const formatDateForDisplay = (dateValue) => {
-  if (!dateValue) return '';
-
-  // Se já for uma string no formato DD/MM/AAAA, retorna como está
-  if (typeof dateValue === 'string' && dateValue.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-    return dateValue;
-  }
-
-  let date;
-  // Tenta converter de YYYY-MM-DD para objeto Date (formato que o GAS envia)
-  if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    date = new Date(dateValue + 'T00:00:00'); // Adiciona T00:00:00 para evitar problemas de fuso horário
-  } else if (dateValue instanceof Date) {
-    date = dateValue;
-  } else {
-    // Se for outro formato de string, tenta criar um objeto Date
-    // Ex: "DD/MM/YYYY" -> new Date(YYYY, MM-1, DD)
-    const parts = String(dateValue).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (parts) {
-      date = new Date(parts[3], parts[2] - 1, parts[1]);
-    } else {
-      return String(dateValue); // Retorna a string original se não conseguir formatar
-    }
-  }
-
-  if (isNaN(date.getTime())) return ''; // Verifica se a data é válida
-
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
-};
-
-// Nova função auxiliar para aplicar máscara DD/MM/AAAA ao digitar
-const formatDateInput = (value) => {
-  let cleanedValue = value.replace(/\D/g, ''); // Remove tudo que não for dígito
-  let formattedValue = '';
-  if (cleanedValue.length > 0) {
-    formattedValue += cleanedValue.substring(0, 2);
-  }
-  if (cleanedValue.length > 2) {
-    formattedValue += '/' + cleanedValue.substring(2, 4);
-  }
-  if (cleanedValue.length > 4) {
-    formattedValue += '/' + cleanedValue.substring(4, 8);
-  }
-  return formattedValue;
-};
-
-
-const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdateDetalhes, fetchLeadsFechadosFromSheet, isAdmin, formatarDataParaExibicao }) => {
-  // Loga os leads recebidos para depuração
-  console.log("LeadsFechados.jsx: Leads recebidos como prop:", leads);
-
+const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdateDetalhes, fetchLeadsFechadosFromSheet, isAdmin }) => {
   const fechados = leads.filter(lead => lead.Status === 'Fechado');
 
-  console.log("LeadsFechados.jsx: Leads filtrados (Status 'Fechado'):", fechados);
-  console.log("usuarioLogado (isAdmin):", isAdmin);
+  console.log("usuarioLogado", isAdmin)
 
   // Obtém o mês e ano atual no formato 'YYYY-MM'
   const getMesAnoAtual = () => {
@@ -71,13 +16,12 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   const [valores, setValores] = useState(() => {
     const inicial = {};
     fechados.forEach(lead => {
+
       inicial[lead.ID] = {
         PremioLiquido: lead.PremioLiquido !== undefined ? Math.round(parseFloat(lead.PremioLiquido) * 100) : 0,
         Comissao: lead.Comissao ? String(lead.Comissao) : '',
         Parcelamento: lead.Parcelamento || '',
         insurer: lead.Seguradora || '',
-        // Adiciona a VigenciaFinal ao estado inicial, formatando para DD/MM/AAAA para o input de texto
-        VigenciaFinal: lead.VigenciaFinal ? formatDateForDisplay(lead.VigenciaFinal) : '',
       };
     });
     return inicial;
@@ -86,7 +30,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   // Novo estado para o loader
   const [isLoading, setIsLoading] = useState(false);
 
-  // EFEITO PARA ATUALIZAR VALORES QUANDO 'leads' MUDA
   useEffect(() => {
     setValores(prevValores => {
       const novosValores = { ...prevValores };
@@ -100,18 +43,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
               Comissao: lead.Comissao ? String(lead.Comissao) : '',
               Parcelamento: lead.Parcelamento || '',
               insurer: lead.Seguradora || '',
-              // Inicializa VigenciaFinal para novos leads fechados, formatando para DD/MM/AAAA
-              VigenciaFinal: lead.VigenciaFinal ? formatDateForDisplay(lead.VigenciaFinal) : '',
-            };
-          } else {
-            // Atualiza valores existentes se o lead já estiver no estado 'valores'
-            novosValores[lead.ID] = {
-              ...novosValores[lead.ID],
-              PremioLiquido: lead.PremioLiquido !== undefined ? Math.round(parseFloat(lead.PremioLiquido) * 100) : novosValores[lead.ID].PremioLiquido,
-              Comissao: lead.Comissao ? String(lead.Comissao) : novosValores[lead.ID].Comissao,
-              Parcelamento: lead.Parcelamento || novosValores[lead.ID].Parcelamento,
-              insurer: lead.Seguradora || novosValores[lead.ID].insurer,
-              VigenciaFinal: lead.VigenciaFinal ? formatDateForDisplay(lead.VigenciaFinal) : novosValores[lead.ID].VigenciaFinal,
             };
           }
         });
@@ -138,7 +69,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
   const aplicarFiltroData = () => {
     setFiltroData(dataInput);
-    console.log("LeadsFechados.jsx: Filtro de data aplicado:", dataInput);
+    console.log(dataInput)
   };
 
   // Função para lidar com o refresh e ativar/desativar o loader
@@ -147,36 +78,29 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     try {
       await fetchLeadsFechadosFromSheet(); // Chama a função para buscar dados
     } catch (error) {
-      console.error('LeadsFechados.jsx: Erro ao atualizar leads fechados:', error);
+      console.error('Erro ao atualizar leads fechados:', error);
     } finally {
       setIsLoading(false); // Desativa o loader
     }
   };
 
-  // NOVO useEffect para o refresh automático ao carregar a página
+  // Chama handleRefresh automaticamente quando o componente é montado (ou a aba é acessada)
   useEffect(() => {
     handleRefresh();
-  }, []); // O array vazio garante que roda apenas uma vez ao montar o componente
+  }, []); // O array vazio de dependências garante que isso só rode uma vez na montagem
 
-
-  const leadsFiltrados = fechados.filter(lead => {
-    const nomeMatch = normalizarTexto(lead.Name || '').includes(normalizarTexto(filtroNome || ''));
-    
-    // Ajusta a lógica de filtro de data para usar 'Data Criação'
-    const dataCriacaoLead = lead['Data Criação'] || '';
-    const dataMatch = filtroData ? dataCriacaoLead.startsWith(filtroData) : true;
-    
-    console.log(`Lead: ${lead.Name}, Data Criação: ${dataCriacaoLead}, Filtro Data: ${filtroData}, Data Match: ${dataMatch}`);
-    return nomeMatch && dataMatch;
-  }).sort((a, b) => {
-    // Ordena por 'Data Criação' (mais recente primeiro)
-    const dateA = new Date(a['Data Criação']);
-    const dateB = new Date(b['Data Criação']);
-    return dateB - dateA;
+  const fechadosOrdenados = [...fechados].sort((a, b) => {
+    const dataA = new Date(a.Data);
+    const dataB = new Date(b.Data);
+    return dataB - dataA; // mais recente primeiro
   });
 
-  console.log("LeadsFechados.jsx: Leads filtrados e ordenados:", leadsFiltrados);
 
+  const leadsFiltrados = fechadosOrdenados.filter(lead => {
+    const nomeMatch = normalizarTexto(lead.name || '').includes(normalizarTexto(filtroNome || ''));
+    const dataMatch = filtroData ? lead.Data?.startsWith(filtroData) : true;
+    return nomeMatch && dataMatch;
+  });
 
   const formatarMoeda = (valorCentavos) => {
     if (isNaN(valorCentavos) || valorCentavos === null) return '';
@@ -248,20 +172,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       },
     }));
     onUpdateDetalhes(id, 'Parcelamento', valor);
-  };
-
-  // Nova função para lidar com a mudança na Vigência Final
-  const handleVigenciaFinalChange = (id, valor) => {
-    const formattedValue = formatDateInput(valor); // Aplica a máscara DD/MM/AAAA
-    setValores(prev => ({
-      ...prev,
-      [id]: {
-        ...prev[id],
-        VigenciaFinal: formattedValue, // Salva como DD/MM/AAAA no estado
-      },
-    }));
-    // Passa a data no formato DD/MM/AAAA para o onUpdateDetalhes
-    onUpdateDetalhes(id, 'VigenciaFinal', formattedValue);
   };
 
   const inputWrapperStyle = {
@@ -461,22 +371,17 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             !valores[lead.ID]?.Comissao ||
             valores[lead.ID]?.Comissao === '' ||
             !valores[lead.ID]?.Parcelamento ||
-            valores[lead.ID]?.Parcelamento === '' ||
-            !valores[lead.ID]?.VigenciaFinal || // Adiciona a validação para VigenciaFinal
-            valores[lead.ID]?.VigenciaFinal === '';
+            valores[lead.ID]?.Parcelamento === '';
 
           return (
             <div key={lead.ID} style={containerStyle}>
               <div style={{ flex: 1 }}>
-                <h3>{lead.Name}</h3> {/* Usando lead.Name conforme o GAS */}
-                <p><strong>Modelo:</strong> {lead['Modelo Veiculo']}</p> {/* Usando lead['Modelo Veiculo'] */}
-                <p><strong>Ano/Modelo:</strong> {lead['Ano Modelo']}</p> {/* Usando lead['Ano Modelo'] */}
-                <p><strong>Cidade:</strong> {lead.Cidade}</p>
-                <p><strong>Telefone:</strong> {lead.Telefone}</p>
-                <p><strong>Tipo de Seguro:</strong> {lead['Tipo Seguro']}</p> {/* Usando lead['Tipo Seguro'] */}
-                <p><strong>Data Criação:</strong> {formatarDataParaExibicao(lead['Data Criação'])}</p> {/* Formatando data de criação */}
-                <p><strong>Editado em:</strong> {formatarDataParaExibicao(lead.Editado)}</p> {/* Formatando data de edição */}
-
+                <h3>{lead.name}</h3>
+                <p><strong>Modelo:</strong> {lead.vehicleModel}</p>
+                <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
+                <p><strong>Cidade:</strong> {lead.city}</p>
+                <p><strong>Telefone:</strong> {lead.phone}</p>
+                <p><strong>Tipo de Seguro:</strong> {lead.insurer}</p>
 
                 {responsavel && (
                   <p style={{ marginTop: '10px', color: '#007bff' }}>
@@ -486,29 +391,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '250px' }}>
-                {/* Campo de input para Vigência Final (agora tipo texto com máscara) */}
-                <label htmlFor={`vigencia-final-${lead.ID}`} style={{ marginBottom: '5px', alignSelf: 'flex-start', fontSize: '14px', fontWeight: 'bold' }}>
-                  Vigência Final:
-                </label>
-                <input
-                  id={`vigencia-final-${lead.ID}`}
-                  type="text" // ALTERADO PARA TIPO TEXTO
-                  value={valores[lead.ID]?.VigenciaFinal || ''}
-                  onChange={(e) => handleVigenciaFinalChange(lead.ID, e.target.value)}
-                  disabled={!!lead.Seguradora}
-                  placeholder="DD/MM/AAAA" // Sugestão para o usuário
-                  maxLength="10" // Limita a 10 caracteres (DD/MM/AAAA)
-                  style={{
-                    padding: '8px',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    width: '100%',
-                    marginBottom: '8px',
-                    boxSizing: 'border-box',
-                  }}
-                  title="Digite a data de vigência final do seguro (DD/MM/AAAA)"
-                />
-
                 <select
                   value={valores[lead.ID]?.insurer || ''}
                   onChange={(e) => {
@@ -522,7 +404,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                     }));
                     onUpdateInsurer(lead.ID, valor);
                   }}
-                  disabled={!!lead.Seguradora}
+                  disabled={lead.Seguradora}
                   style={{
                     padding: '8px',
                     border: '2px solid #ccc',
@@ -558,7 +440,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                     placeholder="Comissão (%)"
                     value={valores[lead.ID]?.Comissao || ''}
                     onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
-                    disabled={!!lead.Seguradora}
+                    disabled={lead.Seguradora}
                     maxLength={4}
                     style={inputWithPrefixStyle}
                   />
@@ -567,7 +449,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 <select
                   value={valores[lead.ID]?.Parcelamento || ''}
                   onChange={(e) => handleParcelamentoChange(lead.ID, e.target.value)}
-                  disabled={!!lead.Seguradora}
+                  disabled={lead.Seguradora}
                   style={{
                     padding: '8px',
                     border: '1px solid #ccc',
@@ -584,13 +466,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
                 {!lead.Seguradora ? (
                   <button
-                    onClick={() => onConfirmInsurer(
-                      lead.ID,
+                    onClick={() => onConfirmInsurer(lead.ID,
                       parseFloat(valores[lead.ID]?.PremioLiquido.toString().replace('.', ',')),
                       valores[lead.ID]?.insurer,
                       valores[lead.ID]?.Comissao,
-                      valores[lead.ID]?.Parcelamento,
-                      valores[lead.ID]?.VigenciaFinal // Passa a VigenciaFinal para a função de confirmação
+                      valores[lead.ID]?.Parcelamento
                     )}
                     disabled={isButtonDisabled}
                     style={{
