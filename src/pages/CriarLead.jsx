@@ -10,7 +10,7 @@ const CriarLead = ({ adicionarLead }) => {
   const [telefone, setTelefone] = useState('');
   const [tipoSeguro, setTipoSeguro] = useState('');
   const [responsavel, setResponsavel] = useState('');
-  const [vigenciaFinal, setVigenciaFinal] = useState(''); // NOVO ESTADO PARA VIGÊNCIA FINAL
+  const [vigenciaFinal, setVigenciaFinal] = useState(''); // Estado para Vigência Final
   const [usuariosAtivos, setUsuariosAtivos] = useState([]);
   const [mensagemSucesso, setMensagemSucesso] = useState('');
 
@@ -21,6 +21,8 @@ const CriarLead = ({ adicionarLead }) => {
     const fetchUsuariosAtivos = async () => {
       try {
         // ATENÇÃO: SUBSTITUA ESTE URL PELA URL DO SEU GOOGLE APPS SCRIPT REAL.
+        // É a URL do aplicativo da web (Web App URL) após a implantação do seu script GAS.
+        // Exemplo: 'https://script.google.com/macros/s/SEU_ID_DO_SCRIPT/exec?v=listar_usuarios_ativos'
         const YOUR_GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?v=listar_usuarios_ativos'; 
 
         const response = await fetch(YOUR_GAS_WEB_APP_URL);
@@ -46,8 +48,8 @@ const CriarLead = ({ adicionarLead }) => {
   const handleCriar = () => {
     setMensagemSucesso(''); 
 
-    // Validação dos campos obrigatórios (adicione vigenciaFinal aqui se for obrigatório)
-    if (!nome || !modeloVeiculo || !anoModelo || !cidade || !telefone || !tipoSeguro || !responsavel || !vigenciaFinal) { // Vigência Final adicionada à validação
+    // Validação dos campos obrigatórios
+    if (!nome || !modeloVeiculo || !anoModelo || !cidade || !telefone || !tipoSeguro || !responsavel || !vigenciaFinal) {
       setMensagemSucesso('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
@@ -61,7 +63,7 @@ const CriarLead = ({ adicionarLead }) => {
       telefone,
       tipoSeguro,
       responsavel,
-      vigenciaFinal, // NOVO CAMPO ADICIONADO AO OBJETO DO LEAD
+      vigenciaFinal, // Campo Vigência Final enviado como string
       status: 'Fechado',
       dataCriacao: new Date().toLocaleDateString('pt-BR'),
     };
@@ -165,9 +167,10 @@ const CriarLead = ({ adicionarLead }) => {
       <div>
         <label className="block text-gray-700">Vigência Final</label>
         <input
-          type="date" // Tipo 'date' para seleção de data
+          type="text" // ALTERADO PARA TIPO TEXTO
           value={vigenciaFinal}
           onChange={(e) => setVigenciaFinal(e.target.value)}
+          placeholder="Ex: DD/MM/AAAA" // Sugestão para o usuário
           className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
       </div>
