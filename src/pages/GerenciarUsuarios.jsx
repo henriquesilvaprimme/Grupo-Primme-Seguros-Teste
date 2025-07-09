@@ -5,13 +5,11 @@ const GerenciarUsuarios = () => {
   const [usuarios, setUsuarios] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [mensagemFeedback, setMensagemFeedback] = useState('');
-  const [senhaVisivel, setSenhaVisivel] = useState({}); // Estado para controlar a visibilidade da senha
+  const [senhaVisivel, setSenhaVisivel] = useState({});
 
-  // MUITO IMPORTANTE: SUBSTITUA ESTE URL PELA URL REAL E ATUALIZADA DA SUA IMPLANTAÇÃO DO GOOGLE APPS SCRIPT
-  // CADA NOVA IMPLANTAÇÃO PODE GERAR UMA NOVA URL.
-  const GOOGLE_SHEETS_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec'; // Sua URL de implantação
+  const GOOGLE_SHEETS_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 
-  // Função para buscar todos os usuários
+  // Função para buscar todos os usuários (somente na montagem inicial)
   const buscarUsuarios = async () => {
     setIsLoading(true);
     setMensagemFeedback('');
@@ -41,34 +39,27 @@ const GerenciarUsuarios = () => {
     }
   };
 
-  // Carregar usuários ao montar o componente
+  // Carregar usuários APENAS na montagem inicial do componente
   useEffect(() => {
     buscarUsuarios();
-    // Você pode adicionar um polling aqui se quiser atualizações automáticas, mas cuidado com limites do Apps Script
-    // const interval = setInterval(buscarUsuarios, 60000); // Exemplo: a cada 1 minuto
-    // return () => clearInterval(interval);
-  }, []);
+  }, []); // Array de dependências vazio garante que roda uma única vez
 
-  // Função para atualizar o status ou tipo de um usuário (enviando para o GAS)
-  const handleAtualizarUsuario = async (usuarioId, novoStatus, novoTipo) => {
-    setMensagemFeedback('');
-    setIsLoading(true);
-
+  // Função para atualizar o status ou tipo de um usuário (em segundo plano)
+  // Esta função agora LIDA APENAS COM O ENVIO AO GAS
+  const enviarAtualizacaoUsuarioAoGAS = async (usuarioId, novoStatus, novoTipo) => {
     const usuarioParaAtualizar = usuarios.find(u => u.id === usuarioId);
     if (!usuarioParaAtualizar) {
-      setMensagemFeedback('Usuário não encontrado para atualização.');
-      setIsLoading(false);
+      console.error('Usuário não encontrado no estado local para enviar atualização ao GAS.');
       return;
     }
 
-    // Cria um objeto com os dados mais recentes do usuário, aplicando as mudanças
     const dadosParaEnviar = {
       action: 'alterar_usuario',
       usuario: {
         ...usuarioParaAtualizar, // Mantém todos os dados existentes
-        id: usuarioId, // Garante que o ID esteja correto
-        status: novoStatus !== null ? novoStatus : usuarioParaAtualizar.status, // Atualiza status se fornecido
-        tipo: novoTipo !== null ? novoTipo : usuarioParaAtualizar.tipo, // Atualiza tipo se fornecido
+        id: usuarioId,
+        status: novoStatus !== null ? novoStatus : usuarioParaAtualizar.status,
+        tipo: novoTipo !== null ? novoTipo : usuarioParaAtualizar.tipo,
       },
     };
 
@@ -82,46 +73,56 @@ const GerenciarUsuarios = () => {
         body: JSON.stringify(dadosParaEnviar),
       });
 
-      console.log('Requisição de atualização de usuário enviada (modo no-cors).');
-      console.log('Para confirmar o sucesso da operação, verifique os logs de execução do Google Apps Script ou o Google Sheet diretamente.');
-
-      // Atualiza o estado local imediatamente para uma melhor experiência do usuário
-      setUsuarios(prevUsuarios =>
-        prevUsuarios.map(u =>
-          u.id === usuarioId
-            ? {
-                ...u,
-                status: novoStatus !== null ? novoStatus : u.status,
-                tipo: novoTipo !== null ? novoTipo : u.tipo,
-              }
-            : u
-        )
-      );
-
-      setMensagemFeedback('✅ Solicitação de atualização enviada. As alterações devem aparecer em breve.');
+      console.log(`Solicitação de atualização para o usuário ${usuarioId} enviada ao Apps Script (modo no-cors).`);
+      console.log('Verifique os logs de execução do Google Apps Script para confirmação de sucesso.');
 
     } catch (error) {
-      console.error('Erro ao enviar requisição de atualização:', error);
-      setMensagemFeedback('❌ Erro ao enviar solicitação de atualização. Verifique sua conexão.');
-    } finally {
-      setIsLoading(false);
+      console.error(`Erro ao enviar requisição de atualização para o usuário ${usuarioId}:`, error);
+      setMensagemFeedback('❌ Erro ao enviar solicitação de atualização ao servidor. Verifique sua conexão.');
     }
+    // Remove o indicador de carregamento e feedback após a tentativa de envio
+    // setMensagemFeedback(''); // Poderíamos limpar aqui, mas um feedback temporário pode ser útil.
+    // setIsLoading(false);
   };
 
-  // Funções de toggle para o layout antigo
+  // Funções de toggle que atualizam o estado local e disparam o envio ao GAS
   const handleToggleStatus = (id, statusAtual) => {
     const novoStatus = statusAtual === 'Ativo' ? 'Inativo' : 'Ativo';
+    setMensagemFeedback('Atualizando status...'); // Feedback imediato
+
+    // 1. Atualiza o estado local imediatamente para feedback visual instantâneo
+    setUsuarios(prevUsuarios =>
+      prevUsuarios.map(u =>
+        u.id === id
+          ? { ...u, status: novoStatus }
+          : u
+      )
+    );
+
+    // 2. Dispara o envio para o Google Apps Script em segundo plano
     const usuarioAtual = usuarios.find(u => u.id === id);
     if (usuarioAtual) {
-      handleAtualizarUsuario(id, novoStatus, usuarioAtual.tipo);
+      enviarAtualizacaoUsuarioAoGAS(id, novoStatus, usuarioAtual.tipo);
     }
   };
 
   const handleToggleTipo = (id, tipoAtual) => {
-    const novoTipo = tipoAtual === 'Admin' ? 'Usuario' : 'Admin'; // 'Usuario' é o valor interno, 'Usuário Comum' é para exibição
+    const novoTipo = tipoAtual === 'Admin' ? 'Usuario' : 'Admin'; // 'Usuario' é o valor interno para o GAS
+    setMensagemFeedback('Atualizando tipo...'); // Feedback imediato
+
+    // 1. Atualiza o estado local imediatamente para feedback visual instantâneo
+    setUsuarios(prevUsuarios =>
+      prevUsuarios.map(u =>
+        u.id === id
+          ? { ...u, tipo: novoTipo }
+          : u
+      )
+    );
+
+    // 2. Dispara o envio para o Google Apps Script em segundo plano
     const usuarioAtual = usuarios.find(u => u.id === id);
     if (usuarioAtual) {
-      handleAtualizarUsuario(id, usuarioAtual.status, novoTipo);
+      enviarAtualizacaoUsuarioAoGAS(id, usuarioAtual.status, novoTipo);
     }
   };
 
@@ -133,8 +134,9 @@ const GerenciarUsuarios = () => {
     <div className="p-6">
       <h2 className="text-3xl font-bold mb-6 text-indigo-700">Gerenciar Usuários</h2>
 
+      {/* Exibindo mensagem de feedback de forma mais temporária/discreta, se desejar */}
       {mensagemFeedback && (
-        <p className={`mt-4 font-semibold text-center ${mensagemFeedback.includes('✅') ? 'text-green-600' : 'text-red-600'}`}>
+        <p className={`mt-4 font-semibold text-center ${mensagemFeedback.includes('✅') ? 'text-green-600' : (mensagemFeedback.includes('❌') ? 'text-red-600' : 'text-gray-500')}`}>
           {mensagemFeedback}
         </p>
       )}
@@ -164,7 +166,7 @@ const GerenciarUsuarios = () => {
                       <div className="flex items-center gap-2">
                         <input
                           type={senhaVisivel[usuario.id] ? 'text' : 'password'}
-                          value={usuario.senha || ''} // Garante que não seja undefined
+                          value={usuario.senha || ''}
                           readOnly
                           className="border rounded px-2 py-1 w-32 text-sm"
                         />
