@@ -168,9 +168,8 @@ const CriarLead = ({ adicionarLead }) => {
           type="text"
           value={vigenciaFinal}
           onChange={(e) => setVigenciaFinal(e.target.value)}
-          placeholder="DD/MM/AAAA" // Exemplo de formato
-          inputMode="numeric" // Sugere teclado numérico em dispositivos móveis
-          pattern="\d{2}/\d{2}/\d{4}" // Valida formato DD/MM/AAAA
+          placeholder="DD/MM/AAAA"
+          // Removendo inputMode e pattern para evitar qualquer interferência
           className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
       </div>
