@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { RefreshCcw } from 'lucide-react'; // Importado para o ícone de refresh
 
 const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdateDetalhes, fetchLeadsFechadosFromSheet, isAdmin }) => {
-  const fechados = leads.filter(lead => lead.Status === 'Fechado');
-
-  console.log("usuarioLogado", isAdmin)
+  // O filtro 'fechados' é aplicado sobre a prop 'leads',
+  // que será atualizada por 'fetchLeadsFechadosFromSheet'
+  const [fechadosFiltradosInterno, setFechadosFiltradosInterno] = useState([]);
 
   // Obtém o mês e ano atual no formato 'YYYY-MM'
   const getMesAnoAtual = () => {
@@ -16,8 +16,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
   const [valores, setValores] = useState(() => {
     const inicial = {};
-    fechados.forEach(lead => {
-
+    leads.filter(lead => lead.Status === 'Fechado').forEach(lead => {
       inicial[lead.ID] = {
         PremioLiquido: lead.PremioLiquido !== undefined ? Math.round(parseFloat(lead.PremioLiquido) * 100) : 0,
         Comissao: lead.Comissao ? String(lead.Comissao) : '',
@@ -28,35 +27,13 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     return inicial;
   });
 
-  // Novo estado para o loader
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    setValores(prevValores => {
-      const novosValores = { ...prevValores };
-
-      leads
-        .filter(lead => lead.Status === 'Fechado')
-        .forEach(lead => {
-          if (!novosValores[lead.ID]) {
-            novosValores[lead.ID] = {
-              PremioLiquido: lead.PremioLiquido !== undefined ? Math.round(parseFloat(lead.PremioLiquido) * 100) : 0,
-              Comissao: lead.Comissao ? String(lead.Comissao) : '',
-              Parcelamento: lead.Parcelamento || '',
-              insurer: lead.Seguradora || '',
-            };
-          }
-        });
-
-      return novosValores;
-    });
-  }, [leads]);
-
+  const [isLoading, setIsLoading] = useState(false); // Estado para o loader
   const [nomeInput, setNomeInput] = useState('');
   const [dataInput, setDataInput] = useState(getMesAnoAtual());
   const [filtroNome, setFiltroNome] = useState('');
   const [filtroData, setFiltroData] = useState(getMesAnoAtual());
 
+  // Função para normalizar texto para filtros
   const normalizarTexto = (texto) =>
     texto
       .normalize('NFD')
@@ -64,20 +41,22 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '')
       .toLowerCase();
 
+  // Função para aplicar o filtro de nome
   const aplicarFiltroNome = () => {
     setFiltroNome(nomeInput.trim());
   };
 
+  // Função para aplicar o filtro de data
   const aplicarFiltroData = () => {
     setFiltroData(dataInput);
-    console.log(dataInput)
   };
 
-  // Função para lidar com o refresh e ativar/desativar o loader
+  // Função para buscar dados e controlar o loader
   const handleRefresh = async () => {
     setIsLoading(true); // Ativa o loader
     try {
-      await fetchLeadsFechadosFromSheet(); // Chama a função para buscar dados
+      // Chama a função passada via props para buscar os dados atualizados
+      await fetchLeadsFechadosFromSheet();
     } catch (error) {
       console.error('Erro ao atualizar leads fechados:', error);
     } finally {
@@ -85,23 +64,55 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     }
   };
 
-  // Chama handleRefresh automaticamente quando o componente é montado (ou a aba é acessada)
+  // Efeito para chamar handleRefresh na montagem do componente
   useEffect(() => {
     handleRefresh();
-  }, []); // O array vazio de dependências garante que isso só rode uma vez na montagem
+  }, []);
 
-  const fechadosOrdenados = [...fechados].sort((a, b) => {
-    const dataA = new Date(a.Data);
-    const dataB = new Date(b.Data);
-    return dataB - dataA; // mais recente primeiro
-  });
+  // Efeito para re-filtrar e atualizar 'valores' sempre que 'leads' ou 'filtroData' mudar
+  useEffect(() => {
+    const fechadosAtuais = leads.filter(lead => lead.Status === 'Fechado');
 
+    const fechadosOrdenados = [...fechadosAtuais].sort((a, b) => {
+      // Ajuste para garantir que a data esteja no formato YYYY-MM-DD para comparação
+      const getDataParaComparacao = (dataStr) => {
+        if (!dataStr) return '';
+        // Se a data já estiver em YYYY-MM-DD, usa diretamente. Caso contrário, tenta converter.
+        // A sua data no Google Sheets parece vir como YYYY-MM-DD
+        return dataStr.includes('/') ? dataStr.split('/').reverse().join('-') : dataStr;
+      };
 
-  const leadsFiltrados = fechadosOrdenados.filter(lead => {
-    const nomeMatch = normalizarTexto(lead.name || '').includes(normalizarTexto(filtroNome || ''));
-    const dataMatch = filtroData ? lead.Data?.startsWith(filtroData) : true;
-    return nomeMatch && dataMatch;
-  });
+      const dataA = new Date(getDataParaComparacao(a.Data));
+      const dataB = new Date(getDataParaComparacao(b.Data));
+      return dataB.getTime() - dataA.getTime(); // mais recente primeiro
+    });
+
+    const leadsFiltrados = fechadosOrdenados.filter(lead => {
+      const nomeMatch = normalizarTexto(lead.name || '').includes(normalizarTexto(filtroNome || ''));
+      // Ajusta para comparar YYYY-MM
+      const dataLeadMesAno = lead.Data ? lead.Data.substring(0, 7) : '';
+      const dataMatch = filtroData ? dataLeadMesAno === filtroData : true;
+      return nomeMatch && dataMatch;
+    });
+
+    setFechadosFiltradosInterno(leadsFiltrados);
+
+    // Atualiza os valores do formulário para novos leads carregados
+    setValores(prevValores => {
+      const novosValores = { ...prevValores };
+      fechadosAtuais.forEach(lead => {
+        if (!novosValores[lead.ID]) {
+          novosValores[lead.ID] = {
+            PremioLiquido: lead.PremioLiquido !== undefined ? Math.round(parseFloat(lead.PremioLiquido) * 100) : 0,
+            Comissao: lead.Comissao ? String(lead.Comissao) : '',
+            Parcelamento: lead.Parcelamento || '',
+            insurer: lead.Seguradora || '',
+          };
+        }
+      });
+      return novosValores;
+    });
+  }, [leads, filtroNome, filtroData]); // Dependências para re-executar este efeito
 
   const formatarMoeda = (valorCentavos) => {
     if (isNaN(valorCentavos) || valorCentavos === null) return '';
@@ -205,42 +216,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
   return (
     <div style={{ padding: '20px', position: 'relative' }}>
-      {/* Loader de carregamento de página completa */}
+      {/* Loader de carregamento de página completa (com Tailwind CSS) */}
       {isLoading && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'rgba(255, 255, 255, 0.8)', // Fundo semi-transparente
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 9999, // Garante que fique acima de outros elementos
-          }}
-        >
-          <div
-            style={{
-              border: '8px solid #f3f3f3', // Cor do anel externo
-              borderTop: '8px solid #3498db', // Cor do anel interno (azul)
-              borderRadius: '50%',
-              width: '50px',
-              height: '50px',
-              animation: 'spin 1s linear infinite', // Animação de rotação
-            }}
-          ></div>
-          <p style={{ marginLeft: '1rem', fontSize: '1.2rem', color: '#333' }}>Carregando leads fechados...</p>
-          {/* Definição da animação CSS */}
-          <style>
-            {`
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-            `}
-          </style>
+        <div className="fixed inset-0 bg-gray-50 flex justify-center items-center z-[9999]">
+          <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
+          <p className="ml-4 text-lg text-gray-700">Carregando dados dos leads fechados...</p>
         </div>
       )}
 
@@ -248,7 +228,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         <h1 style={{ margin: 0 }}>Leads Fechados</h1>
 
         <button title='Clique para atualizar os dados'
-          onClick={handleRefresh} // Chamando a nova função handleRefresh
+          onClick={handleRefresh} // Dispara a função de refresh real
           disabled={isLoading} // Desabilita o botão enquanto estiver carregando
         >
           {isLoading ? ( // Mostra o spinner se estiver carregando
@@ -358,10 +338,10 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         </div>
       </div>
 
-      {leadsFiltrados.length === 0 ? (
+      {fechadosFiltradosInterno.length === 0 ? (
         <p>Não há leads fechados que correspondam ao filtro aplicado.</p>
       ) : (
-        leadsFiltrados.map((lead) => {
+        fechadosFiltradosInterno.map((lead) => {
           const containerStyle = {
             display: 'flex',
             alignItems: 'center',
