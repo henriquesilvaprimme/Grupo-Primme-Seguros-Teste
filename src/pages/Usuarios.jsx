@@ -7,10 +7,10 @@ const GOOGLE_SHEETS_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd
 
 const GerenciarUsuarios = () => {
   const [usuarios, setUsuarios] = useState([]);
-  const [loading, setLoading] = useState(true); // Usado para o loader inicial e geral
+  const [loading, setLoading] = useState(true); 
   const [error, setError] = useState(null);
-  const [senhaVisivel, setSenhaVisivel] = useState({}); // Estado para controlar a visibilidade da senha
-  const [isRefreshing, setIsRefreshing] = useState(false); // Novo estado para o loader de refresh
+  const [senhaVisivel, setSenhaVisivel] = useState({}); 
+  const [isRefreshing, setIsRefreshing] = useState(false); 
 
   // Função para buscar usuários do Google Sheets
   const fetchUsuariosFromSheet = async () => {
@@ -121,8 +121,6 @@ const GerenciarUsuarios = () => {
   };
 
   const handleToggleTipo = (id, tipoAtual) => {
-    // A lógica de toggle para o tipo 'Admin' vs 'Usuário Comum' é mantida
-    // O valor enviado para o Apps Script será 'Admin' ou 'Usuario' (sem " Comum")
     const novoTipo = tipoAtual === 'Admin' ? 'Usuario' : 'Admin'; 
     atualizarStatusUsuario(id, null, novoTipo);
   };
@@ -169,52 +167,52 @@ const GerenciarUsuarios = () => {
         <table className="min-w-full bg-white rounded-lg shadow-md">
           <thead className="bg-indigo-100">
             <tr>
-              <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">ID</th>
-              <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Nome</th>
-              <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Usuário</th>
-              <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">E-mail</th>
-              <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Senha</th>
-              <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Status</th>
-              <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Tipo</th>
-              <th className="py-3 px-6 text-left text-sm font-semibold text-gray-700">Ações</th>
+              <th className="py-3 px-6 text-left">ID</th>
+              <th className="py-3 px-6 text-left">Nome</th>
+              <th className="py-3 px-6 text-left">Usuário</th>
+              <th className="py-3 px-6 text-left">E-mail</th>
+              <th className="py-3 px-6 text-left">Senha</th>
+              <th className="py-3 px-6 text-left">Status</th>
+              <th className="py-3 px-6 text-left">Tipo</th>
+              <th className="py-3 px-6 text-left">Ações</th>
             </tr>
           </thead>
           <tbody>
             {usuarios.length > 0 ? (
               usuarios.map((usuario) => (
-                <tr key={usuario.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-150">
-                  <td className="py-3 px-6 text-sm text-gray-800">{usuario.id}</td>
-                  <td className="py-3 px-6 text-sm text-gray-800">{usuario.nome}</td>
-                  <td className="py-3 px-6 text-sm text-gray-800">{usuario.usuario}</td>
-                  <td className="py-3 px-6 text-sm text-gray-800">{usuario.email}</td>
-                  <td className="py-3 px-6 text-sm">
+                <tr key={usuario.id} className="border-b hover:bg-gray-50 transition"> {/* Exatamente como seu código */}
+                  <td className="py-3 px-6">{usuario.id}</td>
+                  <td className="py-3 px-6">{usuario.nome}</td>
+                  <td className="py-3 px-6">{usuario.usuario}</td>
+                  <td className="py-3 px-6">{usuario.email}</td>
+                  <td className="py-3 px-6">
                     <div className="flex items-center gap-2">
                       <input
                         type={senhaVisivel[usuario.id] ? 'text' : 'password'}
                         value={usuario.senha}
                         readOnly
-                        className="border rounded px-2 py-1 w-32 text-sm" {/* Classes do seu código */}
+                        className="border rounded px-2 py-1 w-32 text-sm" {/* Exatamente como seu código */}
                       />
                       <button
                         onClick={() => toggleVisibilidadeSenha(usuario.id)}
-                        className="text-gray-500 hover:text-gray-700" {/* Classes do seu código */}
+                        className="text-gray-500 hover:text-gray-700" {/* Exatamente como seu código */}
                       >
                         {senhaVisivel[usuario.id] ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
                   </td>
-                  <td className="py-3 px-6 text-sm">
+                  <td className="py-3 px-6">
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold tracking-wide ${
+                      className={`px-3 py-1 rounded-full text-sm font-semibold ${
                         usuario.status === 'Ativo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                       }`}
                     >
                       {usuario.status}
                     </span>
                   </td>
-                  <td className="py-3 px-6 text-sm">
+                  <td className="py-3 px-6">
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold tracking-wide ${
+                      className={`px-3 py-1 rounded-full text-sm font-semibold ${
                         usuario.tipo === 'Admin' ? 'bg-blue-100 text-blue-700' : ''
                       }`}
                     >
@@ -228,16 +226,16 @@ const GerenciarUsuarios = () => {
                         usuario.status === 'Ativo'
                           ? 'bg-red-500 text-white hover:bg-red-600'
                           : 'bg-green-500 text-white hover:bg-green-600'
-                      } transition`} {/* Classe 'transition' do seu código */}
+                      } transition`} {/* Exatamente como seu código, com 'transition' */}
                     >
                       {usuario.status === 'Ativo' ? 'Desativar' : 'Ativar'}
                     </button>
-                    <label className="flex items-center gap-1 text-sm"> {/* Classes do seu código */}
+                    <label className="flex items-center gap-1 text-sm"> {/* Exatamente como seu código */}
                       <input
                         type="checkbox"
                         checked={usuario.tipo === 'Admin'}
                         onChange={() => handleToggleTipo(usuario.id, usuario.tipo)}
-                        className="form-checkbox h-4 w-4 text-blue-600" {/* Classes do seu código */}
+                        className="form-checkbox h-4 w-4 text-blue-600" {/* Exatamente como seu código */}
                       />
                       Admin
                     </label>
