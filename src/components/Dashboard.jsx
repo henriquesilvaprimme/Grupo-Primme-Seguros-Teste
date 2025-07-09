@@ -1,89 +1,83 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // Reintroduzindo useState e useEffect
+import axios from 'axios'; // Reintroduzindo axios
 
+// URL para buscar leads fechados diretamente do Dashboard
+const GOOGLE_SHEETS_LEADS_FECHADOS_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados';
+
+// O Dashboard AGORA só precisa da prop 'leads' (gerais) e 'usuarioLogado'
 const Dashboard = ({ leads, usuarioLogado }) => {
-  const [leadsClosed, setLeadsClosed] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Estado para armazenar os leads da aba "Leads Fechados" com Seguradora atribuída
+  const [leadsFechadosDoDashboard, setLeadsFechadosDoDashboard] = useState([]);
+  const [loadingFechados, setLoadingFechados] = useState(true);
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
 
-  // Inicializar dataInicio e dataFim com valores padrão ao carregar o componente
-  const getPrimeiroDiaMes = () => {
-    const hoje = new Date();
-    return new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
-  };
-
-  const getDataHoje = () => {
-    return new Date().toISOString().slice(0, 10);
-  };
-
-  const [dataInicio, setDataInicio] = useState(getPrimeiroDiaMes());
-  const [dataFim, setDataFim] = useState(getDataHoje());
-  const [filtroAplicado, setFiltroAplicado] = useState({ inicio: getPrimeiroDiaMes(), fim: getDataHoje() });
-
-  // Busca leads fechados
-  const buscarLeads = async () => {
+  // Função para buscar os leads da aba 'Leads Fechados' diretamente aqui no Dashboard
+  const buscarLeadsFechadosDoSheets = async () => {
+    setLoadingFechados(true); // Inicia o estado de carregamento
     try {
-      const respostaLeads = await fetch(
-        'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=pegar_clientes_fechados'
+      const response = await axios.get(GOOGLE_SHEETS_LEADS_FECHADOS_URL);
+
+      console.log("Dados brutos de 'pegar_clientes_fechados' (vindo do GAS para o Dashboard):", response.data);
+
+      // Aplica o filtro de segurança (Status 'Fechado' e Seguradora preenchida)
+      // Se o usuário não for Admin, filtra também pelo responsável
+      const filteredLeads = response.data.filter(
+        (lead) => {
+          const isFechado = lead.Status === 'Fechado';
+          const hasSeguradora = lead.Seguradora && String(lead.Seguradora).trim() !== '';
+          const isResponsavel = usuarioLogado?.tipo === 'Admin' || lead.Responsavel === usuarioLogado?.nome;
+
+          return isFechado && hasSeguradora && isResponsavel;
+        }
       );
-      const dadosLeads = await respostaLeads.json();
-      setLeadsClosed(dadosLeads);
+
+      console.log("Leads 'Fechados' (da aba 'Leads Fechados') e com Seguradora (filtrados no Dashboard):", filteredLeads);
+
+      setLeadsFechadosDoDashboard(filteredLeads);
     } catch (error) {
-      console.error('Erro ao buscar leads:', error);
+      console.error('Erro ao buscar leads fechados específicos no Dashboard:', error);
+      setLeadsFechadosDoDashboard([]); // Limpa os leads em caso de erro
     } finally {
-      setLoading(false);
+      setLoadingFechados(false); // Finaliza o estado de carregamento
     }
   };
 
   useEffect(() => {
-    buscarLeads();
-  }, []);
+    // Executa a busca ao montar o componente e sempre que o usuário logado mudar
+    // Isso garante que o filtro por responsável seja aplicado corretamente
+    buscarLeadsFechadosDoSheets();
 
-  const aplicarFiltroData = () => {
-    setFiltroAplicado({ inicio: dataInicio, fim: dataFim });
-  };
+    // Opcional: Adicionar um intervalo para atualização periódica, se necessário
+    const interval = setInterval(buscarLeadsFechadosDoSheets, 60000); // A cada 1 minuto
+    return () => clearInterval(interval); // Limpa o intervalo ao desmontar
+  }, [usuarioLogado]); // Dependência para re-executar se o usuário logado mudar
 
-  // Filtro por data
-  let leadsFiltrados = leads.filter((lead) => {
-    if (!filtroAplicado.inicio && !filtroAplicado.fim) return true;
-    const dataLeadStr = new Date(lead.createdAt).toISOString().slice(0, 10);
-    if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
-    if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
-    return true;
-  });
+  // --- CONTADORES ---
+  // Estes contadores continuam usando a prop 'leads' (da aba geral 'Leads')
+  const totalLeads = leads.length;
+  const leadsPerdidos = leads.filter((lead) => lead.status === 'Perdido').length;
+  const leadsEmContato = leads.filter((lead) => lead.status === 'Em Contato').length;
+  const leadsSemContato = leads.filter((lead) => lead.status === 'Sem Contato').length;
 
-  const totalLeads = leadsFiltrados.length;
-  const leadsFechadosCount = leadsFiltrados.filter((lead) => lead.status === 'Fechado').length;
-  const leadsPerdidos = leadsFiltrados.filter((lead) => lead.status === 'Perdido').length;
-  const leadsEmContato = leadsFiltrados.filter((lead) => lead.status === 'Em Contato').length;
-  const leadsSemContato = leadsFiltrados.filter((lead) => lead.status === 'Sem Contato').length;
+  // ESTE É O CONTADOR DE 'LEADS FECHADOS':
+  // Ele AGORA usa o estado 'leadsFechadosDoDashboard' que é buscado diretamente aqui.
+  const leadsFechados = leadsFechadosDoDashboard.length;
 
-  // Filtra leads fechados por responsável
-  let leadsFiltradosClosed =
-    usuarioLogado.tipo === 'Admin'
-      ? leadsClosed
-      : leadsClosed.filter((lead) => lead.Responsavel === usuarioLogado.nome);
+  // Contadores por seguradora baseados em 'leadsFechadosDoDashboard' (CORRETO)
+  const portoSeguro = leadsFechadosDoDashboard.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
+  const azulSeguros = leadsFechadosDoDashboard.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
+  const itauSeguros = leadsFechadosDoDashboard.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
+  const demais = leadsFechadosDoDashboard.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
 
-  // Filtro de data nos leads fechados
-  leadsFiltradosClosed = leadsFiltradosClosed.filter((lead) => {
-    if (!filtroAplicado.inicio && !filtroAplicado.fim) return true;
-    const dataLeadStr = new Date(lead.Data).toISOString().slice(0, 10);
-    if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
-    if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
-    return true;
-  });
-
-  // Contadores por seguradora
-  const portoSeguro = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
-  const azulSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
-  const itauSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
-  const demais = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
-
-  // Soma de prêmio líquido e média ponderada de comissão
-  const totalPremioLiquido = leadsFiltradosClosed.reduce(
-    (acc, lead) => acc + (Number(lead.PremioLiquido) || 0),
+  // Calcular total de prêmio líquido global (também baseado em 'leadsFechadosDoDashboard')
+  const totalPremioLiquido = leadsFechadosDoDashboard.reduce(
+    (acc, curr) => acc + (Number(curr.PremioLiquido) || 0),
     0
   );
 
-  const somaPonderadaComissao = leadsFiltradosClosed.reduce((acc, lead) => {
+  // Calcular média ponderada de comissão global (também baseado em 'leadsFechadosDoDashboard')
+  const somaPonderadaComissao = leadsFechadosDoDashboard.reduce((acc, lead) => {
     const premio = Number(lead.PremioLiquido) || 0;
     const comissao = Number(lead.Comissao) || 0;
     return acc + premio * (comissao / 100);
@@ -92,6 +86,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const comissaoMediaGlobal =
     totalPremioLiquido > 0 ? (somaPonderadaComissao / totalPremioLiquido) * 100 : 0;
 
+  // Estilo comum para as caixas
   const boxStyle = {
     padding: '10px',
     borderRadius: '5px',
@@ -100,57 +95,31 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     textAlign: 'center',
   };
 
+  if (loadingFechados) {
+    return <div style={{ padding: '20px', textAlign: 'center' }}>Carregando dados de leads fechados...</div>;
+  }
+
   return (
     <div style={{ padding: '20px' }}>
       <h1>Dashboard</h1>
 
-      {/* Filtro de datas com botão */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          marginBottom: '20px',
-          flexWrap: 'wrap',
-        }}
-      >
-        <input
-          type="date"
-          value={dataInicio}
-          onChange={(e) => setDataInicio(e.target.value)}
-          style={{
-            padding: '6px 10px',
-            borderRadius: '6px',
-            border: '1px solid #ccc',
-            cursor: 'pointer',
-          }}
-          title="Data de Início"
-        />
-        <input
-          type="date"
-          value={dataFim}
-          onChange={(e) => setDataFim(e.target.value)}
-          style={{
-            padding: '6px 10px',
-            borderRadius: '6px',
-            border: '1px solid #ccc',
-            cursor: 'pointer',
-          }}
-          title="Data de Fim"
-        />
-        <button
-          onClick={aplicarFiltroData}
-          style={{
-            backgroundColor: '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            padding: '6px 14px',
-            cursor: 'pointer',
-          }}
-        >
-          Filtrar
-        </button>
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '20px' }}>
+        <div>
+          <label>Data Início: </label>
+          <input
+            type="date"
+            value={dataInicio}
+            onChange={(e) => setDataInicio(e.target.value)}
+          />
+        </div>
+        <div>
+          <label>Data Fim: </label>
+          <input
+            type="date"
+            value={dataFim}
+            onChange={(e) => setDataFim(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* Primeira linha de contadores */}
@@ -161,7 +130,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
         </div>
         <div style={{ ...boxStyle, backgroundColor: '#4CAF50' }}>
           <h3>Leads Fechados</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsFechadosCount}</p>
+          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsFechados}</p>
         </div>
         <div style={{ ...boxStyle, backgroundColor: '#F44336' }}>
           <h3>Leads Perdidos</h3>
@@ -177,7 +146,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
         </div>
       </div>
 
-      {/* Segunda linha de contadores */}
+      {/* Segunda linha de contadores (por seguradora) */}
       <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
         <div style={{ ...boxStyle, backgroundColor: '#003366' }}>
           <h3>Porto Seguro</h3>
@@ -197,26 +166,24 @@ const Dashboard = ({ leads, usuarioLogado }) => {
         </div>
       </div>
 
-      {/* Somente para Admin: linha de Prêmio Líquido e Comissão */}
-      {usuarioLogado.tipo === 'Admin' && (
-        <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
-          <div style={{ ...boxStyle, backgroundColor: '#3f51b5' }}>
-            <h3>Total Prêmio Líquido</h3>
-            <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
-              {totalPremioLiquido.toLocaleString('pt-BR', {
-                style: 'currency',
-                currency: 'BRL',
-              })}
-            </p>
-          </div>
-          <div style={{ ...boxStyle, backgroundColor: '#009688' }}>
-            <h3>Média Comissão</h3>
-            <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
-              {comissaoMediaGlobal.toFixed(2).replace('.', ',')}%
-            </p>
-          </div>
+      {/* Linha extra para Prêmio Líquido e Comissão */}
+      <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
+        <div style={{ ...boxStyle, backgroundColor: '#3f51b5' }}>
+          <h3>Total Prêmio Líquido</h3>
+          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
+            {totalPremioLiquido.toLocaleString('pt-BR', {
+              style: 'currency',
+              currency: 'BRL',
+            })}
+          </p>
         </div>
-      )}
+        <div style={{ ...boxStyle, backgroundColor: '#009688' }}>
+          <h3>Média Comissão</h3>
+          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
+            {comissaoMediaGlobal.toFixed(2).replace('.', ',')}%
+          </p>
+        </div>
+      </div>
     </div>
   );
 };
