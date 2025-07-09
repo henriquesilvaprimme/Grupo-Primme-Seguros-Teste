@@ -13,8 +13,11 @@ const Dashboard = ({ leads }) => {
         'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
       );
       // Filtra os leads para incluir apenas os com status 'Fechado' e seguradora atribuída
+      // Nota: Se o endpoint 'pegar_clientes_fechados' já retorna apenas leads com status 'Fechado'
+      // e Seguradora atribuída, este filtro pode ser simplificado para 'response.data'.
+      // Mantenho o filtro explícito para clareza da intenção.
       const filteredLeads = response.data.filter(
-        (lead) => lead.status === 'Fechado' && lead.Seguradora
+        (lead) => lead.status === 'Fechado' && lead.Seguradora && lead.Seguradora.trim() !== ''
       );
       setLeadsClosed(filteredLeads);
     } catch (error) {
@@ -30,12 +33,14 @@ const Dashboard = ({ leads }) => {
 
   // Contadores existentes
   const totalLeads = leads.length;
+  // ATUALIZAÇÃO AQUI: leadsFechados agora conta os itens de 'leadsClosed',
+  // que já foram filtrados para serem da aba 'Leads Fechados' e terem seguradora atribuída.
   const leadsFechados = leadsClosed.length;
   const leadsPerdidos = leads.filter((lead) => lead.status === 'Perdido').length;
   const leadsEmContato = leads.filter((lead) => lead.status === 'Em Contato').length;
   const leadsSemContato = leads.filter((lead) => lead.status === 'Sem Contato').length;
 
-  // Contadores por seguradora baseados em leadsClosed (já filtrados na busca)
+  // Contadores por seguradora baseados em leadsClosed
   const portoSeguro = leadsClosed.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
   const azulSeguros = leadsClosed.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
   const itauSeguros = leadsClosed.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
