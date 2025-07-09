@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-// Removendo o 'useNavigate' pois não haverá mais navegação após a criação
-// import { useNavigate } from 'react-router-dom'; 
 
-const CriarLead = ({ adicionarLead }) => {
+const CriarLead = ({ adicionarLead }) => { // <--- adiciona 'adicionarLead' como prop
   // Estados para os campos do formulário
   const [nome, setNome] = useState('');
   const [modeloVeiculo, setModeloVeiculo] = useState('');
@@ -14,10 +12,8 @@ const CriarLead = ({ adicionarLead }) => {
   const [usuariosAtivos, setUsuariosAtivos] = useState([]); // Armazena a lista de objetos de usuários ativos
   const [mensagemSucesso, setMensagemSucesso] = useState('');
 
-  // Removendo a linha do useNavigate
-  // const navigate = useNavigate(); 
-
   // URL do seu Google Apps Script (GAS)
+  // Use a URL correta do seu deploy principal, assim como no App.jsx
   const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec'; // Sua URL base do GAS
 
   // Função para buscar os usuários ativos do Google Sheets
@@ -71,7 +67,7 @@ const CriarLead = ({ adicionarLead }) => {
       telefone,
       tipoSeguro,
       responsavel,
-      status: 'Fechado',
+      status: 'Aberto', // Mudei para 'Aberto' pois Fechado seria um status final
       dataCriacao: new Date().toISOString(),
     };
 
@@ -80,9 +76,9 @@ const CriarLead = ({ adicionarLead }) => {
 
   const criarLeadFunc = async (lead) => {
     try {
-      await fetch(`${GAS_WEB_APP_URL}?v=criar_lead`, {
+      const response = await fetch(`${GAS_WEB_APP_URL}?v=criar_lead`, {
         method: 'POST',
-        mode: 'no-cors',
+        mode: 'no-cors', // Mantenha 'no-cors' se estiver em desenvolvimento e testando sem um proxy
         body: JSON.stringify(lead),
         headers: {
           'Content-Type': 'application/json',
@@ -91,6 +87,10 @@ const CriarLead = ({ adicionarLead }) => {
 
       console.log('Lead enviado. Verifique seu Google Sheet.');
       setMensagemSucesso('✅ Lead criado com sucesso!');
+
+      // *** AQUI ESTÁ A CORREÇÃO PRINCIPAL! ***
+      // Chama a função passada via prop para atualizar o estado no App.jsx
+      adicionarLead(lead); 
 
       // Após o sucesso, resetar o formulário
       resetForm();
@@ -191,7 +191,7 @@ const CriarLead = ({ adicionarLead }) => {
       </div>
 
       <div className="text-gray-700">
-        Status: <span className="font-semibold">Fechado</span>
+        Status: <span className="font-semibold">Aberto</span> {/* Alterado para "Aberto" */}
       </div>
 
       <div className="flex justify-center">
