@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 // Ela deve ser a mesma URL base usada para as requisições POST/GET.
 const GOOGLE_SHEETS_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec'; // <-- ATUALIZE ESTA LINHA COM A URL REAL DA SUA IMPLANTAÇÃO
 
-const GerenciarUsuarios = ({ leads, fetchLeadsFromSheet, fetchLeadsFechadosFromSheet }) => {
+const GerenciarUsuarios = () => { // Removidas as props não utilizadas aqui
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,7 +30,9 @@ const GerenciarUsuarios = ({ leads, fetchLeadsFromSheet, fetchLeadsFechadosFromS
           usuario: item.usuario || '',
           nome: item.nome || '',
           email: item.email || '',
-          senha: item.senha || '', // Cuidado ao exibir senhas. Idealmente, não traga a senha para o frontend.
+          // Cuidado ao exibir senhas. Idealmente, não traga a senha para o frontend.
+          // Deixei aqui porque estava no seu código anterior, mas é uma prática a ser revisada.
+          senha: item.senha || '', 
           status: item.status || 'Ativo',
           tipo: item.tipo || 'Usuario',
         }));
@@ -114,69 +116,71 @@ const GerenciarUsuarios = ({ leads, fetchLeadsFromSheet, fetchLeadsFechadosFromS
   };
 
   if (loading) {
-    return <div className="p-4 text-center">Carregando usuários...</div>;
+    return <div className="p-4 text-center text-gray-500">Carregando usuários...</div>;
   }
 
   if (error) {
-    return <div className="p-4 text-center text-red-600">{error}</div>;
+    return <div className="p-4 text-center text-red-600 font-medium">{error}</div>;
   }
 
   return (
-    <div className="p-4">
-      <h2 className="text-2xl font-bold mb-4">Gerenciar Usuários</h2>
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <h2 className="text-3xl font-extrabold text-gray-900 mb-6 border-b-2 pb-2">Gerenciar Usuários</h2>
       
       {usuarios.length > 0 ? (
-        <div className="overflow-x-auto rounded-lg shadow-md">
-          <table className="min-w-full bg-white">
+        <div className="bg-white shadow-xl rounded-lg overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-100">
               <tr>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">ID</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Nome</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Usuário</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Email</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Status</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Tipo</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Ações</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuário</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="bg-white divide-y divide-gray-200">
               {usuarios.map((usuario) => (
-                <tr key={usuario.id} className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="py-3 px-4 text-sm text-gray-800">{usuario.id}</td>
-                  <td className="py-3 px-4 text-sm text-gray-800">{usuario.nome}</td>
-                  <td className="py-3 px-4 text-sm text-gray-800">{usuario.usuario}</td>
-                  <td className="py-3 px-4 text-sm text-gray-800">{usuario.email}</td>
-                  <td className="py-3 px-4 text-sm text-gray-800">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                <tr key={usuario.id} className="hover:bg-gray-50 transition-colors duration-150">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{usuario.id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{usuario.nome}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{usuario.usuario}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{usuario.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       usuario.status === 'Ativo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                     }`}>
                       {usuario.status}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-sm text-gray-800">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       usuario.tipo === 'Admin' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
                     }`}>
                       {usuario.tipo}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-sm">
-                    <button
-                      onClick={() => atualizarStatusUsuario(usuario.id, usuario.status === 'Ativo' ? 'Inativo' : 'Ativo', null)}
-                      className={`px-4 py-2 rounded-md text-white transition-colors duration-200 ${
-                        usuario.status === 'Ativo' ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
-                      } mr-2`}
-                    >
-                      {usuario.status === 'Ativo' ? 'Desativar' : 'Ativar'}
-                    </button>
-                    <select
-                      value={usuario.tipo}
-                      onChange={(e) => atualizarStatusUsuario(usuario.id, null, e.target.value)}
-                      className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
-                    >
-                      <option value="Usuario">Usuário</option>
-                      <option value="Admin">Admin</option>
-                    </select>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => atualizarStatusUsuario(usuario.id, usuario.status === 'Ativo' ? 'Inativo' : 'Ativo', null)}
+                        className={`px-4 py-2 rounded-md text-white font-semibold shadow-sm transition-all duration-200 ease-in-out
+                          ${usuario.status === 'Ativo' ? 'bg-red-500 hover:bg-red-600 focus:ring-red-500' : 'bg-green-500 hover:bg-green-600 focus:ring-green-500'}
+                          focus:outline-none focus:ring-2 focus:ring-offset-2`}
+                      >
+                        {usuario.status === 'Ativo' ? 'Desativar' : 'Ativar'}
+                      </button>
+                      <select
+                        value={usuario.tipo}
+                        onChange={(e) => atualizarStatusUsuario(usuario.id, null, e.target.value)}
+                        className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm"
+                      >
+                        <option value="Usuario">Usuário</option>
+                        <option value="Admin">Admin</option>
+                      </select>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -184,7 +188,7 @@ const GerenciarUsuarios = ({ leads, fetchLeadsFromSheet, fetchLeadsFechadosFromS
           </table>
         </div>
       ) : (
-        <p className="text-center text-gray-600">Nenhum usuário encontrado.</p>
+        <p className="text-center text-gray-600 text-lg mt-8">Nenhum usuário encontrado.</p>
       )}
     </div>
   );
