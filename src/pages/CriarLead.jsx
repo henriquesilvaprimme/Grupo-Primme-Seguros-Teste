@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+// Removendo o 'useNavigate' pois não haverá mais navegação após a criação
+// import { useNavigate } from 'react-router-dom'; 
 
 const CriarLead = ({ adicionarLead }) => {
   // Estados para os campos do formulário
@@ -13,18 +14,17 @@ const CriarLead = ({ adicionarLead }) => {
   const [usuariosAtivos, setUsuariosAtivos] = useState([]); // Armazena a lista de objetos de usuários ativos
   const [mensagemSucesso, setMensagemSucesso] = useState('');
 
-  const navigate = useNavigate();
+  // Removendo a linha do useNavigate
+  // const navigate = useNavigate(); 
 
   // URL do seu Google Apps Script (GAS)
-  // Certifique-se de que esta URL é a da sua implantação do GAS.
-  // A parte '?v=getUsuariosAtivos' é a que chama a função específica no seu GAS.
   const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec'; // Sua URL base do GAS
 
   // Função para buscar os usuários ativos do Google Sheets
   useEffect(() => {
     const fetchUsuariosAtivos = async () => {
       try {
-        const response = await fetch(`${GAS_WEB_APP_URL}?v=getUsuariosAtivos`); // Chamando a nova função getUsuariosAtivos
+        const response = await fetch(`${GAS_WEB_APP_URL}?v=getUsuariosAtivos`);
 
         if (!response.ok) {
           const errorText = await response.text();
@@ -32,7 +32,6 @@ const CriarLead = ({ adicionarLead }) => {
         }
 
         const data = await response.json();
-        // Garante que 'data' é um array antes de setar o estado
         setUsuariosAtivos(Array.isArray(data) ? data : []);
 
       } catch (error) {
@@ -45,6 +44,17 @@ const CriarLead = ({ adicionarLead }) => {
     fetchUsuariosAtivos();
   }, []);
 
+  // Função para resetar os campos do formulário
+  const resetForm = () => {
+    setNome('');
+    setModeloVeiculo('');
+    setAnoModelo('');
+    setCidade('');
+    setTelefone('');
+    setTipoSeguro('');
+    setResponsavel('');
+  };
+
   const handleCriar = () => {
     setMensagemSucesso('');
 
@@ -54,17 +64,15 @@ const CriarLead = ({ adicionarLead }) => {
     }
 
     const novoLead = {
-      // O ID aqui é um placeholder. O GAS deve gerar o ID final.
-      // Você está enviando o nome do responsável, que é o que o seu GAS espera para a coluna.
       nome,
       modeloVeiculo,
       anoModelo,
       cidade,
       telefone,
       tipoSeguro,
-      responsavel, // Envia o nome do responsável selecionado
-      status: 'Fechado', // <--- ALTERADO AQUI DE VOLTA PARA "Fechado"
-      dataCriacao: new Date().toISOString(), // Formato ISO para facilitar o tratamento no GAS
+      responsavel,
+      status: 'Fechado',
+      dataCriacao: new Date().toISOString(),
     };
 
     criarLeadFunc(novoLead);
@@ -72,25 +80,25 @@ const CriarLead = ({ adicionarLead }) => {
 
   const criarLeadFunc = async (lead) => {
     try {
-      // Ajuste para usar a URL de POST para criar leads.
-      // Certifique-se de que seu GAS tenha uma lógica para 'criar_lead' no doPost.
-      const response = await fetch(`${GAS_WEB_APP_URL}?v=criar_lead`, { // Usando '?v=criar_lead' para a operação de POST
+      await fetch(`${GAS_WEB_APP_URL}?v=criar_lead`, {
         method: 'POST',
-        mode: 'no-cors', // Pode ser necessário para evitar CORS, dependendo da configuração do GAS
+        mode: 'no-cors',
         body: JSON.stringify(lead),
         headers: {
           'Content-Type': 'application/json',
         },
       });
 
-      // No modo 'no-cors', 'response.ok' sempre será true e não poderemos ler 'response.json()'.
-      // A confirmação de sucesso virá do Google Sheet se a appendRow funcionar.
       console.log('Lead enviado. Verifique seu Google Sheet.');
       setMensagemSucesso('✅ Lead criado com sucesso!');
 
+      // Após o sucesso, resetar o formulário
+      resetForm();
+
+      // Opcional: Limpar a mensagem de sucesso após alguns segundos
       setTimeout(() => {
-        navigate('/leads');
-      }, 1500);
+        setMensagemSucesso('');
+      }, 3000); // A mensagem sumirá após 3 segundos
 
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
@@ -175,7 +183,7 @@ const CriarLead = ({ adicionarLead }) => {
         >
           <option value="">Selecione um responsável</option>
           {usuariosAtivos.map((user) => (
-            <option key={user.id} value={user.nome}> {/* Usa user.nome para o valor e texto */}
+            <option key={user.id} value={user.nome}>
               {user.nome}
             </option>
           ))}
@@ -183,7 +191,7 @@ const CriarLead = ({ adicionarLead }) => {
       </div>
 
       <div className="text-gray-700">
-        Status: <span className="font-semibold">Fechado</span> {/* <--- ALTERADO AQUI DE VOLTA PARA "Fechado" */}
+        Status: <span className="font-semibold">Fechado</span>
       </div>
 
       <div className="flex justify-center">
