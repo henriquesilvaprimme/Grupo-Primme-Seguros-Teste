@@ -10,7 +10,7 @@ import BuscarLead from './BuscarLead';
 import CriarUsuario from './pages/CriarUsuario';
 import Usuarios from './pages/Usuarios';
 import Ranking from './pages/Ranking';
-import CriarLead from './pages/CriarLead';
+import CriarLead from './pages/CriarLead'; // Importe o componente CriarLead
 
 //const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwgeZteouyVWzrCvgHHQttx-5Bekgs_k-5EguO9Sn2p-XFrivFg9S7_gGKLdoDfCa08/exec';
 
@@ -43,7 +43,7 @@ const App = () => {
         const response = await fetch(GOOGLE_SHEETS_SCRIPT_URL );
         const data = await response.json();
 
-         console.log(data)
+          console.log(data)
 
         if (Array.isArray(data)) {
 
@@ -107,17 +107,46 @@ const App = () => {
     return () => clearInterval(interval);
   }, [leadSelecionado]);
   // FIM - sincronização leads
-   
+    
 
   const fetchLeadsFechadosFromSheet = async () => {
     try {
-
-
       const response = await fetch(GOOGLE_SHEETS_LEADS_FECHADOS)
       const data = await response.json();
+      console.log("Dados brutos recebidos do GAS (Leads Fechados):", data);
 
-      setLeadsFechados(data); // atribui direto
-
+      // Mapeia os dados recebidos para o formato esperado pelo componente LeadsFechados
+      const formattedLeadsFechados = data.map((item, index) => ({
+        ID: item.ID ? String(item.ID) : String(index + 1), // Garante que ID é string
+        name: item.Name || '',
+        vehicleModel: item['Modelo Veiculo'] || '', // Acessa com colchetes devido ao espaço
+        vehicleYearModel: item['Ano Modelo'] || '', // Acessa com colchetes devido ao espaço
+        city: item.Cidade || '',
+        phone: item.Telefone || '',
+        insuranceType: item['Tipo Seguro'] || '', // Acessa com colchetes devido ao espaço
+        Status: item.Status || 'Fechado', // Para leads fechados, o status já deve ser 'Fechado'
+        Seguradora: item.Seguradora || '', // Coluna K
+        PremioLiquido: item.PremioLiquido || 0, // Coluna L
+        Comissao: item.Comissao || '', // Coluna M
+        Parcelamento: item.Parcelamento || '', // Coluna N
+        // Adicionando VigenciaFinal e Editado
+        VigenciaFinal: item.VigenciaFinal || '', // Coluna O
+        Editado: item.Editado || '', // Coluna P
+        Data: item['Data Criação'] || new Date().toISOString(), // Acessa com colchetes
+        Responsavel: item.Responsavel || '',
+        // Outros campos que podem vir do joinUsersClosed (do usuário)
+        id: item.id || '', // Se o ID do usuário vier aqui
+        usuario: item.usuario || '',
+        nome: item.nome || '',
+        email: item.email || '',
+        senha: item.senha || '',
+        status: item.status || 'Ativo',
+        tipo: item.tipo || 'Usuario',
+        "Ativo/Inativo": item["Ativo/Inativo"] || "Ativo",
+        confirmado: item.confirmado === 'true' || item.confirmado === true, // Se essa flag existir
+      }));
+      console.log("Leads Fechados formatados para o estado do React:", formattedLeadsFechados);
+      setLeadsFechados(formattedLeadsFechados); // atribui os dados mapeados
     } catch (error) {
       console.error('Erro ao buscar leads fechados:', error);
       setLeadsFechados([]);
@@ -219,6 +248,34 @@ const App = () => {
   };
 
 
+  // Nova função para adicionar um novo lead (sincronizada com o GAS)
+  const adicionarNovoLead = async (novoLead) => {
+    console.log("Tentando adicionar novo lead:", novoLead);
+    try {
+      const response = await fetch(GOOGLE_SHEETS_USERS + '?v=criar_lead', { // Usando a URL base para POST
+        method: 'POST',
+        mode: 'no-cors', // Necessário para evitar erros CORS em algumas configurações
+        body: JSON.stringify(novoLead),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      // Como mode é 'no-cors', a resposta será opaca.
+      // Você pode verificar o status da rede no console do navegador.
+      console.log('Resposta do Apps Script (no-cors):', response);
+
+      // Após o sucesso (ou presunção de sucesso com no-cors), atualize as listas
+      fetchLeadsFromSheet(); // Atualiza leads gerais
+      fetchLeadsFechadosFromSheet(); // Atualiza leads fechados
+      alert('Lead criado e adicionado aos Leads Fechados com sucesso!');
+      navigate('/leads-fechados'); // Redireciona para a tela de leads fechados
+    } catch (error) {
+      console.error('Erro ao adicionar novo lead:', error);
+      alert('Erro ao adicionar novo lead: ' + error.message);
+    }
+  };
+
 
   const atualizarStatusLeadAntigo = (id, novoStatus, phone) => {
     if (novoStatus == 'Fechado') {
@@ -282,6 +339,8 @@ const App = () => {
             PremioLiquido: leadParaAdicionar.premioLiquido || "",
             Comissao: leadParaAdicionar.comissao || "",
             Parcelamento: leadParaAdicionar.parcelamento || "",
+            VigenciaFinal: leadParaAdicionar.vigenciaFinal || "", // Adicionado VigenciaFinal
+            Editado: leadParaAdicionar.editado || "", // Adicionado Editado
             id: leadParaAdicionar.id || null,
             usuario: leadParaAdicionar.usuario || "",
             nome: leadParaAdicionar.nome || "",
@@ -323,7 +382,7 @@ const App = () => {
     parcelamento: "",
   })
 
-  const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento) => {
+  const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal) => {
 
     const lead = leadsFechados.find((lead) => lead.ID == id);
 
@@ -332,6 +391,7 @@ const App = () => {
     lead.PremioLiquido = premio
     lead.Comissao = comissao
     lead.Parcelamento = parcelamento
+    lead.VigenciaFinal = vigenciaFinal // Adicionado VigenciaFinal
 
     setLeadsFechados((prev) => {
       const atualizados = prev.map((lead) =>
@@ -345,7 +405,7 @@ const App = () => {
 
 
     // Faz a chamada para o Apps Script via fetch POST
-   fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_seguradora', {
+    fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_seguradora', {
         method: 'POST',
         mode: 'no-cors',
         body:JSON.stringify({
