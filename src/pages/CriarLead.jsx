@@ -21,6 +21,8 @@ const CriarLead = ({ adicionarLead }) => {
     const fetchUsuariosAtivos = async () => {
       try {
         // ATENÇÃO: SUBSTITUA ESTE URL PELA URL DO SEU GOOGLE APPS SCRIPT REAL.
+        // É a URL do aplicativo da web (Web App URL) após a implantação do seu script GAS.
+        // Exemplo: 'https://script.google.com/macros/s/SEU_ID_DO_SCRIPT/exec?v=listar_usuarios_ativos'
         const YOUR_GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?v=listar_usuarios_ativos'; 
 
         const response = await fetch(YOUR_GAS_WEB_APP_URL);
@@ -43,6 +45,26 @@ const CriarLead = ({ adicionarLead }) => {
     fetchUsuariosAtivos();
   }, []);
 
+  // --- NOVA FUNÇÃO PARA MÁSCARA DE DATA ---
+  const formatDateInput = (value) => {
+    // Remove tudo que não for dígito
+    let cleanedValue = value.replace(/\D/g, ''); 
+
+    // Aplica a máscara DD/MM/AAAA
+    let formattedValue = '';
+    if (cleanedValue.length > 0) {
+      formattedValue += cleanedValue.substring(0, 2);
+    }
+    if (cleanedValue.length > 2) {
+      formattedValue += '/' + cleanedValue.substring(2, 4);
+    }
+    if (cleanedValue.length > 4) {
+      formattedValue += '/' + cleanedValue.substring(4, 8);
+    }
+    return formattedValue;
+  };
+  // --- FIM NOVA FUNÇÃO PARA MÁSCARA DE DATA ---
+
   const handleCriar = () => {
     setMensagemSucesso(''); 
 
@@ -61,7 +83,7 @@ const CriarLead = ({ adicionarLead }) => {
       telefone,
       tipoSeguro,
       responsavel,
-      vigenciaFinal, // Campo Vigência Final enviado como string
+      vigenciaFinal, // Campo Vigência Final enviado como string formatada
       status: 'Fechado',
       dataCriacao: new Date().toLocaleDateString('pt-BR'),
     };
@@ -167,9 +189,9 @@ const CriarLead = ({ adicionarLead }) => {
         <input
           type="text"
           value={vigenciaFinal}
-          onChange={(e) => setVigenciaFinal(e.target.value)}
+          onChange={(e) => setVigenciaFinal(formatDateInput(e.target.value))} // APLICA A MÁSCARA AQUI
           placeholder="DD/MM/AAAA"
-          // Removendo inputMode e pattern para evitar qualquer interferência
+          maxLength="10" // Limita a 10 caracteres (DD/MM/AAAA)
           className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
       </div>
