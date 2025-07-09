@@ -179,10 +179,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   return (
-    <div style={{ padding: '20px', position: 'relative' }}>
-      {/* Loader de carregamento (overlay da página inteira com fundo branco) */}
+    // Adicione um minHeight aqui para garantir que o container do Leads tenha altura suficiente
+    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}> {/* Exemplo: 100vh - altura do cabeçalho/navbar */}
+      {/* Loader de carregamento (overlay da página interna com fundo branco) */}
       {isLoading && (
-        <div className="fixed inset-0 bg-white flex justify-center items-center z-50"> {/* Alterado para 'fixed' e z-index mais alto */}
+        <div className="absolute inset-0 bg-white flex justify-center items-center z-10"> {/* Mantido 'absolute' */}
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
           <p className="ml-4 text-lg text-gray-700">Carregando leads...</p>
         </div>
@@ -296,7 +297,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       </div>
 
       {isLoading ? ( // Mostra a mensagem de carregamento quando isLoading for true
-        <p>Carregando leads...</p>
+        // Removi o <p> "Carregando leads..." daqui para evitar duplicidade com o loader overlay
+        null
       ) : gerais.length === 0 ? (
         <p>Não há leads pendentes para os filtros aplicados.</p>
       ) : (
