@@ -578,11 +578,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                         await onConfirmInsurer(
                             lead.ID,
                             valores[`${lead.ID}`]?.PremioLiquido === null ? null : valores[`${lead.ID}`]?.PremioLiquido / 100, // Envia em reais
-                            valores[`${lead.ID}`]?.insurer,
-                            parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')),
-                            valores[`${lead.ID}`]?.Parcelamento,
-                            vigencia[`${lead.ID}`]?.inicio, // Envia YYYY-MM-DD
-                            vigencia[`${lead.ID}`]?.final // Envia YYYY-MM-DD
+                            valores[`${lead.ID}`]?.insurer, // Seguradora
+                            parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')), // Comissão
+                            valores[`${lead.ID}`]?.Parcelamento, // Parcelamento
+                            vigencia[`${lead.ID}`]?.final,   // <-- CORREÇÃO AQUI: Enviando VIGENCIA_FINAL para o parâmetro VIGENCIA_FINAL
+                            vigencia[`${lead.ID}`]?.inicio   // <-- CORREÇÃO AQUI: Enviando VIGENCIA_INICIAL para o parâmetro VIGENCIA_INICIAL
                         );
                         await fetchLeadsFechadosFromSheet(); // Recarrega os dados para refletir as mudanças do Sheets
                     }}
