@@ -155,7 +155,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
           <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{totalLeads}</p>
         </div>
         <div style={{ ...boxStyle, backgroundColor: '#4CAF50' }}>
-          <h3>Leads Fechados</h3>
+          <h3>Vendas</h3>
           <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsFechados}</p>
         </div>
         <div style={{ ...boxStyle, backgroundColor: '#F44336' }}>
