@@ -28,8 +28,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   const [vigencia, setVigencia] = useState(() => {
     const inicialVigencia = {};
     leads.filter(lead => lead.Status === 'Fechado').forEach(lead => {
-      // Formata a data para 'YYYY-MM-DD' para o input type="date"
-      const dataInicio = lead.VigenciaInicio ? new Date(lead.VigenciaInicio).toISOString().split('T')[0] : '';
+      // O backend (joinUsersClosed) já inverteu a leitura para que
+      // lead.VigenciaInicial contenha a data da Coluna P
+      // e lead.VigenciaFinal contenha a data da Coluna O.
+      // Aqui no frontend, os nomes já refletem o que o usuário vai ver/interagir.
+      const dataInicio = lead.VigenciaInicial ? new Date(lead.VigenciaInicial).toISOString().split('T')[0] : '';
       const dataFinal = lead.VigenciaFinal ? new Date(lead.VigenciaFinal).toISOString().split('T')[0] : '';
 
       inicialVigencia[lead.ID] = {
@@ -82,6 +85,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     const fechadosOrdenados = [...fechadosAtuais].sort((a, b) => {
       const getDataParaComparacao = (dataStr) => {
         if (!dataStr) return '';
+        // Garante que o formato é YYYY-MM-DD para comparação
         return dataStr.includes('/') ? dataStr.split('/').reverse().join('-') : dataStr;
       };
 
@@ -92,7 +96,9 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
     const leadsFiltrados = fechadosOrdenados.filter(lead => {
       const nomeMatch = normalizarTexto(lead.name || '').includes(normalizarTexto(filtroNome || ''));
-      const dataLeadMesAno = lead.Data ? lead.Data.substring(0, 7) : '';
+      // Ajuste aqui se o campo 'Data' na sua API não for YYYY-MM-DD
+      // Se for DD/MM/YYYY, você precisará ajustar a substring
+      const dataLeadMesAno = lead.Data ? lead.Data.substring(0, 7) : ''; // Assumindo YYYY-MM-DD
       const dataMatch = filtroData ? dataLeadMesAno === filtroData : true;
       return nomeMatch && dataMatch;
     });
@@ -114,12 +120,16 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       return novosValores;
     });
 
-    // Atualiza o estado de vigência para novos leads carregados ou quando leads mudam
+    // --- Início da melhoria para inicializar/atualizar o estado de vigência ---
     setVigencia(prevVigencia => {
       const novasVigencias = { ...prevVigencia };
       fechadosAtuais.forEach(lead => {
-        if (!novasVigencias[lead.ID]) {
-          const dataInicio = lead.VigenciaInicio ? new Date(lead.VigenciaInicio).toISOString().split('T')[0] : '';
+        // Se o lead ainda não tem entradas de vigência ou se os dados foram atualizados
+        if (!novasVigencias[lead.ID] ||
+            novasVigencias[lead.ID].inicio !== (lead.VigenciaInicial ? new Date(lead.VigenciaInicial).toISOString().split('T')[0] : '') ||
+            novasVigencias[lead.ID].final !== (lead.VigenciaFinal ? new Date(lead.VigenciaFinal).toISOString().split('T')[0] : ''))
+        {
+          const dataInicio = lead.VigenciaInicial ? new Date(lead.VigenciaInicial).toISOString().split('T')[0] : '';
           const dataFinal = lead.VigenciaFinal ? new Date(lead.VigenciaFinal).toISOString().split('T')[0] : '';
           novasVigencias[lead.ID] = {
             inicio: dataInicio,
@@ -129,6 +139,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       });
       return novasVigencias;
     });
+    // --- Fim da melhoria para inicializar/atualizar o estado de vigência ---
 
   }, [leads, filtroNome, filtroData]);
 
@@ -421,7 +432,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
                 <p><strong>Cidade:</strong> {lead.city}</p>
                 <p><strong>Telefone:</strong> {lead.phone}</p>
-                <p><strong>Tipo de Seguro:</strong> {lead.insurer}</p>
+                <p><strong>Tipo de Seguro:</strong> {lead.insurancetype}</p> {/* CORRIGIDO AQUI: era 'insurer', deve ser 'insurancetype' ou qual coluna contem o tipo de seguro original */}
 
                 {responsavel && (
                   <p style={{ marginTop: '10px', color: '#007bff' }}>
@@ -553,8 +564,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                       valores[`${lead.ID}`]?.insurer,
                       valores[`${lead.ID}`]?.Comissao,
                       valores[`${lead.ID}`]?.Parcelamento,
-                      vigencia[`${lead.ID}`]?.inicio, // Passa Vigencia Inicial
-                      vigencia[`${lead.ID}`]?.final // Passa Vigencia Final
+                      vigencia[`${lead.ID}`]?.inicio, // Passa Vigencia Inicial (da Coluna P)
+                      vigencia[`${lead.ID}`]?.final // Passa Vigencia Final (da Coluna O)
                     )}
                     disabled={isButtonDisabled}
                     style={{
