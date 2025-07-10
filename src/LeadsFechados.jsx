@@ -13,13 +13,27 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
   const getDataParaComparacao = (dataStr) => {
     if (!dataStr) return '';
-    // A data pode vir do Sheets como DD/MM/YYYY ou do GAS já formatada como YYYY-MM-DD.
+    // A data pode vir do Sheets como DD/MM/YYYY ou do GAS já formatada como YYYY-MM-DD ou ISO.
     // Esta função deve ser robusta para ambos.
-    if (dataStr.includes('/')) {
-      const parts = dataStr.split('/');
-      return `${parts[2]}-${parts[1]}-${parts[0]}`; // Converte DD/MM/YYYY para YYYY-MM-DD
+    try {
+        const dateObj = new Date(dataStr);
+        if (isNaN(dateObj.getTime())) {
+            // Tenta parsear como DD/MM/YYYY se o formato ISO falhar
+            const parts = dataStr.split('/');
+            if (parts.length === 3) {
+                return `${parts[2]}-${parts[1]}-${parts[0]}`; // Converte DD/MM/YYYY para YYYY-MM-DD
+            }
+            return ''; // Retorna vazio se não conseguir parsear
+        }
+        // Se for um objeto Date válido, formata para YYYY-MM-DD
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    } catch (e) {
+        console.error("Erro ao formatar data para comparação:", dataStr, e);
+        return '';
     }
-    return dataStr; // Já está em YYYY-MM-DD
   };
 
   const [valores, setValores] = useState({});
@@ -77,10 +91,16 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         // ATENÇÃO: Lógica para evitar reset de Seguradora e outros campos
         // Só atualiza o estado local se o valor da API for diferente do estado atual
         // OU se o estado local para aquele campo ainda não foi definido (primeira carga)
+        // Isso garante que a seleção do usuário não seja sobrescrita por uma re-renderização
+        // se o valor já estiver definido localmente (a menos que seja o valor inicial da API)
         if (!novosValores[lead.ID] ||
+            (novosValores[lead.ID].PremioLiquido === undefined && premioInCents !== null) ||
             (novosValores[lead.ID].PremioLiquido !== premioInCents && prevValores[lead.ID]?.PremioLiquido === undefined) ||
+            (novosValores[lead.ID].Comissao === undefined && apiComissao !== '') ||
             (novosValores[lead.ID].Comissao !== apiComissao && prevValores[lead.ID]?.Comissao === undefined) ||
+            (novosValores[lead.ID].Parcelamento === undefined && apiParcelamento !== '') ||
             (novosValores[lead.ID].Parcelamento !== apiParcelamento && prevValores[lead.ID]?.Parcelamento === undefined) ||
+            (novosValores[lead.ID].insurer === undefined && apiInsurer !== '') ||
             (novosValores[lead.ID].insurer !== apiInsurer && prevValores[lead.ID]?.insurer === undefined)
         ) {
             novosValores[lead.ID] = {
@@ -104,13 +124,13 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         // ATENÇÃO: Lógica para evitar reset das Vigências
         // Só atualiza o estado local se o valor da API for diferente do estado atual
         // OU se o estado local para aquele campo ainda não foi definido (primeira carga)
-        if (!novasVigencias[lead.ID] || novasVigencias[lead.ID].inicio !== vigenciaInicioStrApi) {
+        if (!novasVigencias[lead.ID] || (novasVigencias[lead.ID].inicio === undefined && vigenciaInicioStrApi !== '') || (novasVigencias[lead.ID].inicio !== vigenciaInicioStrApi && prevVigencia[lead.ID]?.inicio === undefined)) {
           novasVigencias[lead.ID] = {
             ...novasVigencias[lead.ID],
             inicio: vigenciaInicioStrApi,
           };
         }
-        if (!novasVigencias[lead.ID] || novasVigencias[lead.ID].final !== vigenciaFinalStrApi) {
+        if (!novasVigencias[lead.ID] || (novasVigencias[lead.ID].final === undefined && vigenciaFinalStrApi !== '') || (novasVigencias[lead.ID].final !== vigenciaFinalStrApi && prevVigencia[lead.ID]?.final === undefined)) {
           novasVigencias[lead.ID] = {
             ...novasVigencias[lead.ID],
             final: vigenciaFinalStrApi,
