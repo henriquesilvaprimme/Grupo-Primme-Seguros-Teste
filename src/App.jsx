@@ -9,19 +9,21 @@ import LeadsFechados from './LeadsFechados';
 import LeadsPerdidos from './LeadsPerdidos';
 import BuscarLead from './BuscarLead';
 import CriarUsuario from './pages/CriarUsuario';
-// Importamos GerenciarUsuarios, que agora cuidará de 'Ativar/Inativar' e 'Admin'
 import GerenciarUsuarios from './pages/GerenciarUsuarios';
 import Ranking from './pages/Ranking';
 import CriarLead from './pages/CriarLead';
 
-// Constantes para os URLs do Google Apps Script
-// URL para buscar leads gerais
-const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwDRDM53Ofa4o5n7OdR_Qg3283039x0Sptvjg741Hk7v0DXf8oji4aBpGji-qWHMgcorw/exec?v=getLeads';
-// URL para buscar leads fechados
-const GOOGLE_SHEETS_LEADS_FECHADOS = 'https://script.google.com/macros/s/AKfycbwDRDM53Ofa4o5n7OdR_Qg3283039x0Sptvjg741Hk7v0DXf8oji4aBpGji-qWHMgcorw/exec?v=pegar_clientes_fechados';
-// URL para buscar USUÁRIOS (APENAS PARA LOGIN/AUTENTICAÇÃO AQUI)
-// O GerenciarUsuarios terá a responsabilidade de CRUD de usuários.
-const GOOGLE_SHEETS_USERS_AUTH_URL = 'https://script.google.com/macros/s/AKfycbwDRDM53Ofa4o5n7OdR_Qg3283039x0Sptvjg741Hk7v0DXf8oji4aBpGji-qWHMgcorw/exec?v=pegar_usuario';
+// Constante para a URL BASE do Google Apps Script Web App
+// Esta URL NÃO deve conter "?v=..."
+// Use a URL que você copiou da implantação do seu GAS (sem o ?v=...)
+const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbwDRDM53Ofa4o5n7OdR_Qg3283039x0Sptvjg741Hk7v0DXf8oji4aBpGji-qWHMgcorw/exec';
+
+// URLs para buscar dados, que ainda usam o ?v=...
+// OBS: Para GET requests, `mode: 'no-cors'` NÃO deve ser usado se você precisar ler a resposta JSON.
+// Se essas buscas funcionam, é porque o Apps Script já está configurado para permitir CORS nessas URLs.
+const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads`;
+const GOOGLE_SHEETS_LEADS_FECHADOS = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`;
+const GOOGLE_SHEETS_USERS_AUTH_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_usuario`;
 
 
 function App() {
@@ -33,26 +35,21 @@ function App() {
   const [usuarioLogado, setUsuarioLogado] = useState(null);
   const [backgroundLoaded, setBackgroundLoaded] = useState(false);
 
-  // Estado e lógica para leads
   const [leads, setLeads] = useState([]);
   const [leadsFechados, setLeadsFechados] = useState([]);
   const [leadSelecionado, setLeadSelecionado] = useState(null);
 
-  // --- MANTEMOS 'usuarios' APENAS PARA FINS DE AUTENTICAÇÃO AQUI NO App.jsx ---
   const [usuarios, setUsuarios] = useState([]);
 
-  // Carrega a imagem de fundo
   useEffect(() => {
     const img = new Image();
     img.src = '/background.png';
     img.onload = () => setBackgroundLoaded(true);
   }, []);
 
-  // --- NOVO: Função para buscar USUÁRIOS APENAS PARA O LOGIN ---
-  // A lógica completa de gerenciamento de usuários estará em GerenciarUsuarios.jsx
   const fetchUsuariosForLogin = async () => {
     try {
-      const response = await fetch(GOOGLE_SHEETS_USERS_AUTH_URL, { mode: 'cors' }); // Pode ser 'cors' aqui para ler os usuários para login
+      const response = await fetch(GOOGLE_SHEETS_USERS_AUTH_URL);
       const data = await response.json();
 
       if (Array.isArray(data)) {
@@ -75,15 +72,12 @@ function App() {
     }
   };
 
-  // Carregar usuários para login ao montar o componente App
   useEffect(() => {
     fetchUsuariosForLogin();
-    const interval = setInterval(fetchUsuariosForLogin, 60000); // Atualiza a cada minuto
+    const interval = setInterval(fetchUsuariosForLogin, 60000);
     return () => clearInterval(interval);
   }, []);
 
-
-  // FUNÇÕES RELACIONADAS A LEADS (NÃO MEXEMOS NELAS)
   const formatarDataParaExibicao = (dataString) => {
     if (!dataString) return '';
     try {
@@ -205,11 +199,9 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  const [ultimoFechadoId, setUltimoFechadoId] = useState(null); // Mantido por ser relacionado a leads
+  const [ultimoFechadoId, setUltimoFechadoId] = useState(null);
 
   const adicionarUsuario = (usuario) => {
-    // Esta função ainda existe para ser passada para CriarUsuario.jsx
-    // Mas a busca e gestão de usuários existentes é do GerenciarUsuarios.jsx
     setUsuarios((prev) => [...prev, { ...usuario, id: prev.length + 1 }]);
   };
 
@@ -320,6 +312,7 @@ function App() {
       return;
     }
 
+    // Atualiza o estado local ANTES de enviar para o GAS
     lead.Seguradora = seguradora;
     lead.PremioLiquido = premio;
     lead.Comissao = comissao;
@@ -342,18 +335,39 @@ function App() {
     });
 
     try {
-      fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_seguradora', {
+      // --- PRINCIPAL MUDANÇA AQUI PARA ENVIAR 'v' NO CORPO ---
+      fetch(GOOGLE_APPS_SCRIPT_BASE_URL, { // Usa a URL base sem "?v=..."
         method: 'POST',
-        mode: 'no-cors',
+        mode: 'no-cors', // Mantendo o no-cors como solicitado
         body: JSON.stringify({
-          lead: lead
+          v: 'alterar_seguradora', // Move o parâmetro 'v' para dentro do corpo JSON
+          lead: lead // Envia o objeto 'lead' completo
         }),
         headers: {
-          'Content-Type': 'application/json',
+          // Quando mode: 'no-cors', o navegador força o 'Content-Type' a ser 'text/plain',
+          // 'application/x-www-form-urlencoded', ou 'multipart/form-data'.
+          // Definir 'application/json' AQUI PODE SER IGNORADO pelo navegador devido ao 'no-cors'.
+          // É por isso que a leitura no Apps Script precisa ser via e.postData.contents
+          // e não confiar em e.parameter ou e.context-type.
+          'Content-Type': 'application/json', // Mantenha por boa prática, mas ciente da limitação do no-cors
         },
+      })
+      .then(response => {
+          // Com 'no-cors', 'response.ok' e 'response.statusText' não são acessíveis.
+          // A única coisa que se pode fazer é que a requisição foi INICIADA.
+          console.log('Requisição de dados da seguradora enviada (com no-cors).');
+          // Para atualizar, você precisará recarregar os dados do Sheets
+          // ou ter uma resposta de sucesso do Apps Script (o que é difícil com no-cors).
+          // Uma opção é recarregar após um pequeno atraso.
+          setTimeout(() => {
+            fetchLeadsFechadosFromSheet();
+          }, 1000); // Recarrega após 1 segundo (ajuste se necessário)
+      })
+      .catch(error => {
+        console.error('Erro ao enviar lead (rede ou CORS):', error);
       });
     } catch (error) {
-      console.error('Erro ao enviar lead:', error);
+      console.error('Erro no bloco try/catch de envio do lead:', error);
     }
   };
 
@@ -493,7 +507,7 @@ function App() {
             element={
               <Leads
                 leads={isAdmin ? leads : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)}
-                usuarios={usuarios} // Ainda passa 'usuarios' para Leads se ele precisar exibir nomes ou IDs de usuários
+                usuarios={usuarios}
                 onUpdateStatus={atualizarStatusLead}
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 transferirLead={transferirLead}
@@ -506,7 +520,7 @@ function App() {
             element={
               <LeadsFechados
                 leads={isAdmin ? leadsFechados : leadsFechados.filter((lead) => lead.Responsavel === usuarioLogado.nome)}
-                usuarios={usuarios} // Ainda passa 'usuarios' para LeadsFechados se ele precisar exibir nomes ou IDs de usuários
+                usuarios={usuarios}
                 onUpdateInsurer={atualizarSeguradoraLead}
                 onConfirmInsurer={confirmarSeguradoraLead}
                 onUpdateDetalhes={atualizarDetalhesLeadFechado}
@@ -524,7 +538,7 @@ function App() {
             element={
               <LeadsPerdidos
                 leads={isAdmin ? leads : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)}
-                usuarios={usuarios} // Ainda passa 'usuarios' para LeadsPerdidos
+                usuarios={usuarios}
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 onAbrirLead={onAbrirLead}
                 isAdmin={isAdmin}
@@ -544,15 +558,14 @@ function App() {
           {isAdmin && (
             <>
               <Route path="/criar-usuario" element={<CriarUsuario adicionarUsuario={adicionarUsuario} />} />
-              {/* O componente Usuarios será substituído por GerenciarUsuarios */}
               <Route
                 path="/usuarios"
-                element={<GerenciarUsuarios />} // GerenciarUsuarios agora é o único responsável
+                element={<GerenciarUsuarios />}
               />
             </>
           )}
           <Route path="/ranking" element={<Ranking
-            usuarios={usuarios} // 'usuarios' ainda é necessário para o Ranking
+            usuarios={usuarios}
             fetchLeadsFromSheet={fetchLeadsFromSheet}
             fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
             leads={leads} />} />
@@ -563,8 +576,6 @@ function App() {
   );
 }
 
-// Mantendo a função formatarDataParaDDMMYYYY se outros componentes a usarem.
-// Se não, ela pode ser movida para um utilitário ou removida.
 const formatarDataParaDDMMYYYY = (dataString) => {
   if (!dataString) return '';
 
