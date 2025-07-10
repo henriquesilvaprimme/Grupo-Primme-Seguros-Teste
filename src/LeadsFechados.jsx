@@ -165,16 +165,23 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   };
 
   const handlePremioLiquidoChange = (id, valor) => {
-    let cleanedValue = valor.replace(/[^\d.,]/g, '');
+    // Remove tudo que não for número, vírgula ou ponto
+    let cleanedValue = valor.replace(/[^\d,\.]/g, '');
 
-    const parts = cleanedValue.split(',');
-    if (parts.length > 2) {
-      cleanedValue = parts[0] + ',' + parts.slice(1).join('');
+    // Permite apenas uma vírgula
+    const commaParts = cleanedValue.split(',');
+    if (commaParts.length > 2) {
+      cleanedValue = commaParts[0] + ',' + commaParts.slice(1).join('');
     }
-    if (parts.length > 1 && parts[1].length > 2) {
-      cleanedValue = parts[0] + ',' + parts[1].slice(0, 2);
+    
+    // Limita a duas casas decimais após a vírgula
+    if (commaParts.length > 1 && commaParts[1].length > 2) {
+      cleanedValue = commaParts[0] + ',' + commaParts[1].slice(0, 2);
     }
 
+    // Remove pontos que não sejam separadores de milhar válidos para conversão,
+    // e os pontos de milhar serão adicionados pela formatação na exibição.
+    // Para o parsing, tratamos a vírgula como separador decimal.
     const valorParaParse = cleanedValue.replace(/\./g, '').replace(',', '.');
     const valorEmReais = parseFloat(valorParaParse);
     const valorParaEstado = isNaN(valorEmReais) || valorEmReais === 0 ? null : Math.round(valorEmReais * 100);
@@ -581,8 +588,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                             valores[`${lead.ID}`]?.insurer, // Seguradora
                             parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')), // Comissão
                             valores[`${lead.ID}`]?.Parcelamento, // Parcelamento
-                            vigencia[`${lead.ID}`]?.final,   // <-- CORREÇÃO AQUI: Enviando VIGENCIA_FINAL para o parâmetro VIGENCIA_FINAL
-                            vigencia[`${lead.ID}`]?.inicio   // <-- CORREÇÃO AQUI: Enviando VIGENCIA_INICIAL para o parâmetro VIGENCIA_INICIAL
+                            vigencia[`${lead.ID}`]?.final,   // Enviando VIGENCIA_FINAL para o parâmetro VIGENCIA_FINAL no GAS
+                            vigencia[`${lead.ID}`]?.inicio   // Enviando VIGENCIA_INICIAL para o parâmetro VIGENCIA_INICIAL no GAS
                         );
                         await fetchLeadsFechadosFromSheet(); // Recarrega os dados para refletir as mudanças do Sheets
                     }}
