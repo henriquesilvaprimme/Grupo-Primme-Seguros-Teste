@@ -16,7 +16,7 @@ import CriarLead from './pages/CriarLead';
 // Constante para a URL BASE do Google Apps Script Web App
 // Esta URL NÃO deve conter "?v=..."
 // Use a URL que você copiou da implantação do seu GAS (sem o ?v=...)
-const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec';
+const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 
 // URLs para buscar dados, que ainda usam o ?v=...
 const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads`;
