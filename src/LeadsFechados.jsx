@@ -44,6 +44,10 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   const [filtroNome, setFiltroNome] = useState('');
   const [filtroData, setFiltroData] = useState(getMesAnoAtual());
 
+  // Novo estado para controlar o valor do Prêmio Líquido enquanto o usuário digita
+  const [premioLiquidoInputDisplay, setPremioLiquidoInputDisplay] = useState({});
+
+
   const normalizarTexto = (texto) =>
     texto
       .normalize('NFD')
@@ -80,9 +84,9 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     setValores(prevValores => {
       const novosValores = { ...prevValores };
       fechadosAtuais.forEach(lead => {
-        const rawPremioFromApi = String(lead.PremioLiquido || '0').replace('.', '').replace(',', '.');
-        const premioFromApi = parseFloat(rawPremioFromApi);
-        const premioInCents = isNaN(premioFromApi) ? null : Math.round(premioFromApi * 100);
+        const rawPremioFromApi = String(lead.PremioLiquido || ''); // Não force '0' se estiver vazio/nulo
+        const premioFromApi = parseFloat(rawPremioFromApi.replace('.', '').replace(',', '.')); // Lidar com formato BR ou US
+        const premioInCents = isNaN(premioFromApi) || rawPremioFromApi === '' ? null : Math.round(premioFromApi * 100);
 
         const apiComissao = lead.Comissao ? String(lead.Comissao).replace('.', ',') : '';
         const apiParcelamento = lead.Parcelamento || '';
@@ -114,6 +118,25 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       });
       return novosValores;
     });
+
+    // Inicializa premioLiquidoInputDisplay para que o input comece em branco
+    setPremioLiquidoInputDisplay(prevDisplay => {
+        const newDisplay = { ...prevDisplay };
+        fechadosAtuais.forEach(lead => {
+            const currentPremio = String(lead.PremioLiquido || '');
+            // Se o valor vindo da API não for vazio, formata para exibir.
+            // Caso contrário, deixa em branco.
+            if (currentPremio !== '') {
+                // Converte para float antes de formatar para string de exibição
+                const premioFloat = parseFloat(currentPremio.replace(',', '.'));
+                newDisplay[lead.ID] = isNaN(premioFloat) ? '' : premioFloat.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            } else if (prevDisplay[lead.ID] === undefined) { // Só limpa se ainda não foi setado
+                newDisplay[lead.ID] = '';
+            }
+        });
+        return newDisplay;
+    });
+
 
     setVigencia(prevVigencia => {
       const novasVigencias = { ...prevVigencia };
@@ -160,7 +183,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   }, [leads, filtroNome, filtroData]); // Dependências do useEffect
 
   const formatarMoeda = (valorCentavos) => {
-    if (valorCentavos === null || isNaN(valorCentavos)) return '';
+    if (valorCentavos === null || isNaN(valorCentavos)) return ''; // Retorna string vazia para nulos/NaN
     return (valorCentavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
@@ -178,13 +201,18 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     if (commaParts.length > 1 && commaParts[1].length > 2) {
       cleanedValue = commaParts[0] + ',' + commaParts[1].slice(0, 2);
     }
+    
+    // Atualiza o estado de display para que o usuário veja o que está digitando
+    setPremioLiquidoInputDisplay(prev => ({
+        ...prev,
+        [`${id}`]: cleanedValue,
+    }));
 
-    // Remove pontos que não sejam separadores de milhar válidos para conversão,
-    // e os pontos de milhar serão adicionados pela formatação na exibição.
-    // Para o parsing, tratamos a vírgula como separador decimal.
+    // Para o parsing interno e envio ao GAS, tratamos a vírgula como separador decimal.
     const valorParaParse = cleanedValue.replace(/\./g, '').replace(',', '.');
     const valorEmReais = parseFloat(valorParaParse);
-    const valorParaEstado = isNaN(valorEmReais) || valorEmReais === 0 ? null : Math.round(valorEmReais * 100);
+    // Se o valor for vazio ou inválido, define como null para o estado interno e envio
+    const valorParaEstado = isNaN(valorEmReais) || cleanedValue === '' ? null : Math.round(valorEmReais * 100);
 
     setValores(prev => ({
       ...prev,
@@ -202,6 +230,13 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     if (valorCentavos !== null && !isNaN(valorCentavos)) {
         valorReais = valorCentavos / 100;
     }
+
+    // Atualiza o display do input para o formato de moeda ao sair do foco
+    setPremioLiquidoInputDisplay(prev => ({
+        ...prev,
+        [`${id}`]: valorCentavos !== null && !isNaN(valorCentavos) ? formatarMoeda(valorCentavos) : '',
+    }));
+
     onUpdateDetalhes(id, 'PremioLiquido', valorReais);
   };
 
@@ -508,9 +543,9 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                   <input
                     type="text"
                     placeholder="Prêmio Líquido"
-                    value={formatarMoeda(valores[`${lead.ID}`]?.PremioLiquido)}
+                    value={premioLiquidoInputDisplay[`${lead.ID}`] || ''} // Exibe o valor do estado de display
                     onChange={(e) => handlePremioLiquidoChange(lead.ID, e.target.value)}
-                    onBlur={() => handlePremioLiquidoBlur(lead.ID)} // Envia para o GAS no blur
+                    onBlur={() => handlePremioLiquidoBlur(lead.ID)} // Envia para o GAS no blur e formata exibição
                     disabled={isSeguradoraPreenchida}
                     style={inputWithPrefixStyle}
                   />
