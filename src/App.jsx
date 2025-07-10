@@ -16,11 +16,9 @@ import CriarLead from './pages/CriarLead';
 // Constante para a URL BASE do Google Apps Script Web App
 // Esta URL NÃO deve conter "?v=..."
 // Use a URL que você copiou da implantação do seu GAS (sem o ?v=...)
-const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbwDRDM53Ofa4o5n7OdR_Qg3283039x0Sptvjg741Hk7v0DXf8oji4aBpGji-qWHMgcorw/exec';
+const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec';
 
 // URLs para buscar dados, que ainda usam o ?v=...
-// OBS: Para GET requests, `mode: 'no-cors'` NÃO deve ser usado se você precisar ler a resposta JSON.
-// Se essas buscas funcionam, é porque o Apps Script já está configurado para permitir CORS nessas URLs.
 const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads`;
 const GOOGLE_SHEETS_LEADS_FECHADOS = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`;
 const GOOGLE_SHEETS_USERS_AUTH_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_usuario`;
@@ -142,6 +140,7 @@ function App() {
           comissao: item.comissao || '',
           parcelamento: item.parcelamento || '',
           VigenciaFinal: item.VigenciaFinal || '',
+          VigenciaInicial: item.VigenciaInicial || '', // Adicionado VigenciaInicial
           createdAt: item.data || new Date().toISOString(),
           responsavel: item.responsavel || '',
           editado: item.editado || ''
@@ -267,6 +266,7 @@ function App() {
               Comissao: leadParaAdicionar.Comissao || "",
               Parcelamento: leadParaAdicionar.Parcelamento || "",
               VigenciaFinal: leadParaAdicionar.VigenciaFinal || "",
+              VigenciaInicial: leadParaAdicionar.VigenciaInicial || "", // Adicionado aqui
               id: leadParaAdicionar.id || null,
               usuario: leadParaAdicionar.usuario || "",
               nome: leadParaAdicionar.nome || "",
@@ -302,9 +302,11 @@ function App() {
     comissao: "",
     parcelamento: "",
     VigenciaFinal: "",
+    VigenciaInicial: "", // Limpar também VigenciaInicial
   })
 
-  const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal) => {
+  // Modificado para incluir vigenciaInicial
+  const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal, vigenciaInicial) => {
     const lead = leadsFechados.find((lead) => lead.ID == id);
 
     if (!lead) {
@@ -318,6 +320,7 @@ function App() {
     lead.Comissao = comissao;
     lead.Parcelamento = parcelamento;
     lead.VigenciaFinal = vigenciaFinal || '';
+    lead.VigenciaInicial = vigenciaInicial || ''; // Adicionado aqui
 
     setLeadsFechados((prev) => {
       const atualizados = prev.map((l) =>
@@ -328,40 +331,30 @@ function App() {
           PremioLiquido: premio,
           Comissao: comissao,
           Parcelamento: parcelamento,
-          VigenciaFinal: vigenciaFinal || ''
+          VigenciaFinal: vigenciaFinal || '',
+          VigenciaInicial: vigenciaInicial || '' // Adicionado aqui
         } : l
       );
       return atualizados;
     });
 
     try {
-      // --- PRINCIPAL MUDANÇA AQUI PARA ENVIAR 'v' NO CORPO ---
-      fetch(GOOGLE_APPS_SCRIPT_BASE_URL, { // Usa a URL base sem "?v=..."
+      fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
         method: 'POST',
-        mode: 'no-cors', // Mantendo o no-cors como solicitado
+        mode: 'no-cors',
         body: JSON.stringify({
-          v: 'alterar_seguradora', // Move o parâmetro 'v' para dentro do corpo JSON
-          lead: lead // Envia o objeto 'lead' completo
+          v: 'alterar_seguradora',
+          lead: lead
         }),
         headers: {
-          // Quando mode: 'no-cors', o navegador força o 'Content-Type' a ser 'text/plain',
-          // 'application/x-www-form-urlencoded', ou 'multipart/form-data'.
-          // Definir 'application/json' AQUI PODE SER IGNORADO pelo navegador devido ao 'no-cors'.
-          // É por isso que a leitura no Apps Script precisa ser via e.postData.contents
-          // e não confiar em e.parameter ou e.context-type.
-          'Content-Type': 'application/json', // Mantenha por boa prática, mas ciente da limitação do no-cors
+          'Content-Type': 'application/json',
         },
       })
       .then(response => {
-          // Com 'no-cors', 'response.ok' e 'response.statusText' não são acessíveis.
-          // A única coisa que se pode fazer é que a requisição foi INICIADA.
           console.log('Requisição de dados da seguradora enviada (com no-cors).');
-          // Para atualizar, você precisará recarregar os dados do Sheets
-          // ou ter uma resposta de sucesso do Apps Script (o que é difícil com no-cors).
-          // Uma opção é recarregar após um pequeno atraso.
           setTimeout(() => {
             fetchLeadsFechadosFromSheet();
-          }, 1000); // Recarrega após 1 segundo (ajuste se necessário)
+          }, 1000);
       })
       .catch(error => {
         console.error('Erro ao enviar lead (rede ou CORS):', error);
