@@ -35,16 +35,17 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
       const filteredLeads = response.data.filter(
         (lead) => {
-          const isFechado = lead.Status === 'Fechado';
-          const hasSeguradora = lead.Seguradora && String(lead.Seguradora).trim() !== '';
+          // Filtro principal: lead.Status deve ser 'Fechado' E 'Seguradora' deve estar preenchida
+          const isFechadoEComSeguradora = lead.Status === 'Fechado' && lead.Seguradora && String(lead.Seguradora).trim() !== '';
+
+          // Filtro por responsável (Admin vê todos, Usuário Comum vê os seus)
           const isResponsavel = usuarioLogado?.tipo === 'Admin' || lead.Responsavel === usuarioLogado?.nome;
 
-          // --- NOVO: Lógica de filtro por data ---
+          // Lógica de filtro por data
           let isWithinDateRange = true;
           if (dataInicio && lead.Data) {
-            const leadDate = new Date(lead.Data);
+            const leadDate = new Date(lead.Data); // 'Data' é a coluna H, Data de Criação
             const startDate = new Date(dataInicio);
-            // Define a hora para meia-noite para garantir comparação correta
             leadDate.setHours(0, 0, 0, 0);
             startDate.setHours(0, 0, 0, 0);
             isWithinDateRange = isWithinDateRange && (leadDate >= startDate);
@@ -52,18 +53,17 @@ const Dashboard = ({ leads, usuarioLogado }) => {
           if (dataFim && lead.Data) {
             const leadDate = new Date(lead.Data);
             const endDate = new Date(dataFim);
-            // Define a hora para o final do dia para incluir o dia inteiro
             leadDate.setHours(0, 0, 0, 0);
-            endDate.setHours(23, 59, 59, 999); // Inclui o dia final
+            endDate.setHours(23, 59, 59, 999);
             isWithinDateRange = isWithinDateRange && (leadDate <= endDate);
           }
-          // --- FIM DA LÓGICA DE FILTRO POR DATA ---
 
-          return isFechado && hasSeguradora && isResponsavel && isWithinDateRange;
+          // Retorna apenas se todas as condições forem verdadeiras
+          return isFechadoEComSeguradora && isResponsavel && isWithinDateRange;
         }
       );
 
-      console.log("Leads 'Fechados' (da aba 'Leads Fechados') e com Seguradora (filtrados no Dashboard):", filteredLeads);
+      console.log("Leads 'Fechados' (da aba 'Leads Fechados'), com Seguradora, e filtrados por data/responsável no Dashboard:", filteredLeads);
 
       setLeadsFechadosDoDashboard(filteredLeads);
     } catch (error) {
@@ -78,35 +78,45 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     // A busca é re-executada quando as datas de início/fim ou o usuário logado mudam
     buscarLeadsFechadosDoSheets();
 
-    const interval = setInterval(buscarLeadsFechadosDoSheets, 60000);
+    // Mantém o intervalo de atualização para sincronização
+    const interval = setInterval(buscarLeadsFechadosDoSheets, 60000); // Pode ser reduzido para 10000 ou 30000ms
     return () => clearInterval(interval);
   }, [usuarioLogado, dataInicio, dataFim]); // Adicionadas dependências dataInicio e dataFim
 
   // --- CONTADORES ---
+  // Estes continuam vindo da prop 'leads' (da aba 'Leads')
   const totalLeads = leads.length;
   const leadsPerdidos = leads.filter((lead) => lead.status === 'Perdido').length;
   const leadsEmContato = leads.filter((lead) => lead.status === 'Em Contato').length;
   const leadsSemContato = leads.filter((lead) => lead.status === 'Sem Contato').length;
+
+  // ESTES AGORA USAM APENAS leadsFechadosDoDashboard, que já está pré-filtrado
   const leadsFechados = leadsFechadosDoDashboard.length;
 
-  const portoSeguro = leadsFechadosDoDashboard.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
-  const azulSeguros = leadsFechadosDoDashboard.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
-  const itauSeguros = leadsFechadosDoDashboard.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
-  const demais = leadsFechadosDoDashboard.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
+  const portoSeguro = leadsFechadosDoDashboard.filter((lead) => String(lead.Seguradora).trim() === 'Porto Seguro').length;
+  const azulSeguros = leadsFechadosDoDashboard.filter((lead) => String(lead.Seguradora).trim() === 'Azul Seguros').length;
+  const itauSeguros = leadsFechadosDoDashboard.filter((lead) => String(lead.Seguradora).trim() === 'Itau Seguros').length;
+  const demais = leadsFechadosDoDashboard.filter((lead) => String(lead.Seguradora).trim() === 'Demais Seguradoras').length;
 
   const totalPremioLiquido = leadsFechadosDoDashboard.reduce(
     (acc, curr) => acc + (Number(curr.PremioLiquido) || 0),
     0
   );
 
+  // Calcula a soma ponderada da comissão para a média
   const somaPonderadaComissao = leadsFechadosDoDashboard.reduce((acc, lead) => {
     const premio = Number(lead.PremioLiquido) || 0;
-    const comissao = Number(lead.Comissao) || 0;
-    return acc + premio * (comissao / 100);
+    // Garante que 'Comissao' é um número (pode vir como string "XX%")
+    const comissaoString = String(lead.Comissao).replace(',', '.').replace('%', '');
+    const comissao = parseFloat(comissaoString) || 0; // Se for '20%', será 20
+
+    return acc + premio * (comissao / 100); // Divide por 100 para transformar % em decimal
   }, 0);
 
+  // Comissão média global baseada no prêmio líquido total
   const comissaoMediaGlobal =
     totalPremioLiquido > 0 ? (somaPonderadaComissao / totalPremioLiquido) * 100 : 0;
+
 
   const boxStyle = {
     padding: '10px',
@@ -124,7 +134,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     <div style={{ padding: '20px' }}>
       <h1>Dashboard</h1>
 
-      {/* --- Filtros de Data Restaurados --- */}
+      {/* --- Filtros de Data --- */}
       <div style={{ marginBottom: '20px', display: 'flex', gap: '20px' }}>
         <div>
           <label htmlFor="dataInicio">Data Início: </label>
