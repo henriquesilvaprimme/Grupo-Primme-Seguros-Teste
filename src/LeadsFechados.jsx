@@ -70,19 +70,25 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         const premioFromApi = parseFloat(rawPremioFromApi);
         const premioInCents = isNaN(premioFromApi) ? null : Math.round(premioFromApi * 100);
 
-        // Atualiza se o valor da API for diferente do estado local ou se o estado local não existe
+        const apiComissao = lead.Comissao ? String(lead.Comissao).replace('.', ',') : '';
+        const apiParcelamento = lead.Parcelamento || '';
+        const apiInsurer = lead.Seguradora || '';
+
+        // ATENÇÃO: Lógica para evitar reset de Seguradora e outros campos
+        // Só atualiza o estado local se o valor da API for diferente do estado atual
+        // OU se o estado local para aquele campo ainda não foi definido (primeira carga)
         if (!novosValores[lead.ID] ||
-            (novosValores[lead.ID].PremioLiquido !== premioInCents) ||
-            (novosValores[lead.ID].Comissao !== (lead.Comissao ? String(lead.Comissao).replace('.', ',') : '')) ||
-            (novosValores[lead.ID].Parcelamento !== (lead.Parcelamento || '')) ||
-            (novosValores[lead.ID].insurer !== (lead.Seguradora || ''))
+            (novosValores[lead.ID].PremioLiquido !== premioInCents && prevValores[lead.ID]?.PremioLiquido === undefined) ||
+            (novosValores[lead.ID].Comissao !== apiComissao && prevValores[lead.ID]?.Comissao === undefined) ||
+            (novosValores[lead.ID].Parcelamento !== apiParcelamento && prevValores[lead.ID]?.Parcelamento === undefined) ||
+            (novosValores[lead.ID].insurer !== apiInsurer && prevValores[lead.ID]?.insurer === undefined)
         ) {
             novosValores[lead.ID] = {
                 ...novosValores[lead.ID], // Mantém quaisquer outros campos que já existam
                 PremioLiquido: premioInCents,
-                Comissao: lead.Comissao ? String(lead.Comissao).replace('.', ',') : '',
-                Parcelamento: lead.Parcelamento || '',
-                insurer: lead.Seguradora || '',
+                Comissao: apiComissao,
+                Parcelamento: apiParcelamento,
+                insurer: apiInsurer,
             };
         }
       });
@@ -92,26 +98,28 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     setVigencia(prevVigencia => {
       const novasVigencias = { ...prevVigencia };
       fechadosAtuais.forEach(lead => {
-        const vigenciaInicioStr = String(lead.VigenciaInicial || '');
-        const vigenciaFinalStr = String(lead.VigenciaFinal || '');
+        const vigenciaInicioStrApi = String(lead.VigenciaInicial || '');
+        const vigenciaFinalStrApi = String(lead.VigenciaFinal || '');
 
-        // ATENÇÃO: Aqui garantimos que o valor do Sheet será usado se não houver alteração local
-        // ou se o valor atual no estado for diferente do que veio da API (após um salvamento, por exemplo)
-        if (!novasVigencias[lead.ID] || novasVigencias[lead.ID].inicio !== vigenciaInicioStr) {
+        // ATENÇÃO: Lógica para evitar reset das Vigências
+        // Só atualiza o estado local se o valor da API for diferente do estado atual
+        // OU se o estado local para aquele campo ainda não foi definido (primeira carga)
+        if (!novasVigencias[lead.ID] || novasVigencias[lead.ID].inicio !== vigenciaInicioStrApi) {
           novasVigencias[lead.ID] = {
             ...novasVigencias[lead.ID],
-            inicio: vigenciaInicioStr,
+            inicio: vigenciaInicioStrApi,
           };
         }
-        if (!novasVigencias[lead.ID] || novasVigencias[lead.ID].final !== vigenciaFinalStr) {
+        if (!novasVigencias[lead.ID] || novasVigencias[lead.ID].final !== vigenciaFinalStrApi) {
           novasVigencias[lead.ID] = {
             ...novasVigencias[lead.ID],
-            final: vigenciaFinalStr,
+            final: vigenciaFinalStrApi,
           };
         }
       });
       return novasVigencias;
     });
+
 
     // Lógica de ordenação para leads fechados (mantida por data de criação, mais recente primeiro)
     const fechadosOrdenados = [...fechadosAtuais].sort((a, b) => {
