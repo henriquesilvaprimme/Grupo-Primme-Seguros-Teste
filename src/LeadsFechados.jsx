@@ -63,47 +63,61 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   useEffect(() => {
     const fechadosAtuais = leads.filter(lead => lead.Status === 'Fechado');
 
-    // Atualiza estado de valores (incluindo seguradora, prêmio, comissão, parcelamento)
     setValores(prevValores => {
       const novosValores = { ...prevValores };
       fechadosAtuais.forEach(lead => {
-        const rawPremioFromApi = String(lead.PremioLiquido || '0').replace('.', '').replace(',', '.'); // Remove separadores de milhar e troca vírgula por ponto
+        const rawPremioFromApi = String(lead.PremioLiquido || '0').replace('.', '').replace(',', '.');
         const premioFromApi = parseFloat(rawPremioFromApi);
         const premioInCents = isNaN(premioFromApi) ? null : Math.round(premioFromApi * 100);
 
-        // Somente atualiza se houver mudança para evitar renderizações desnecessárias
+        // Somente inicializa ou atualiza se o valor da API for diferente do estado atual
+        // Isso evita o reset quando o usuário está digitando ou selecionando
         if (!novosValores[lead.ID] ||
-            novosValores[lead.ID].PremioLiquido !== premioInCents ||
-            novosValores[lead.ID].Comissao !== (lead.Comissao ? String(lead.Comissao).replace('.', ',') : '') ||
-            novosValores[lead.ID].Parcelamento !== (lead.Parcelamento || '') ||
-            novosValores[lead.ID].insurer !== (lead.Seguradora || '')) {
-
-          novosValores[lead.ID] = {
-            ...novosValores[lead.ID],
-            PremioLiquido: premioInCents,
-            Comissao: lead.Comissao ? String(lead.Comissao).replace('.', ',') : '',
-            Parcelamento: lead.Parcelamento || '',
-            insurer: lead.Seguradora || '', // Garante que a seguradora do Sheets inicialize o estado
-          };
+            (novosValores[lead.ID].PremioLiquido === undefined && premioInCents !== null) || // Se não tem valor local, inicializa
+            (novosValores[lead.ID].PremioLiquido !== undefined && novosValores[lead.ID].PremioLiquido !== premioInCents && prevValores[lead.ID]?.PremioLiquido === undefined) || // Se veio da API diferente e não foi alterado localmente
+            (!novosValores[lead.ID]?.Comissao && lead.Comissao) ||
+            (novosValores[lead.ID]?.Comissao !== String(lead.Comissao || '').replace('.', ',') && prevValores[lead.ID]?.Comissao === undefined) ||
+            (!novosValores[lead.ID]?.Parcelamento && lead.Parcelamento) ||
+            (novosValores[lead.ID]?.Parcelamento !== (lead.Parcelamento || '') && prevValores[lead.ID]?.Parcelamento === undefined) ||
+            (!novosValores[lead.ID]?.insurer && lead.Seguradora) || // Se não tem valor local da seguradora, inicializa com o da API
+            (novosValores[lead.ID]?.insurer !== (lead.Seguradora || '') && prevValores[lead.ID]?.insurer === undefined) // Se veio da API diferente e não foi alterado localmente
+            ) {
+          
+            novosValores[lead.ID] = {
+                ...novosValores[lead.ID], // Mantém quaisquer outros campos que já existam
+                PremioLiquido: premioInCents,
+                Comissao: lead.Comissao ? String(lead.Comissao).replace('.', ',') : '',
+                Parcelamento: lead.Parcelamento || '',
+                insurer: lead.Seguradora || '',
+            };
         }
       });
       return novosValores;
     });
 
-    // Atualiza estado de vigências
     setVigencia(prevVigencia => {
       const novasVigencias = { ...prevVigencia };
       fechadosAtuais.forEach(lead => {
-        // As datas devem vir do GAS no formato YYYY-MM-DD para o input type="date"
         const vigenciaInicioStr = String(lead.VigenciaInicial || '');
         const vigenciaFinalStr = String(lead.VigenciaFinal || '');
 
+        // ATENÇÃO: AQUI GARANTIMOS QUE O VALOR DO SHEET SERÁ USADO SE NÃO HOUVER ALTERAÇÃO LOCAL PENDENTE
         if (!novasVigencias[lead.ID] ||
-            novasVigencias[lead.ID].inicio !== vigenciaInicioStr ||
-            novasVigencias[lead.ID].final !== vigenciaFinalStr) {
+            (novasVigencias[lead.ID].inicio === undefined && vigenciaInicioStr !== '') || // Se não tem valor local, inicializa
+            (novasVigencias[lead.ID].inicio !== undefined && novasVigencias[lead.ID].inicio !== vigenciaInicioStr && prevVigencia[lead.ID]?.inicio === undefined) // Se veio da API diferente e não foi alterado localmente
+            ) {
           novasVigencias[lead.ID] = {
             ...novasVigencias[lead.ID],
             inicio: vigenciaInicioStr,
+          };
+        }
+
+        if (!novasVigencias[lead.ID] ||
+            (novasVigencias[lead.ID].final === undefined && vigenciaFinalStr !== '') ||
+            (novasVigencias[lead.ID].final !== undefined && novasVigencias[lead.ID].final !== vigenciaFinalStr && prevVigencia[lead.ID]?.final === undefined)
+            ) {
+          novasVigencias[lead.ID] = {
+            ...novasVigencias[lead.ID],
             final: vigenciaFinalStr,
           };
         }
@@ -111,6 +125,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       return novasVigencias;
     });
 
+
+    // Lógica de ordenação para leads fechados (mantida por data de criação, mais recente primeiro)
     const fechadosOrdenados = [...fechadosAtuais].sort((a, b) => {
       const dataA = new Date(getDataParaComparacao(a.Data));
       const dataB = new Date(getDataParaComparacao(b.Data));
@@ -126,7 +142,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
     setFechadosFiltradosInterno(leadsFiltrados);
 
-  }, [leads, filtroNome, filtroData]); // Dependências do useEffect
+  }, [leads, filtroNome, filtroData]);
 
   const formatarMoeda = (valorCentavos) => {
     if (valorCentavos === null || isNaN(valorCentavos)) return '';
@@ -202,7 +218,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   };
 
   const handleInsurerChange = (id, valor) => {
-    // Apenas atualiza o estado local, a chamada ao GAS será no "Confirmar Seguradora"
+    // Apenas atualiza o estado local para que o <select> reflita a mudança IMEDIATAMENTE.
+    // A chamada ao GAS (onUpdateInsurer) só ocorre no botão "Confirmar Seguradora".
     setValores(prev => ({
         ...prev,
         [`${id}`]: {
@@ -210,7 +227,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             insurer: valor,
         },
     }));
-    // Não chama onUpdateInsurer aqui para evitar o reset.
 };
 
   const handleVigenciaInicioChange = (id, dataString) => {
@@ -235,8 +251,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         final: dataFinal,
       },
     }));
-    // Não chama onUpdateDetalhes aqui para evitar o reset/chamadas desnecessárias.
-    // A atualização para o GAS será no "Confirmar Seguradora".
   };
 
   const inputWrapperStyle = {
