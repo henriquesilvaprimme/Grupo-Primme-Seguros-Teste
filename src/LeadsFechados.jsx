@@ -60,8 +60,14 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     setValores(prevValores => {
       const novosValores = { ...prevValores };
       fechadosAtuais.forEach(lead => {
-        const premioFromApi = parseFloat(String(lead.PremioLiquido || '0').replace('.', '').replace(',', '.'));
-        const premioInCents = isNaN(premioFromApi) || premioFromApi === 0 ? null : Math.round(premioFromApi * 100);
+        // --- CORREÇÃO AQUI para Prêmio Líquido ---
+        // O valor `lead.PremioLiquido` VEM DO SHEETS, já em reais (ex: 1109.55 ou 1109,55)
+        // Precisamos convertê-lo para um número, depois para centavos para o estado interno.
+        const rawPremioFromApi = String(lead.PremioLiquido || '0').replace('.', '').replace(',', '.'); // Remove separadores de milhar e troca vírgula por ponto
+        const premioFromApi = parseFloat(rawPremioFromApi); // Agora é um número (ex: 1109.55)
+
+        // Converte para centavos para o estado interno do React
+        const premioInCents = isNaN(premioFromApi) ? null : Math.round(premioFromApi * 100);
 
         if (!novosValores[lead.ID] ||
             novosValores[lead.ID].PremioLiquido !== premioInCents ||
@@ -71,7 +77,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
           novosValores[lead.ID] = {
             ...novosValores[lead.ID],
-            PremioLiquido: premioInCents,
+            PremioLiquido: premioInCents, // Armazena em centavos
             Comissao: lead.Comissao ? String(lead.Comissao).replace('.', ',') : '',
             Parcelamento: lead.Parcelamento || '',
             insurer: lead.Seguradora || '',
@@ -84,24 +90,20 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     setVigencia(prevVigencia => {
       const novasVigencias = { ...prevVigencia };
       fechadosAtuais.forEach(lead => {
+        // --- CORREÇÃO AQUI para Vigências ---
+        // O GAS agora enviará VigenciaInicial e VigenciaFinal no formato YYYY-MM-DD
+        // para as propriedades lead.VigenciaInicial e lead.VigenciaFinal.
+        // Não precisa mais de conversão de DD/MM/YYYY para YYYY-MM-DD aqui.
         const vigenciaInicioStr = String(lead.VigenciaInicial || '');
         const vigenciaFinalStr = String(lead.VigenciaFinal || '');
 
-        const dataInicioFormatada = vigenciaInicioStr.includes('/')
-          ? vigenciaInicioStr.split('/').reverse().join('-')
-          : vigenciaInicioStr;
-
-        const dataFinalFormatada = vigenciaFinalStr.includes('/')
-          ? vigenciaFinalStr.split('/').reverse().join('-')
-          : vigenciaFinalStr;
-
         if (!novasVigencias[lead.ID] ||
-            novasVigencias[lead.ID].inicio !== dataInicioFormatada ||
-            novasVigencias[lead.ID].final !== dataFinalFormatada) {
+            novasVigencias[lead.ID].inicio !== vigenciaInicioStr ||
+            novasVigencias[lead.ID].final !== vigenciaFinalStr) {
           novasVigencias[lead.ID] = {
             ...novasVigencias[lead.ID],
-            inicio: dataInicioFormatada,
-            final: dataFinalFormatada,
+            inicio: vigenciaInicioStr,
+            final: vigenciaFinalStr,
           };
         }
       });
@@ -127,15 +129,14 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
   const formatarMoeda = (valorCentavos) => {
     if (valorCentavos === null || isNaN(valorCentavos)) return '';
-    // Permite formatação de números muito grandes
     return (valorCentavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const handlePremioLiquidoChange = (id, valor) => {
-    // Remove tudo que não for dígito ou vírgula
-    let cleanedValue = valor.replace(/[^\d,]/g, '');
+    // Remove tudo que não for dígito, vírgula ou ponto (permitindo ponto como separador de milhar temporário)
+    let cleanedValue = valor.replace(/[^\d.,]/g, '');
 
-    // Permite apenas uma vírgula
+    // Permite apenas uma vírgula para separar os decimais
     const parts = cleanedValue.split(',');
     if (parts.length > 2) {
       cleanedValue = parts[0] + ',' + parts.slice(1).join('');
@@ -146,14 +147,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       cleanedValue = parts[0] + ',' + parts[1].slice(0, 2);
     }
 
-    // Remove zeros à esquerda, exceto se for "0," ou se for o único dígito
-    if (parts[0].length > 1 && parts[0].startsWith('0') && parts[0] !== '0') {
-        parts[0] = parseInt(parts[0], 10).toString();
-        cleanedValue = parts[0] + (parts.length > 1 ? ',' + parts[1] : '');
-    }
-
+    // Remove pontos de milhar para parsear corretamente
+    const valorParaParse = cleanedValue.replace(/\./g, '').replace(',', '.');
+    
     // Converte para float para armazenar em centavos
-    const valorEmReais = parseFloat(cleanedValue.replace(',', '.'));
+    const valorEmReais = parseFloat(valorParaParse);
     const valorParaEstado = isNaN(valorEmReais) || valorEmReais === 0 ? null : Math.round(valorEmReais * 100);
 
     setValores(prev => ({
@@ -172,6 +170,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     if (valorCentavos !== null && !isNaN(valorCentavos)) {
         valorReais = valorCentavos / 100;
     }
+    // Envia o valor em reais para o GAS
     onUpdateDetalhes(id, 'PremioLiquido', valorReais);
   };
 
@@ -185,10 +184,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     if (parts.length > 1 && parts[1].length > 2) {
         cleanedValue = parts[0] + ',' + parts[1].slice(0,2);
     }
-
-    if (parts[0].length > 2) { // Não faz sentido isso aqui para %
-        // cleanedValue = cleanedValue.slice(0,2) + (parts.length > 1 ? ',' + parts[1] : '');
-    }
+    // Removido o filtro `parts[0].length > 2` que não se aplicava aqui.
 
     setValores(prev => ({
         ...prev,
@@ -222,8 +218,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             insurer: valor,
         },
     }));
-    // **IMPORTANTE:** Chamar onUpdateInsurer aqui para sincronizar com o App.jsx e potencialmente com o GAS
-    onUpdateInsurer(id, valor); // <--- Reativada e ajustada
+    onUpdateInsurer(id, valor);
 };
 
   const handleVigenciaInicioChange = (id, dataString) => {
@@ -433,7 +428,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             !valores[`${lead.ID}`]?.insurer ||
             valores[`${lead.ID}`]?.PremioLiquido === null ||
             !valores[`${lead.ID}`]?.Comissao ||
-            parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')) === 0 || // Ajuste para lidar com string vazia
+            parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')) === 0 ||
             !valores[`${lead.ID}`]?.Parcelamento ||
             valores[`${lead.ID}`]?.Parcelamento === '' ||
             !vigencia[`${lead.ID}`]?.inicio ||
@@ -557,8 +552,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                         await onConfirmInsurer(
                             lead.ID,
                             valores[`${lead.ID}`]?.PremioLiquido === null ? null : valores[`${lead.ID}`]?.PremioLiquido / 100,
-                            valores[`${lead.ID}`]?.insurer, // Garante que a seguradora atual do estado é enviada
-                            parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')), // Garante que valor vazio seja 0
+                            valores[`${lead.ID}`]?.insurer,
+                            parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')),
                             valores[`${lead.ID}`]?.Parcelamento,
                             vigencia[`${lead.ID}`]?.inicio,
                             vigencia[`${lead.ID}`]?.final
