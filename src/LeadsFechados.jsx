@@ -14,9 +14,13 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   const [valores, setValores] = useState(() => {
     const inicial = {};
     leads.filter(lead => lead.Status === 'Fechado').forEach(lead => {
+      // Aqui, ao inicializar, se PremioLiquido já vem como string "1.000,00" ou similar,
+      // precisamos converter para centavos corretamente para o estado interno.
+      // Se ele já vem como número do GAS, ele será multiplicado por 100.
+      const premio = parseFloat(String(lead.PremioLiquido || '0').replace('.', '').replace(',', '.')); // Garante que é um número
       inicial[lead.ID] = {
-        PremioLiquido: lead.PremioLiquido !== undefined ? Math.round(parseFloat(lead.PremioLiquido) * 100) : 0,
-        Comissao: lead.Comissao ? String(lead.Comissao) : '',
+        PremioLiquido: !isNaN(premio) ? Math.round(premio * 100) : 0, // Armazena em centavos
+        Comissao: lead.Comissao ? String(lead.Comissao).replace('.', ',') : '', // Exibe com vírgula para o usuário
         Parcelamento: lead.Parcelamento || '',
         insurer: lead.Seguradora || '',
       };
@@ -28,16 +32,23 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   const [vigencia, setVigencia] = useState(() => {
     const inicialVigencia = {};
     leads.filter(lead => lead.Status === 'Fechado').forEach(lead => {
-      // O backend (joinUsersClosed) já inverteu a leitura para que
-      // lead.VigenciaInicial contenha a data da Coluna P
-      // e lead.VigenciaFinal contenha a data da Coluna O.
-      // Aqui no frontend, os nomes já refletem o que o usuário vai ver/interagir.
-      const dataInicio = lead.VigenciaInicial ? new Date(lead.VigenciaInicial).toISOString().split('T')[0] : '';
-      const dataFinal = lead.VigenciaFinal ? new Date(lead.VigenciaFinal).toISOString().split('T')[0] : '';
+      // O backend (joinUsersClosed) deve garantir que lead.VigenciaInicial (Coluna O) e lead.VigenciaFinal (Coluna P)
+      // já cheguem no formato "YYYY-MM-DD" para o input type="date".
+      // Se eles vêm como DD/MM/YYYY, precisamos converter aqui.
+      const vigenciaInicioStr = String(lead.VigenciaInicial || '');
+      const vigenciaFinalStr = String(lead.VigenciaFinal || '');
+
+      const dataInicioFormatada = vigenciaInicioStr.includes('/') 
+        ? vigenciaInicioStr.split('/').reverse().join('-') // Converte DD/MM/YYYY para YYYY-MM-DD
+        : vigenciaInicioStr; // Já está em YYYY-MM-DD ou vazio
+
+      const dataFinalFormatada = vigenciaFinalStr.includes('/') 
+        ? vigênciaFinalStr.split('/').reverse().join('-') // Converte DD/MM/YYYY para YYYY-MM-DD
+        : vigenciaFinalStr; // Já está em YYYY-MM-DD ou vazio
 
       inicialVigencia[lead.ID] = {
-        inicio: dataInicio,
-        final: dataFinal,
+        inicio: dataInicioFormatada,
+        final: dataFinalFormatada,
       };
     });
     return inicialVigencia;
@@ -75,9 +86,10 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     }
   };
 
+  // Carrega os leads na montagem do componente e sempre que os leads mudam
   useEffect(() => {
     handleRefresh();
-  }, []);
+  }, []); // Chama apenas na montagem inicial
 
   useEffect(() => {
     const fechadosAtuais = leads.filter(lead => lead.Status === 'Fechado');
@@ -85,7 +97,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     const fechadosOrdenados = [...fechadosAtuais].sort((a, b) => {
       const getDataParaComparacao = (dataStr) => {
         if (!dataStr) return '';
-        // Garante que o formato é YYYY-MM-DD para comparação
+        // Converte DD/MM/YYYY para YYYY-MM-DD para comparação de datas
         return dataStr.includes('/') ? dataStr.split('/').reverse().join('-') : dataStr;
       };
 
@@ -96,89 +108,112 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
     const leadsFiltrados = fechadosOrdenados.filter(lead => {
       const nomeMatch = normalizarTexto(lead.name || '').includes(normalizarTexto(filtroNome || ''));
-      // Ajuste aqui se o campo 'Data' na sua API não for YYYY-MM-DD
-      // Se for DD/MM/YYYY, você precisará ajustar a substring
-      const dataLeadMesAno = lead.Data ? lead.Data.substring(0, 7) : ''; // Assumindo YYYY-MM-DD
+      // Ajuste se o campo 'Data' na sua API for DD/MM/YYYY
+      const dataLeadMesAno = lead.Data ? getDataParaComparacao(lead.Data).substring(0, 7) : ''; 
       const dataMatch = filtroData ? dataLeadMesAno === filtroData : true;
       return nomeMatch && dataMatch;
     });
 
     setFechadosFiltradosInterno(leadsFiltrados);
 
+    // Atualiza o estado de valores para novos leads carregados
     setValores(prevValores => {
       const novosValores = { ...prevValores };
       fechadosAtuais.forEach(lead => {
         if (!novosValores[lead.ID]) {
+          const premio = parseFloat(String(lead.PremioLiquido || '0').replace('.', '').replace(',', '.'));
           novosValores[lead.ID] = {
-            PremioLiquido: lead.PremioLiquido !== undefined ? Math.round(parseFloat(lead.PremioLiquido) * 100) : 0,
-            Comissao: lead.Comissao ? String(lead.Comissao) : '',
+            PremioLiquido: !isNaN(premio) ? Math.round(premio * 100) : 0,
+            Comissao: lead.Comissao ? String(lead.Comissao).replace('.', ',') : '',
             Parcelamento: lead.Parcelamento || '',
             insurer: lead.Seguradora || '',
           };
+        } else {
+            // Se o lead já existe, atualiza PremioLiquido caso tenha sido alterado no backend
+            const premioAtualizado = parseFloat(String(lead.PremioLiquido || '0').replace('.', '').replace(',', '.'));
+            if (novosValores[lead.ID].PremioLiquido !== Math.round(premioAtualizado * 100)) {
+                novosValores[lead.ID].PremioLiquido = Math.round(premioAtualizado * 100);
+            }
+            // Garante que o Comissao e Parcelamento também são atualizados se mudarem externamente
+            if (novosValores[lead.ID].Comissao !== (lead.Comissao ? String(lead.Comissao).replace('.', ',') : '')) {
+                novosValores[lead.ID].Comissao = lead.Comissao ? String(lead.Comissao).replace('.', ',') : '';
+            }
+            if (novosValores[lead.ID].Parcelamento !== (lead.Parcelamento || '')) {
+                novosValores[lead.ID].Parcelamento = lead.Parcelamento || '';
+            }
+            if (novosValores[lead.ID].insurer !== (lead.Seguradora || '')) {
+                novosValores[lead.ID].insurer = lead.Seguradora || '';
+            }
         }
       });
       return novosValores;
     });
 
-    // --- Início da melhoria para inicializar/atualizar o estado de vigência ---
+    // Atualiza o estado de vigência para novos leads carregados ou quando leads mudam
     setVigencia(prevVigencia => {
       const novasVigencias = { ...prevVigencia };
       fechadosAtuais.forEach(lead => {
-        // Se o lead ainda não tem entradas de vigência ou se os dados foram atualizados
-        if (!novasVigencias[lead.ID] ||
-            novasVigencias[lead.ID].inicio !== (lead.VigenciaInicial ? new Date(lead.VigenciaInicial).toISOString().split('T')[0] : '') ||
-            novasVigencias[lead.ID].final !== (lead.VigenciaFinal ? new Date(lead.VigenciaFinal).toISOString().split('T')[0] : ''))
-        {
-          const dataInicio = lead.VigenciaInicial ? new Date(lead.VigenciaInicial).toISOString().split('T')[0] : '';
-          const dataFinal = lead.VigenciaFinal ? new Date(lead.VigenciaFinal).toISOString().split('T')[0] : '';
+        const vigenciaInicioStr = String(lead.VigenciaInicial || '');
+        const vigenciaFinalStr = String(lead.VigenciaFinal || '');
+
+        const dataInicioFormatada = vigenciaInicioStr.includes('/') 
+            ? vigenciaInicioStr.split('/').reverse().join('-') 
+            : vigenciaInicioStr;
+
+        const dataFinalFormatada = vigenciaFinalStr.includes('/') 
+            ? vigenciaFinalStr.split('/').reverse().join('-') 
+            : vigenciaFinalStr;
+
+        // Atualiza apenas se os valores no estado são diferentes dos valores do lead
+        if (!novasVigencias[lead.ID] || 
+            novasVigencias[lead.ID].inicio !== dataInicioFormatada || 
+            novasVigencias[lead.ID].final !== dataFinalFormatada) {
           novasVigencias[lead.ID] = {
-            inicio: dataInicio,
-            final: dataFinal,
+            inicio: dataInicioFormatada,
+            final: dataFinalFormatada,
           };
         }
       });
       return novasVigencias;
     });
-    // --- Fim da melhoria para inicializar/atualizar o estado de vigência ---
 
-  }, [leads, filtroNome, filtroData]);
+  }, [leads, filtroNome, filtroData]); // Dependências do useEffect
 
   const formatarMoeda = (valorCentavos) => {
     if (isNaN(valorCentavos) || valorCentavos === null) return '';
+    // Converte centavos para reais e formata
     return (valorCentavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const handlePremioLiquidoChange = (id, valor) => {
-    const somenteNumeros = valor.replace(/\D/g, '');
+    // Remove tudo que não for número, mas permite vírgula para formatação do usuário
+    const somenteNumerosEVirgula = valor.replace(/[^\d,]/g, ''); 
+    const partes = somenteNumerosEVirgula.split(',');
 
-    if (somenteNumeros === '') {
-      setValores(prev => ({
-        ...prev,
-        [`${id}`]: {
-          ...prev[`${id}`],
-          PremioLiquido: 0,
-        },
-      }));
-      return;
+    let valorNumericoString = partes[0]; // Parte inteira
+    if (partes.length > 1) {
+        valorNumericoString += '.' + partes[1].slice(0, 2); // Pega até 2 casas decimais
     }
 
-    let valorCentavos = parseInt(somenteNumeros, 10);
-    if (isNaN(valorCentavos)) valorCentavos = 0;
+    let valorEmReais = parseFloat(valorNumericoString.replace(',', '.')); // Converte para float usando ponto
+    if (isNaN(valorEmReais)) valorEmReais = 0;
 
+    // Salva no estado em centavos
     setValores(prev => ({
       ...prev,
       [`${id}`]: {
         ...prev[`${id}`],
-        PremioLiquido: valorCentavos,
+        PremioLiquido: Math.round(valorEmReais * 100),
       },
     }));
   };
 
   const handlePremioLiquidoBlur = (id) => {
     const valorCentavos = valores[`${id}`]?.PremioLiquido || 0;
-    const valorReais = valorCentavos / 100;
+    const valorReais = valorCentavos / 100; // Converte para reais para enviar ao backend
 
     if (!isNaN(valorReais)) {
+      // Envia o valor em reais para o backend
       onUpdateDetalhes(id, 'PremioLiquido', valorReais);
     } else {
       onUpdateDetalhes(id, 'PremioLiquido', '');
@@ -186,23 +221,39 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   };
 
   const handleComissaoChange = (id, valor) => {
-    const regex = /^(\d{0,2})(,?\d{0,1})?$/;
+    // Permite números e vírgula, e limita a 2 casas decimais após a vírgula
+    const regex = /^(\d{0,2})(,?\d{0,2})?$/; // Ex: 12,34
+    
+    // Remove letras e múltiplos separadores, permite apenas uma vírgula
+    let cleanedValue = valor.replace(/[^\d,]/g, '');
+    const parts = cleanedValue.split(',');
+    if (parts.length > 2) { // remove vírgulas extras
+        cleanedValue = parts[0] + ',' + parts.slice(1).join('');
+    }
+    
+    // Limita a duas casas decimais
+    if (parts.length > 1 && parts[1].length > 2) {
+        cleanedValue = parts[0] + ',' + parts[1].slice(0,2);
+    }
 
-    if (valor === '' || regex.test(valor)) {
-      const valorLimitado = valor.slice(0, 4);
+    // Limita o número inteiro a 2 dígitos antes da vírgula para não permitir % acima de 99
+    if (parts[0].length > 2) {
+        cleanedValue = cleanedValue.slice(0,2) + (parts.length > 1 ? ',' + parts[1] : '');
+    }
 
-      setValores(prev => ({
+    setValores(prev => ({
         ...prev,
         [`${id}`]: {
-          ...prev[`${id}`],
-          Comissao: valorLimitado,
+            ...prev[`${id}`],
+            Comissao: cleanedValue, // Mantém como string para exibição
         },
-      }));
+    }));
 
-      const valorFloat = parseFloat(valorLimitado.replace(',', '.'));
-      onUpdateDetalhes(id, 'Comissao', isNaN(valorFloat) ? '' : valorFloat);
-    }
-  };
+    // Converte para float com ponto para enviar ao backend
+    const valorFloat = parseFloat(cleanedValue.replace(',', '.'));
+    onUpdateDetalhes(id, 'Comissao', isNaN(valorFloat) ? '' : valorFloat);
+};
+
 
   const handleParcelamentoChange = (id, valor) => {
     setValores(prev => ({
@@ -215,7 +266,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     onUpdateDetalhes(id, 'Parcelamento', valor);
   };
 
-  // --- CORREÇÃO AQUI: Lógica para calcular Vigência Final ---
+  // Lógica para calcular Vigência Final
   const handleVigenciaInicioChange = (id, dataString) => {
     let dataFinal = '';
     if (dataString) {
@@ -267,6 +318,17 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     height: '36px',
     boxSizing: 'border-box',
     textAlign: 'right',
+  };
+
+  const inputNoPrefixStyle = { // Estilo para inputs sem prefixo (como as datas)
+    paddingLeft: '8px',
+    paddingRight: '8px',
+    width: '100%',
+    border: '1px solid #ccc',
+    borderRadius: '4px',
+    height: '36px',
+    boxSizing: 'border-box',
+    textAlign: 'left',
   };
 
   return (
@@ -412,16 +474,17 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
           // Verifica se Seguradora já está preenchida para desabilitar campos
           const isSeguradoraPreenchida = !!lead.Seguradora;
 
+          // Validação dos campos antes de habilitar o botão
           const isButtonDisabled =
             !valores[`${lead.ID}`]?.insurer ||
             !valores[`${lead.ID}`]?.PremioLiquido ||
-            valores[`${lead.ID}`]?.PremioLiquido === 0 ||
+            valores[`${lead.ID}`]?.PremioLiquido === 0 || // Garante que não é zero centavos
             !valores[`${lead.ID}`]?.Comissao ||
-            valores[`${lead.ID}`]?.Comissao === '' ||
+            parseFloat(valores[`${lead.ID}`]?.Comissao.replace(',', '.')) === 0 || // Garante que a comissão não é zero (após conversão)
             !valores[`${lead.ID}`]?.Parcelamento ||
             valores[`${lead.ID}`]?.Parcelamento === '' ||
-            !vigencia[`${lead.ID}`]?.inicio || // Vigência Início obrigatória
-            !vigencia[`${lead.ID}`]?.final; // Vigência Final obrigatória (calculada)
+            !vigencia[`${lead.ID}`]?.inicio ||
+            !vigencia[`${lead.ID}`]?.final;
 
 
           return (
@@ -432,7 +495,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
                 <p><strong>Cidade:</strong> {lead.city}</p>
                 <p><strong>Telefone:</strong> {lead.phone}</p>
-                <p><strong>Tipo de Seguro:</strong> {lead.insurancetype}</p> {/* CORRIGIDO AQUI: era 'insurer', deve ser 'insurancetype' ou qual coluna contem o tipo de seguro original */}
+                <p><strong>Tipo de Seguro:</strong> {lead.insurancetype}</p>
 
                 {responsavel && (
                   <p style={{ marginTop: '10px', color: '#007bff' }}>
@@ -492,7 +555,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                     value={valores[`${lead.ID}`]?.Comissao || ''}
                     onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
                     disabled={isSeguradoraPreenchida} // Desabilita se já tem seguradora
-                    maxLength={4}
+                    // maxLength={4} // Removido, pois a validação já trata o tamanho
                     style={inputWithPrefixStyle}
                   />
                 </div>
@@ -515,7 +578,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                   ))}
                 </select>
 
-                {/* --- Novos campos de Vigência --- */}
+                {/* --- Campos de Vigência --- */}
                 <div style={inputWrapperStyle}>
                   <label htmlFor={`vigencia-inicio-${lead.ID}`} style={{ fontSize: '0.85em', color: '#555', display: 'block', marginBottom: '4px' }}>Vigência Início:</label>
                   <input
@@ -525,10 +588,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                     onChange={(e) => handleVigenciaInicioChange(lead.ID, e.target.value)}
                     disabled={isSeguradoraPreenchida} // Desabilita se já tem seguradora
                     style={{
-                      ...inputWithPrefixStyle, // Reutiliza estilo, mas sem prefixo R$
-                      paddingLeft: '8px', // Ajusta padding
-                      textAlign: 'left', // Ajusta alinhamento
-                      width: '100%',
+                      ...inputNoPrefixStyle, // Usa o estilo sem prefixo
                       marginBottom: '8px',
                     }}
                   />
@@ -543,29 +603,27 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                     readOnly // Campo preenchido automaticamente, apenas leitura
                     disabled={true} // Desabilita sempre, pois é auto-preenchido
                     style={{
-                      ...inputWithPrefixStyle, // Reutiliza estilo
-                      paddingLeft: '8px', // Ajusta padding
-                      textAlign: 'left', // Ajusta alinhamento
+                      ...inputNoPrefixStyle, // Usa o estilo sem prefixo
                       backgroundColor: '#f0f0f0', // Cor de fundo para campo readonly
                       cursor: 'not-allowed', // Cursor de "não permitido"
-                      width: '100%',
                       marginBottom: '8px',
                     }}
                   />
                 </div>
-                {/* --- Fim dos novos campos de Vigência --- */}
-
+                {/* --- Fim dos campos de Vigência --- */}
 
                 {!isSeguradoraPreenchida ? (
                   <button
                     onClick={() => onConfirmInsurer(
                       lead.ID,
-                      parseFloat(valores[`${lead.ID}`]?.PremioLiquido.toString().replace('.', ',')),
+                      // ENVIAR PRÊMIO LÍQUIDO EM REAIS (dividido por 100)
+                      valores[`${lead.ID}`]?.PremioLiquido / 100, 
                       valores[`${lead.ID}`]?.insurer,
-                      valores[`${lead.ID}`]?.Comissao,
+                      // ENVIAR COMISSÃO COMO FLOAT (substituindo vírgula por ponto)
+                      parseFloat(valores[`${lead.ID}`]?.Comissao.replace(',', '.')),
                       valores[`${lead.ID}`]?.Parcelamento,
-                      vigencia[`${lead.ID}`]?.inicio, // Passa Vigencia Inicial (da Coluna P)
-                      vigencia[`${lead.ID}`]?.final // Passa Vigencia Final (da Coluna O)
+                      vigencia[`${lead.ID}`]?.inicio, // Vigência Inicial (formato YYYY-MM-DD)
+                      vigencia[`${lead.ID}`]?.final // Vigência Final (formato YYYY-MM-DD)
                     )}
                     disabled={isButtonDisabled}
                     style={{
