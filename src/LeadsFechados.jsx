@@ -70,19 +70,13 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         const premioFromApi = parseFloat(rawPremioFromApi);
         const premioInCents = isNaN(premioFromApi) ? null : Math.round(premioFromApi * 100);
 
-        // Somente inicializa ou atualiza se o valor da API for diferente do estado atual
-        // Isso evita o reset quando o usuário está digitando ou selecionando
+        // Atualiza se o valor da API for diferente do estado local ou se o estado local não existe
         if (!novosValores[lead.ID] ||
-            (novosValores[lead.ID].PremioLiquido === undefined && premioInCents !== null) || // Se não tem valor local, inicializa
-            (novosValores[lead.ID].PremioLiquido !== undefined && novosValores[lead.ID].PremioLiquido !== premioInCents && prevValores[lead.ID]?.PremioLiquido === undefined) || // Se veio da API diferente e não foi alterado localmente
-            (!novosValores[lead.ID]?.Comissao && lead.Comissao) ||
-            (novosValores[lead.ID]?.Comissao !== String(lead.Comissao || '').replace('.', ',') && prevValores[lead.ID]?.Comissao === undefined) ||
-            (!novosValores[lead.ID]?.Parcelamento && lead.Parcelamento) ||
-            (novosValores[lead.ID]?.Parcelamento !== (lead.Parcelamento || '') && prevValores[lead.ID]?.Parcelamento === undefined) ||
-            (!novosValores[lead.ID]?.insurer && lead.Seguradora) || // Se não tem valor local da seguradora, inicializa com o da API
-            (novosValores[lead.ID]?.insurer !== (lead.Seguradora || '') && prevValores[lead.ID]?.insurer === undefined) // Se veio da API diferente e não foi alterado localmente
-            ) {
-          
+            (novosValores[lead.ID].PremioLiquido !== premioInCents) ||
+            (novosValores[lead.ID].Comissao !== (lead.Comissao ? String(lead.Comissao).replace('.', ',') : '')) ||
+            (novosValores[lead.ID].Parcelamento !== (lead.Parcelamento || '')) ||
+            (novosValores[lead.ID].insurer !== (lead.Seguradora || ''))
+        ) {
             novosValores[lead.ID] = {
                 ...novosValores[lead.ID], // Mantém quaisquer outros campos que já existam
                 PremioLiquido: premioInCents,
@@ -101,21 +95,15 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         const vigenciaInicioStr = String(lead.VigenciaInicial || '');
         const vigenciaFinalStr = String(lead.VigenciaFinal || '');
 
-        // ATENÇÃO: AQUI GARANTIMOS QUE O VALOR DO SHEET SERÁ USADO SE NÃO HOUVER ALTERAÇÃO LOCAL PENDENTE
-        if (!novasVigencias[lead.ID] ||
-            (novasVigencias[lead.ID].inicio === undefined && vigenciaInicioStr !== '') || // Se não tem valor local, inicializa
-            (novasVigencias[lead.ID].inicio !== undefined && novasVigencias[lead.ID].inicio !== vigenciaInicioStr && prevVigencia[lead.ID]?.inicio === undefined) // Se veio da API diferente e não foi alterado localmente
-            ) {
+        // ATENÇÃO: Aqui garantimos que o valor do Sheet será usado se não houver alteração local
+        // ou se o valor atual no estado for diferente do que veio da API (após um salvamento, por exemplo)
+        if (!novasVigencias[lead.ID] || novasVigencias[lead.ID].inicio !== vigenciaInicioStr) {
           novasVigencias[lead.ID] = {
             ...novasVigencias[lead.ID],
             inicio: vigenciaInicioStr,
           };
         }
-
-        if (!novasVigencias[lead.ID] ||
-            (novasVigencias[lead.ID].final === undefined && vigenciaFinalStr !== '') ||
-            (novasVigencias[lead.ID].final !== undefined && novasVigencias[lead.ID].final !== vigenciaFinalStr && prevVigencia[lead.ID]?.final === undefined)
-            ) {
+        if (!novasVigencias[lead.ID] || novasVigencias[lead.ID].final !== vigenciaFinalStr) {
           novasVigencias[lead.ID] = {
             ...novasVigencias[lead.ID],
             final: vigenciaFinalStr,
@@ -124,7 +112,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       });
       return novasVigencias;
     });
-
 
     // Lógica de ordenação para leads fechados (mantida por data de criação, mais recente primeiro)
     const fechadosOrdenados = [...fechadosAtuais].sort((a, b) => {
@@ -142,7 +129,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
     setFechadosFiltradosInterno(leadsFiltrados);
 
-  }, [leads, filtroNome, filtroData]);
+  }, [leads, filtroNome, filtroData]); // Dependências do useEffect
 
   const formatarMoeda = (valorCentavos) => {
     if (valorCentavos === null || isNaN(valorCentavos)) return '';
