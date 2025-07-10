@@ -553,7 +553,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                       valores[`${lead.ID}`]?.insurer,
                       valores[`${lead.ID}`]?.Comissao,
                       valores[`${lead.ID}`]?.Parcelamento,
-                      vigencia[`${lead.ID}`]?.inicio, // Passa Vigencia Inicio
+                      vigencia[`${lead.ID}`]?.inicio, // Passa Vigencia Inicial
                       vigencia[`${lead.ID}`]?.final // Passa Vigencia Final
                     )}
                     disabled={isButtonDisabled}
