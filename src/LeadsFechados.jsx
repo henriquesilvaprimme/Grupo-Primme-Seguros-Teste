@@ -2,11 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { RefreshCcw } from 'lucide-react'; // Importado para o ícone de refresh
 
 const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdateDetalhes, fetchLeadsFechadosFromSheet, isAdmin }) => {
-  // O filtro 'fechados' é aplicado sobre a prop 'leads',
-  // que será atualizada por 'fetchLeadsFechadosFromSheet'
   const [fechadosFiltradosInterno, setFechadosFiltradosInterno] = useState([]);
 
-  // Obtém o mês e ano atual no formato 'YYYY-MM'
   const getMesAnoAtual = () => {
     const hoje = new Date();
     const ano = hoje.getFullYear();
@@ -17,7 +14,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   const [valores, setValores] = useState(() => {
     const inicial = {};
     leads.filter(lead => lead.Status === 'Fechado').forEach(lead => {
-      inicial [lead.ID] = {
+      inicial[lead.ID] = {
         PremioLiquido: lead.PremioLiquido !== undefined ? Math.round(parseFloat(lead.PremioLiquido) * 100) : 0,
         Comissao: lead.Comissao ? String(lead.Comissao) : '',
         Parcelamento: lead.Parcelamento || '',
@@ -27,13 +24,28 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     return inicial;
   });
 
-  const [isLoading, setIsLoading] = useState(false); // Estado para o loader
+  // Novo estado para as datas de vigência
+  const [vigencia, setVigencia] = useState(() => {
+    const inicialVigencia = {};
+    leads.filter(lead => lead.Status === 'Fechado').forEach(lead => {
+      // Formata a data para 'YYYY-MM-DD' para o input type="date"
+      const dataInicio = lead.VigenciaInicio ? new Date(lead.VigenciaInicio).toISOString().split('T')[0] : '';
+      const dataFinal = lead.VigenciaFinal ? new Date(lead.VigenciaFinal).toISOString().split('T')[0] : '';
+
+      inicialVigencia[lead.ID] = {
+        inicio: dataInicio,
+        final: dataFinal,
+      };
+    });
+    return inicialVigencia;
+  });
+
+  const [isLoading, setIsLoading] = useState(false);
   const [nomeInput, setNomeInput] = useState('');
   const [dataInput, setDataInput] = useState(getMesAnoAtual());
   const [filtroNome, setFiltroNome] = useState('');
   const [filtroData, setFiltroData] = useState(getMesAnoAtual());
 
-  // Função para normalizar texto para filtros
   const normalizarTexto = (texto) =>
     texto
       .normalize('NFD')
@@ -41,55 +53,45 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '')
       .toLowerCase();
 
-  // Função para aplicar o filtro de nome
   const aplicarFiltroNome = () => {
     setFiltroNome(nomeInput.trim());
   };
 
-  // Função para aplicar o filtro de data
   const aplicarFiltroData = () => {
     setFiltroData(dataInput);
   };
 
-  // Função para buscar dados e controlar o loader
   const handleRefresh = async () => {
-    setIsLoading(true); // Ativa o loader
+    setIsLoading(true);
     try {
-      // Chama a função passada via props para buscar os dados atualizados
       await fetchLeadsFechadosFromSheet();
     } catch (error) {
       console.error('Erro ao atualizar leads fechados:', error);
     } finally {
-      setIsLoading(false); // Desativa o loader
+      setIsLoading(false);
     }
   };
 
-  // Efeito para chamar handleRefresh na montagem do componente
   useEffect(() => {
     handleRefresh();
   }, []);
 
-  // Efeito para re-filtrar e atualizar 'valores' sempre que 'leads' ou 'filtroData' mudar
   useEffect(() => {
     const fechadosAtuais = leads.filter(lead => lead.Status === 'Fechado');
 
     const fechadosOrdenados = [...fechadosAtuais].sort((a, b) => {
-      // Ajuste para garantir que a data esteja no formatoികിത്സ-MM-DD para comparação
       const getDataParaComparacao = (dataStr) => {
         if (!dataStr) return '';
-        // Se a data já estiver em ചികിത്സ-MM-DD, usa diretamente. Caso contrário, tenta converter.
-        // A sua data no Google Sheets parece vir comoികിത്സ-MM-DD
         return dataStr.includes('/') ? dataStr.split('/').reverse().join('-') : dataStr;
       };
 
       const dataA = new Date(getDataParaComparacao(a.Data));
       const dataB = new Date(getDataParaComparacao(b.Data));
-      return dataB.getTime() - dataA.getTime(); // mais recente primeiro
+      return dataB.getTime() - dataA.getTime();
     });
 
     const leadsFiltrados = fechadosOrdenados.filter(lead => {
       const nomeMatch = normalizarTexto(lead.name || '').includes(normalizarTexto(filtroNome || ''));
-      // Ajusta para comparar ചികിത്സ-MM
       const dataLeadMesAno = lead.Data ? lead.Data.substring(0, 7) : '';
       const dataMatch = filtroData ? dataLeadMesAno === filtroData : true;
       return nomeMatch && dataMatch;
@@ -97,12 +99,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
     setFechadosFiltradosInterno(leadsFiltrados);
 
-    // Atualiza os valores do formulário para novos leads carregados
     setValores(prevValores => {
       const novosValores = { ...prevValores };
       fechadosAtuais.forEach(lead => {
-        if (!novosValores [lead.ID]) {
-          novosValores [lead.ID] = {
+        if (!novosValores[lead.ID]) {
+          novosValores[lead.ID] = {
             PremioLiquido: lead.PremioLiquido !== undefined ? Math.round(parseFloat(lead.PremioLiquido) * 100) : 0,
             Comissao: lead.Comissao ? String(lead.Comissao) : '',
             Parcelamento: lead.Parcelamento || '',
@@ -112,7 +113,24 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       });
       return novosValores;
     });
-  }, [leads, filtroNome, filtroData]); // Dependências para re-executar este efeito
+
+    // Atualiza o estado de vigência para novos leads carregados ou quando leads mudam
+    setVigencia(prevVigencia => {
+      const novasVigencias = { ...prevVigencia };
+      fechadosAtuais.forEach(lead => {
+        if (!novasVigencias[lead.ID]) {
+          const dataInicio = lead.VigenciaInicio ? new Date(lead.VigenciaInicio).toISOString().split('T')[0] : '';
+          const dataFinal = lead.VigenciaFinal ? new Date(lead.VigenciaFinal).toISOString().split('T')[0] : '';
+          novasVigencias[lead.ID] = {
+            inicio: dataInicio,
+            final: dataFinal,
+          };
+        }
+      });
+      return novasVigencias;
+    });
+
+  }, [leads, filtroNome, filtroData]);
 
   const formatarMoeda = (valorCentavos) => {
     if (isNaN(valorCentavos) || valorCentavos === null) return '';
@@ -186,6 +204,30 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     onUpdateDetalhes(id, 'Parcelamento', valor);
   };
 
+  // Nova função para lidar com a data de início da vigência
+  const handleVigenciaInicioChange = (id, dataString) => {
+    let dataFinal = '';
+    if (dataString) {
+      const dataInicioObj = new Date(dataString + 'T00:00:00'); // Adiciona T00:00:00 para evitar problemas de fuso horário
+      if (!isNaN(dataInicioObj)) {
+        const dataFinalObj = new Date(dataInicioObj);
+        dataFinalObj.setFullYear(dataFinalObj.getFullYear() + 1); // Adiciona 1 ano
+        // Diminui 1 dia para que a vigência termine no dia anterior ao início do próximo ano
+        dataFinalObj.setDate(dataFinalObj.getDate() - 1);
+        dataFinal = dataFinalObj.toISOString().split('T')[0];
+      }
+    }
+
+    setVigencia(prev => ({
+      ...prev,
+      [`${id}`]: {
+        inicio: dataString,
+        final: dataFinal,
+      },
+    }));
+    // Não chama onUpdateDetalhes aqui, pois a atualização será feita no onConfirmInsurer
+  };
+
   const inputWrapperStyle = {
     position: 'relative',
     width: '100%',
@@ -216,7 +258,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
   return (
     <div style={{ padding: '20px', position: 'relative' }}>
-      {/* Loader de carregamento (overlay da página interna com fundo branco) */}
       {isLoading && (
         <div className="absolute inset-0 bg-white flex justify-center items-center z-10">
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
@@ -355,6 +396,9 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
           const responsavel = usuarios.find((u) => u.nome === lead.Responsavel && isAdmin);
 
+          // Verifica se Seguradora já está preenchida para desabilitar campos
+          const isSeguradoraPreenchida = !!lead.Seguradora;
+
           const isButtonDisabled =
             !valores[`${lead.ID}`]?.insurer ||
             !valores[`${lead.ID}`]?.PremioLiquido ||
@@ -362,7 +406,10 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             !valores[`${lead.ID}`]?.Comissao ||
             valores[`${lead.ID}`]?.Comissao === '' ||
             !valores[`${lead.ID}`]?.Parcelamento ||
-            valores[`${lead.ID}`]?.Parcelamento === '';
+            valores[`${lead.ID}`]?.Parcelamento === '' ||
+            !vigencia[`${lead.ID}`]?.inicio || // Vigência Início obrigatória
+            !vigencia[`${lead.ID}`]?.final; // Vigência Final obrigatória (calculada)
+
 
           return (
             <div key={lead.ID} style={containerStyle}>
@@ -395,7 +442,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                     }));
                     onUpdateInsurer(lead.ID, valor);
                   }}
-                  disabled={lead.Seguradora}
+                  disabled={isSeguradoraPreenchida} // Desabilita se já tem seguradora
                   style={{
                     padding: '8px',
                     border: '2px solid #ccc',
@@ -419,7 +466,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                     value={formatarMoeda(valores[`${lead.ID}`]?.PremioLiquido)}
                     onChange={(e) => handlePremioLiquidoChange(lead.ID, e.target.value)}
                     onBlur={() => handlePremioLiquidoBlur(lead.ID)}
-                    disabled={!!lead.Seguradora}
+                    disabled={isSeguradoraPreenchida} // Desabilita se já tem seguradora
                     style={inputWithPrefixStyle}
                   />
                 </div>
@@ -431,7 +478,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                     placeholder="Comissão (%)"
                     value={valores[`${lead.ID}`]?.Comissao || ''}
                     onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
-                    disabled={lead.Seguradora}
+                    disabled={isSeguradoraPreenchida} // Desabilita se já tem seguradora
                     maxLength={4}
                     style={inputWithPrefixStyle}
                   />
@@ -440,7 +487,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 <select
                   value={valores[`${lead.ID}`]?.Parcelamento || ''}
                   onChange={(e) => handleParcelamentoChange(lead.ID, e.target.value)}
-                  disabled={lead.Seguradora}
+                  disabled={isSeguradoraPreenchida} // Desabilita se já tem seguradora
                   style={{
                     padding: '8px',
                     border: '1px solid #ccc',
@@ -455,13 +502,57 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                   ))}
                 </select>
 
-                {!lead.Seguradora ? (
+                {/* --- Novos campos de Vigência --- */}
+                <div style={inputWrapperStyle}>
+                  <label htmlFor={`vigencia-inicio-${lead.ID}`} style={{ fontSize: '0.85em', color: '#555', display: 'block', marginBottom: '4px' }}>Vigência Início:</label>
+                  <input
+                    id={`vigencia-inicio-${lead.ID}`}
+                    type="date"
+                    value={vigencia[`${lead.ID}`]?.inicio || ''}
+                    onChange={(e) => handleVigenciaInicioChange(lead.ID, e.target.value)}
+                    disabled={isSeguradoraPreenchida} // Desabilita se já tem seguradora
+                    style={{
+                      ...inputWithPrefixStyle, // Reutiliza estilo, mas sem prefixo R$
+                      paddingLeft: '8px', // Ajusta padding
+                      textAlign: 'left', // Ajusta alinhamento
+                      width: '100%',
+                      marginBottom: '8px',
+                    }}
+                  />
+                </div>
+
+                <div style={inputWrapperStyle}>
+                  <label htmlFor={`vigencia-final-${lead.ID}`} style={{ fontSize: '0.85em', color: '#555', display: 'block', marginBottom: '4px' }}>Vigência Final:</label>
+                  <input
+                    id={`vigencia-final-${lead.ID}`}
+                    type="date"
+                    value={vigencia[`${lead.ID}`]?.final || ''}
+                    readOnly // Campo preenchido automaticamente, apenas leitura
+                    disabled={true} // Desabilita sempre, pois é auto-preenchido
+                    style={{
+                      ...inputWithPrefixStyle, // Reutiliza estilo
+                      paddingLeft: '8px', // Ajusta padding
+                      textAlign: 'left', // Ajusta alinhamento
+                      backgroundColor: '#f0f0f0', // Cor de fundo para campo readonly
+                      cursor: 'not-allowed', // Cursor de "não permitido"
+                      width: '100%',
+                      marginBottom: '8px',
+                    }}
+                  />
+                </div>
+                {/* --- Fim dos novos campos de Vigência --- */}
+
+
+                {!isSeguradoraPreenchida ? (
                   <button
-                    onClick={() => onConfirmInsurer(lead.ID,
+                    onClick={() => onConfirmInsurer(
+                      lead.ID,
                       parseFloat(valores[`${lead.ID}`]?.PremioLiquido.toString().replace('.', ',')),
                       valores[`${lead.ID}`]?.insurer,
                       valores[`${lead.ID}`]?.Comissao,
-                      valores[`${lead.ID}`]?.Parcelamento
+                      valores[`${lead.ID}`]?.Parcelamento,
+                      vigencia[`${lead.ID}`]?.inicio, // Passa Vigencia Inicio
+                      vigencia[`${lead.ID}`]?.final // Passa Vigencia Final
                     )}
                     disabled={isButtonDisabled}
                     style={{
