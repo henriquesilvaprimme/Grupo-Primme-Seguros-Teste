@@ -24,7 +24,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     return inicial;
   });
 
-  // Novo estado para as datas de vigência
+  // Estado para as datas de vigência
   const [vigencia, setVigencia] = useState(() => {
     const inicialVigencia = {};
     leads.filter(lead => lead.Status === 'Fechado').forEach(lead => {
@@ -204,17 +204,19 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     onUpdateDetalhes(id, 'Parcelamento', valor);
   };
 
-  // Nova função para lidar com a data de início da vigência
+  // --- CORREÇÃO AQUI: Lógica para calcular Vigência Final ---
   const handleVigenciaInicioChange = (id, dataString) => {
     let dataFinal = '';
     if (dataString) {
       const dataInicioObj = new Date(dataString + 'T00:00:00'); // Adiciona T00:00:00 para evitar problemas de fuso horário
-      if (!isNaN(dataInicioObj)) {
-        const dataFinalObj = new Date(dataInicioObj);
-        dataFinalObj.setFullYear(dataFinalObj.getFullYear() + 1); // Adiciona 1 ano
-        // Diminui 1 dia para que a vigência termine no dia anterior ao início do próximo ano
-        dataFinalObj.setDate(dataFinalObj.getDate() - 1);
-        dataFinal = dataFinalObj.toISOString().split('T')[0];
+      if (!isNaN(dataInicioObj.getTime())) { // Verifica se a data é válida
+        const anoInicio = dataInicioObj.getFullYear();
+        const mesInicio = String(dataInicioObj.getMonth() + 1).padStart(2, '0');
+        const diaInicio = String(dataInicioObj.getDate()).padStart(2, '0');
+
+        // Calcula o ano final (1 ano à frente), mantendo dia e mês
+        const anoFinal = anoInicio + 1;
+        dataFinal = `${anoFinal}-${mesInicio}-${diaInicio}`;
       }
     }
 
