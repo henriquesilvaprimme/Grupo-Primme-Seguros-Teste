@@ -13,6 +13,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
   const getDataParaComparacao = (dataStr) => {
     if (!dataStr) return '';
+    // Converte DD/MM/YYYY para YYYY-MM-DD para comparação de datas
     return dataStr.includes('/') ? dataStr.split('/').reverse().join('-') : dataStr;
   };
 
@@ -56,11 +57,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
   // Efeito para carregar leads na montagem e para lidar com a atualização após confirmação
   useEffect(() => {
-    // Apenas chame o refresh na montagem inicial ou se houver uma mudança crucial
-    // que necessite recarregar tudo (como o primeiro carregamento da props 'leads').
-    // O ideal é que fetchLeadsFechadosFromSheet seja chamado no App.jsx após a confirmação.
-    handleRefresh(); 
-  }, []); // Dependência vazia para rodar apenas uma vez na montagem inicial.
+    handleRefresh();
+  }, []);
 
   // Efeito para sincronizar os dados da prop 'leads' com os estados internos
   // e aplicar filtros
@@ -74,14 +72,16 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         // Converte o prêmio líquido da API para centavos para o estado interno
         // E só define se ainda não existe ou se o valor da API é diferente do estado
         const premioFromApi = parseFloat(String(lead.PremioLiquido || '0').replace('.', '').replace(',', '.'));
-        const premioInCents = isNaN(premioFromApi) ? null : Math.round(premioFromApi * 100); // Use null para indicar vazio, não 0
+        // Use null para indicar vazio, não 0
+        const premioInCents = isNaN(premioFromApi) || premioFromApi === 0 ? null : Math.round(premioFromApi * 100);
 
-        if (!novosValores[lead.ID] || 
+        // Somente atualiza se o lead não existe no estado ou se os valores são diferentes
+        if (!novosValores[lead.ID] ||
             novosValores[lead.ID].PremioLiquido !== premioInCents ||
             novosValores[lead.ID].Comissao !== (lead.Comissao ? String(lead.Comissao).replace('.', ',') : '') ||
             novosValores[lead.ID].Parcelamento !== (lead.Parcelamento || '') ||
             novosValores[lead.ID].insurer !== (lead.Seguradora || '')) {
-            
+
           novosValores[lead.ID] = {
             ...novosValores[lead.ID], // Preserva outros campos se existirem
             PremioLiquido: premioInCents, // Null se vazio, senão em centavos
@@ -101,16 +101,17 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         const vigenciaInicioStr = String(lead.VigenciaInicial || '');
         const vigenciaFinalStr = String(lead.VigenciaFinal || '');
 
-        const dataInicioFormatada = vigenciaInicioStr.includes('/') 
-          ? vigenciaInicioStr.split('/').reverse().join('-') 
+        const dataInicioFormatada = vigenciaInicioStr.includes('/')
+          ? vigenciaInicioStr.split('/').reverse().join('-')
           : vigenciaInicioStr;
 
-        const dataFinalFormatada = vigenciaFinalStr.includes('/') 
-          ? vigenciaFinalStr.split('/').reverse().join('-') 
+        const dataFinalFormatada = vigenciaFinalStr.includes('/')
+          ? vigenciaFinalStr.split('/').reverse().join('-')
           : vigenciaFinalStr;
 
-        if (!novasVigencias[lead.ID] || 
-            novasVigencias[lead.ID].inicio !== dataInicioFormatada || 
+        // Atualiza apenas se os valores no estado são diferentes dos valores do lead
+        if (!novasVigencias[lead.ID] ||
+            novasVigencias[lead.ID].inicio !== dataInicioFormatada ||
             novasVigencias[lead.ID].final !== dataFinalFormatada) {
           novasVigencias[lead.ID] = {
             ...novasVigencias[lead.ID], // Preserva outros campos se existirem
@@ -131,7 +132,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
     const leadsFiltrados = fechadosOrdenados.filter(lead => {
       const nomeMatch = normalizarTexto(lead.name || '').includes(normalizarTexto(filtroNome || ''));
-      const dataLeadMesAno = lead.Data ? getDataParaComparacao(lead.Data).substring(0, 7) : ''; 
+      const dataLeadMesAno = lead.Data ? getDataParaComparacao(lead.Data).substring(0, 7) : '';
       const dataMatch = filtroData ? dataLeadMesAno === filtroData : true;
       return nomeMatch && dataMatch;
     });
@@ -146,7 +147,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   };
 
   const handlePremioLiquidoChange = (id, valor) => {
-    const somenteNumerosEVirgula = valor.replace(/[^\d,]/g, ''); 
+    const somenteNumerosEVirgula = valor.replace(/[^\d,]/g, '');
     const partes = somenteNumerosEVirgula.split(',');
 
     let valorNumericoString = partes[0];
@@ -161,7 +162,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     setValores(prev => ({
       ...prev,
       [`${id}`]: {
-        ...prev[`${id}`], // <--- PRESERVA OUTROS VALORES AQUI!
+        ...prev[`${id}`], // PRESERVA OUTROS VALORES AQUI!
         PremioLiquido: valorParaEstado,
       },
     }));
@@ -174,7 +175,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     if (valorCentavos !== null && !isNaN(valorCentavos)) {
         valorReais = valorCentavos / 100;
     }
-    
+
     // Envia null ou o valor em reais
     onUpdateDetalhes(id, 'PremioLiquido', valorReais);
   };
@@ -185,7 +186,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     if (parts.length > 2) {
         cleanedValue = parts[0] + ',' + parts.slice(1).join('');
     }
-    
+
     if (parts.length > 1 && parts[1].length > 2) {
         cleanedValue = parts[0] + ',' + parts[1].slice(0,2);
     }
@@ -197,7 +198,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     setValores(prev => ({
         ...prev,
         [`${id}`]: {
-            ...prev[`${id}`], // <--- PRESERVA OUTROS VALORES AQUI!
+            ...prev[`${id}`], // PRESERVA OUTROS VALORES AQUI!
             Comissao: cleanedValue,
         },
     }));
@@ -211,7 +212,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     setValores(prev => ({
       ...prev,
       [`${id}`]: {
-        ...prev[`${id}`], // <--- PRESERVA OUTROS VALORES AQUI!
+        ...prev[`${id}`], // PRESERVA OUTROS VALORES AQUI!
         Parcelamento: valor,
       },
     }));
@@ -222,7 +223,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     setValores(prev => ({
         ...prev,
         [`${id}`]: {
-            ...prev[`${id}`], // <--- PRESERVA OUTROS VALORES AQUI!
+            ...prev[`${id}`], // PRESERVA OUTROS VALORES AQUI!
             insurer: valor,
         },
     }));
@@ -246,7 +247,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     setVigencia(prev => ({
       ...prev,
       [`${id}`]: {
-        ...prev[`${id}`], // <--- PRESERVA OUTROS VALORES AQUI!
+        ...prev[`${id}`], // PRESERVA OUTROS VALORES AQUI!
         inicio: dataString,
         final: dataFinal,
       },
@@ -463,7 +464,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '250px' }}>
                 <select
                   value={valores[`${lead.ID}`]?.insurer || ''}
-                  onChange={(e) => handleInsurerChange(lead.ID, e.target.value)} // Usa a nova função
+                  onChange={(e) => handleInsurerChange(lead.ID, e.target.value)}
                   disabled={isSeguradoraPreenchida}
                   style={{
                     padding: '8px',
@@ -557,7 +558,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
                 {!isSeguradoraPreenchida ? (
                   <button
-                    onClick={async () => { // Adicionado async aqui para await
+                    onClick={async () => {
                         await onConfirmInsurer(
                             lead.ID,
                             valores[`${lead.ID}`]?.PremioLiquido === null ? null : valores[`${lead.ID}`]?.PremioLiquido / 100,
@@ -565,11 +566,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                             parseFloat(valores[`${lead.ID}`]?.Comissao.replace(',', '.')),
                             valores[`${lead.ID}`]?.Parcelamento,
                             vigencia[`${lead.ID}`]?.inicio,
-                            vigencia[`${${lead.ID}`]?.final
+                            vigencia[`${lead.ID}`]?.final // Linha corrigida
                         );
                         // Após a confirmação, re-buscar os leads para atualizar a visualização
                         // Isso garante que os campos reflitam o estado salvo no Sheets
-                        await fetchLeadsFechadosFromSheet(); 
+                        await fetchLeadsFechadosFromSheet();
                     }}
                     disabled={isButtonDisabled}
                     style={{
