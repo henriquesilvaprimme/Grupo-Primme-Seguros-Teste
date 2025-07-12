@@ -564,6 +564,7 @@ function App() {
             fetchLeadsFromSheet={fetchLeadsFromSheet}
             fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
             leads={leads} />} />
+          <Route path="/relatorios" element={<Relatorios />} />
           <Route path="*" element={<h1 style={{ padding: 20 }}>Página não encontrada</h1>} />
         </Routes>
       </main>
