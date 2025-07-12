@@ -130,7 +130,7 @@ function App() {
           vehicleYearModel: item.vehicleyearmodel || item.vehicleYearModel || '',
           city: item.city || '',
           phone: item.phone || item.Telefone || '',
-          insuranceType: item.insurancetype || item.insuranceType || '',
+          insuranceType: item.insuranceType || item.insuranceType || '',
           status: item.status || 'Selecione o status',
           confirmado: item.confirmado === 'true' || item.confirmado === true,
           insurer: item.insurer || '',
@@ -180,7 +180,7 @@ function App() {
       const formattedData = data.map(item => ({
         ...item,
         // *** MUDANÇA AQUI PARA GARANTIR CONSISTÊNCIA DE CASE ***
-        insurancetype: item.insurancetype || '', 
+        insuranceType: item.insuranceType || '', 
       }));
       setLeadsFechados(formattedData);
 
@@ -259,7 +259,7 @@ function App() {
               vehicleYearModel: leadParaAdicionar.vehicleYearModel,
               city: leadParaAdicionar.city,
               phone: leadParaAdicionar.phone,
-              insurancetype: leadParaAdicionar.insurancetype || leadParaAdicionar.insuranceType || "", // Mantendo insurancetype
+              insuranceType: leadParaAdicionar.insuranceType || leadParaAdicionar.insuranceType || "", // Mantendo insuranceType
               Data: leadParaAdicionar.createdAt || new Date().toISOString(),
               Responsavel: leadParaAdicionar.responsavel || "",
               Status: "Fechado",
