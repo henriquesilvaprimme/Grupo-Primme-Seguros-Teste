@@ -179,6 +179,8 @@ function App() {
 
       const formattedData = data.map(item => ({
         ...item,
+        // *** MUDANÇA AQUI PARA GARANTIR CONSISTÊNCIA DE CASE ***
+        insurancetype: item.insurancetype || '', 
       }));
       setLeadsFechados(formattedData);
 
@@ -257,7 +259,7 @@ function App() {
               vehicleYearModel: leadParaAdicionar.vehicleYearModel,
               city: leadParaAdicionar.city,
               phone: leadParaAdicionar.phone,
-              insurer: leadParaAdicionar.insurancetype || leadParaAdicionar.insuranceType || "",
+              insurancetype: leadParaAdicionar.insurancetype || leadParaAdicionar.insuranceType || "", // Mantendo insurancetype
               Data: leadParaAdicionar.createdAt || new Date().toISOString(),
               Responsavel: leadParaAdicionar.responsavel || "",
               Status: "Fechado",
@@ -300,7 +302,6 @@ function App() {
     ...lead,
     premioLiquido: "",
     comissao: "",
-    parcelamento: "",
     VigenciaFinal: "",
     VigenciaInicial: "", // Limpar também VigenciaInicial
   })
