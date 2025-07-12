@@ -12,6 +12,7 @@ import CriarUsuario from './pages/CriarUsuario';
 import GerenciarUsuarios from './pages/GerenciarUsuarios';
 import Ranking from './pages/Ranking';
 import CriarLead from './pages/CriarLead';
+import Relatorios from './pages/Relatorios';
 
 // Constante para a URL BASE do Google Apps Script Web App
 // Esta URL NÃO deve conter "?v=..."
