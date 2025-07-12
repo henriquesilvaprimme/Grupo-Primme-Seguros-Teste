@@ -509,7 +509,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
                 <p><strong>Cidade:</strong> {lead.city}</p>
                 <p><strong>Telefone:</strong> {lead.phone}</p>
-                <p><strong>Tipo de Seguro:</strong> {lead.insurancetype}</p>
+                <p><strong>Tipo de Seguro:</strong> {lead.insuranceType}</p>
 
                 {responsavel && (
                   <p style={{ marginTop: '10px', color: '#007bff' }}>
