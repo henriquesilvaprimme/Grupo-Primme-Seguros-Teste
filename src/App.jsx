@@ -130,7 +130,7 @@ function App() {
           vehicleYearModel: item.vehicleyearmodel || item.vehicleYearModel || '',
           city: item.city || '',
           phone: item.phone || item.Telefone || '',
-          insurancetype: item.insurancetype || item.insuranceType || '',
+          insuranceType: item.insurancetype || item.insuranceType || '',
           status: item.status || 'Selecione o status',
           confirmado: item.confirmado === 'true' || item.confirmado === true,
           insurer: item.insurer || '',
