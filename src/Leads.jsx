@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Lead from './components/Lead';
 import { RefreshCcw } from 'lucide-react'; // Importado para o ícone de refresh
 
@@ -15,6 +15,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const [isLoading, setIsLoading] = useState(false);
   // Novo estado para armazenar as observações de cada lead
   const [observacoes, setObservacoes] = useState({}); // { [leadId]: 'texto da observação' }
+  // Estado para controlar a edição da observação por lead
+  const [isEditingObservacao, setIsEditingObservacao] = useState({}); // { [leadId]: true/false }
+  // Estado para controlar a edição do status (Em Contato/Sem Contato)
+  const [isEditingStatus, setIsEditingStatus] = useState({}); // { [leadId]: true/false }
+
 
   // Estados para filtro por data (mes e ano) - INICIAM LIMPOS
   const [dataInput, setDataInput] = useState('');
@@ -23,6 +28,21 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   // Estados para filtro por nome
   const [nomeInput, setNomeInput] = useState('');
   const [filtroNome, setFiltroNome] = useState('');
+
+  // Sincroniza o estado de observações e edição com os leads carregados
+  useEffect(() => {
+    const initialObservacoes = {};
+    const initialIsEditingObservacao = {};
+    const initialIsEditingStatus = {}; // Adicionado
+    leads.forEach(lead => {
+      initialObservacoes[lead.id] = lead.observacao || '';
+      initialIsEditingObservacao[lead.id] = false; // Começa sempre bloqueado
+      initialIsEditingStatus[lead.id] = false; // Começa sempre bloqueado
+    });
+    setObservacoes(initialObservacoes);
+    setIsEditingObservacao(initialIsEditingObservacao);
+    setIsEditingStatus(initialIsEditingStatus); // Adicionado
+  }, [leads]);
 
   // Função para buscar leads atualizados do Google Sheets, agora controlando o isLoading
   const handleRefreshLeads = async () => {
@@ -137,9 +157,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
-      // Como é no-cors, não podemos inspecionar a resposta.
-      // Você pode adicionar um tratamento de UI aqui se a operação for bem-sucedida,
-      // talvez um feedback visual para o usuário.
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
       alert('Erro ao transferir lead. Por favor, tente novamente.');
@@ -200,10 +217,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
     setIsLoading(true); // Ativa o loader
     try {
-      // Envia a observação para o Google Apps Script
       const response = await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
         method: 'POST',
-        mode: 'no-cors', // Importante para evitar erros CORS
+        mode: 'no-cors',
         body: JSON.stringify({
           leadId: leadId,
           observacao: observacaoTexto,
@@ -213,15 +229,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         },
       });
 
-      // No modo 'no-cors', não podemos verificar `response.ok` ou `response.json()`.
-      // Você pode assumir sucesso ou implementar um mecanismo de callback no GAS.
-      alert('Observação salva com sucesso!');
-      // Opcional: Limpar a observação do estado local após salvar, ou recarregar os leads
-      setObservacoes((prev) => {
-        const newState = { ...prev };
-        delete newState[leadId]; // Remove a observação do estado para este lead
-        return newState;
-      });
+      // Uma vez salvo, desabilita a edição e esconde o botão Salvar
+      setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
       fetchLeadsFromSheet(); // Recarrega os leads para exibir a observação salva
     } catch (error) {
       console.error('Erro ao salvar observação:', error);
@@ -229,6 +238,23 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     } finally {
       setIsLoading(false); // Desativa o loader
     }
+  };
+
+  // Função para habilitar a edição da observação
+  const handleAlterarObservacao = (leadId) => {
+    setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+  };
+
+  // Função para lidar com a confirmação de status (Em Contato/Sem Contato)
+  const handleConfirmStatus = (leadId, novoStatus, phone) => {
+    onUpdateStatus(leadId, novoStatus, phone);
+    setIsEditingStatus(prev => ({ ...prev, [leadId]: false })); // Desabilita a edição do status
+    fetchLeadsFromSheet(); // Recarrega os leads para garantir o estado atualizado
+  };
+
+  // Função para habilitar a alteração do status
+  const handleAlterarStatus = (leadId) => {
+    setIsEditingStatus(prev => ({ ...prev, [leadId]: true }));
   };
 
   return (
@@ -353,6 +379,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         <>
           {leadsPagina.map((lead) => {
             const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
+            const canEditStatus = isEditingStatus[lead.id];
+            const canEditObservacao = isEditingObservacao[lead.id];
 
             return (
               <div
@@ -363,115 +391,146 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   padding: '15px',
                   marginBottom: '15px',
                   position: 'relative',
+                  display: 'flex', // Habilita flexbox para alinhar lado a lado
+                  gap: '20px',    // Espaçamento entre os elementos filhos
+                  alignItems: 'flex-start', // Alinha os itens ao topo
+                  flexWrap: 'wrap', // Permite quebrar linha em telas menores
                 }}
               >
-                <Lead
-                  lead={lead}
-                  onUpdateStatus={onUpdateStatus}
-                  disabledConfirm={!lead.responsavel}
-                />
+                <div style={{ flex: '1 1 50%', minWidth: '300px' }}> {/* Área das informações do Lead */}
+                  <Lead
+                    lead={lead}
+                    onUpdateStatus={handleConfirmStatus} // Usa a nova função de confirmação de status
+                    disabledConfirm={!lead.responsavel || !canEditStatus} // Desabilita se não puder editar o status
+                    isEditingStatus={canEditStatus} // Passa o estado de edição do status
+                    onAlterarStatus={handleAlterarStatus} // Passa a função para alterar status
+                  />
+                </div>
 
-                {/* Se o status for "Em Contato", mostra o campo de observação */}
+                {/* Se o status for "Em Contato", mostra o campo de observação ao lado */}
                 {lead.status === 'Em Contato' && (
-                  <div style={{ marginTop: '15px', borderTop: '1px dashed #eee', paddingTop: '15px' }}>
+                  <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
                       Observações:
                     </label>
                     <textarea
                       id={`observacao-${lead.id}`}
-                      value={observacoes[lead.id] || lead.observacao || ''} // Pré-preenche se já houver observação no lead
+                      value={observacoes[lead.id] || ''}
                       onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
                       placeholder="Adicione suas observações aqui..."
                       rows="3"
+                      disabled={!canEditObservacao} // Desabilita se não estiver em modo de edição
                       style={{
                         width: '100%',
                         padding: '10px',
                         borderRadius: '6px',
                         border: '1px solid #ccc',
-                        resize: 'vertical', // Permite redimensionar verticalmente
+                        resize: 'vertical',
                         boxSizing: 'border-box',
+                        backgroundColor: canEditObservacao ? '#fff' : '#f0f0f0', // Muda cor de fundo se desabilitado
+                        cursor: canEditObservacao ? 'text' : 'not-allowed',
                       }}
                     ></textarea>
-                    <button
-                      onClick={() => handleSalvarObservacao(lead.id)}
-                      style={{
-                        marginTop: '10px',
-                        padding: '8px 16px',
-                        backgroundColor: '#007bff',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      Salvar Observação
-                    </button>
+                    {canEditObservacao ? (
+                      <button
+                        onClick={() => handleSalvarObservacao(lead.id)}
+                        style={{
+                          marginTop: '10px',
+                          padding: '8px 16px',
+                          backgroundColor: '#007bff',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        Salvar Observação
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleAlterarObservacao(lead.id)}
+                        style={{
+                          marginTop: '10px',
+                          padding: '8px 16px',
+                          backgroundColor: '#ffc107', // Amarelo
+                          color: '#000',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        Alterar Observação
+                      </button>
+                    )}
                   </div>
                 )}
 
-                {lead.responsavel && responsavel ? (
-                  <div style={{ marginTop: '10px' }}>
-                    <p style={{ color: '#28a745' }}>
-                      Transferido para <strong>{responsavel.nome}</strong>
-                    </p>
-                    {isAdmin && (
-                      <button
-                        onClick={() => handleAlterar(lead.id)}
+                <div style={{ width: '100%' }}> {/* Mantém o controle de transferência abaixo */}
+                  {lead.responsavel && responsavel ? (
+                    <div style={{ marginTop: '10px' }}>
+                      <p style={{ color: '#28a745' }}>
+                        Transferido para <strong>{responsavel.nome}</strong>
+                      </p>
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleAlterar(lead.id)}
+                          style={{
+                            marginTop: '5px',
+                            padding: '5px 12px',
+                            backgroundColor: '#ffc107',
+                            color: '#000',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Alterar
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        marginTop: '10px',
+                        display: 'flex',
+                        gap: '10px',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <select
+                        value={selecionados[lead.id] || ''}
+                        onChange={(e) => handleSelect(lead.id, e.target.value)}
                         style={{
-                          marginTop: '5px',
+                          padding: '5px',
+                          borderRadius: '4px',
+                          border: '1px solid #ccc',
+                        }}
+                      >
+                        <option value="">Selecione usuário ativo</option>
+                        {usuariosAtivos.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.nome}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => handleEnviar(lead.id)}
+                        style={{
                           padding: '5px 12px',
-                          backgroundColor: '#ffc107',
-                          color: '#000',
+                          backgroundColor: '#28a745',
+                          color: 'white',
                           border: 'none',
                           borderRadius: '4px',
                           cursor: 'pointer',
                         }}
                       >
-                        Alterar
+                        Enviar
                       </button>
-                    )}
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      marginTop: '10px',
-                      display: 'flex',
-                      gap: '10px',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <select
-                      value={selecionados[lead.id] || ''}
-                      onChange={(e) => handleSelect(lead.id, e.target.value)}
-                      style={{
-                        padding: '5px',
-                        borderRadius: '4px',
-                        border: '1px solid #ccc',
-                      }}
-                    >
-                      <option value="">Selecione usuário ativo</option>
-                      {usuariosAtivos.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.nome}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => handleEnviar(lead.id)}
-                      style={{
-                        padding: '5px 12px',
-                        backgroundColor: '#28a745',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Enviar
-                    </button>
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
 
                 <div
                   style={{
