@@ -31,7 +31,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const initialIsEditingObservacao = {};
     leads.forEach(lead => {
       initialObservacoes[lead.id] = lead.observacao || ''; // Carrega a observação existente
-      // CORREÇÃO AQUI: Se a observação já existe, isEditingObservacao é false (para mostrar o botão Alterar)
+      // Se a observação já existe, isEditingObservacao é false (para mostrar o botão Alterar)
       // Caso contrário, é true (para permitir a digitação e mostrar o botão Salvar)
       initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
     });
@@ -214,7 +214,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   const handleSalvarObservacao = async (leadId) => {
-    const observacaoTexto = observacoes[lead.id] || '';
+    // CORREÇÃO AQUI: Acessar a observação do estado local `observacoes` usando `leadId`
+    const observacaoTexto = observacoes[leadId] || ''; 
     if (!observacaoTexto.trim()) {
       alert('Por favor, digite uma observação antes de salvar.');
       return;
