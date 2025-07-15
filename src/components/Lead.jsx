@@ -1,12 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Adicionado useEffect para consistência
 
 // URL do Google Apps Script para atualizar o status do lead
 const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 
 const Lead = ({ lead, onUpdateStatus, disabledConfirm, isEditingStatus, onAlterarStatus }) => {
   const [status, setStatus] = useState(lead.status || '');
-  // `blocked` agora é usado para controlar a habilitação do `select` de status
-  const [blocked, setBlocked] = useState(!isEditingStatus); // Bloqueia se não estiver em modo de edição inicial
+  // `isSelectDisabled` controla se a caixa de seleção está desabilitada.
+  // Ela será desabilitada se o status for "Fechado" ou "Perdido" OU se não estiver em modo de edição de status.
+  const [isSelectDisabled, setIsSelectDisabled] = useState(
+    lead.status === 'Fechado' || lead.status === 'Perdido' || !isEditingStatus
+  );
+
+  // UseEffect para atualizar o estado de disabled do select quando isEditingStatus muda no pai
+  useEffect(() => {
+    setIsSelectDisabled(lead.status === 'Fechado' || lead.status === 'Perdido' || !isEditingStatus);
+  }, [isEditingStatus, lead.status]);
+
 
   // Define a cor do card conforme o status
   const cardColor = (() => {
@@ -26,27 +35,28 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isEditingStatus, onAltera
     }
   })();
 
-  const handleStatusChange = async (newStatus) => {
-    // A validação de status vazio não é mais necessária aqui, pois os botões forçam uma escolha
-    // Mas mantemos a lógica de bloqueio para "Fechado" e "Perdido"
-    if (newStatus === 'Fechado' || newStatus === 'Perdido') {
-      setBlocked(true); // Bloqueia o select após a seleção
-    } else {
-      setBlocked(false); // Desbloqueia para outros status, caso ele já estivesse bloqueado e fosse alterado
+  const handleConfirm = async () => {
+    if (!status || status === 'Selecione o status') {
+      alert('Selecione um status antes de confirmar!');
+      return;
     }
 
-    // Atualiza o estado local do status
-    setStatus(newStatus);
+    // Bloqueia o select se o status for "Fechado" ou "Perdido" após a confirmação
+    if (status === 'Fechado' || status === 'Perdido') {
+      setIsSelectDisabled(true);
+    } else {
+        // Se o status mudar de Fechado/Perdido para outro, o select deve ser reabilitado
+        setIsSelectDisabled(false);
+    }
 
-    // Envia a atualização para o Google Apps Script
     try {
       await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
         method: 'POST',
-        mode: 'no-cors', // Importante para evitar erros de CORS
+        mode: 'no-cors',
         body: JSON.stringify({
           v: 'updateStatus',
           id: lead.id,
-          status: newStatus,
+          status: status,
           phone: lead.phone
         }),
         headers: {
@@ -54,13 +64,12 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isEditingStatus, onAltera
         },
       });
 
-      // Chama o callback para informar a atualização ao componente pai (Leads.jsx)
       if (onUpdateStatus) {
-        onUpdateStatus(lead.id, newStatus, lead.phone);
+        onUpdateStatus(lead.id, status, lead.phone); // Chama o callback pra informar a atualização
       }
 
     } catch (error) {
-      console.error('Erro ao atualizar status:', error);
+      console.error('Erro ao enviar lead:', error);
       alert('Erro ao atualizar status do lead. Por favor, tente novamente.');
     }
   };
@@ -83,86 +92,66 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isEditingStatus, onAltera
       <p style={{ margin: '5px 0' }}><strong>Tipo de Seguro:</strong> {lead.insuranceType}</p>
       <p style={{ margin: '5px 0' }}><strong>Status:</strong> <span style={{ fontWeight: 'bold', color: status === 'Em Contato' ? 'orange' : status === 'Fechado' ? 'green' : status === 'Perdido' ? 'red' : 'gray' }}>{status}</span></p>
 
-      {/* Botões de Status */}
-      <div style={{ marginTop: '10px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-        {isEditingStatus || (status !== 'Fechado' && status !== 'Perdido') ? (
-          <>
+      {/* Caixa de seleção de status */}
+      <div style={{ marginTop: '10px', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <select
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value);
+            // Ao mudar a seleção, habilita o botão de Confirmar (se não estiver totalmente disabled)
+            if (e.target.value !== 'Fechado' && e.target.value !== 'Perdido') {
+                setIsSelectDisabled(false); // Permite reabilitar se sair de um status final
+            }
+          }}
+          disabled={isSelectDisabled} // Controlado pelo estado local e props
+          style={{
+            marginRight: '10px',
+            padding: '8px',
+            border: '2px solid #ccc',
+            borderRadius: '4px',
+            minWidth: '160px',
+            backgroundColor: isSelectDisabled ? '#f0f0f0' : '#fff', // Cor de fundo para desabilitado
+            cursor: isSelectDisabled ? 'not-allowed' : 'pointer'
+          }}
+        >
+          <option value="">Selecione o status</option>
+          <option value="Em Contato">Em Contato</option>
+          <option value="Fechado">Fechado</option>
+          <option value="Perdido">Perdido</option>
+          <option value="Sem Contato">Sem Contato</option>
+        </select>
+
+        {/* Botão Confirmar ou Alterar Status */}
+        {isEditingStatus ? ( // Se estiver no modo de edição (controlado pelo pai)
             <button
-              onClick={() => handleStatusChange('Em Contato')}
-              style={{
-                padding: '8px 15px',
-                backgroundColor: '#ffc107', // Amarelo
-                color: 'black',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: disabledConfirm ? 'not-allowed' : 'pointer',
-                opacity: disabledConfirm ? 0.6 : 1,
-              }}
-              disabled={disabledConfirm}
+                onClick={handleConfirm}
+                disabled={disabledConfirm || !status || isSelectDisabled} // Adicionado isSelectDisabled aqui para evitar cliques em status "final"
+                style={{
+                    padding: '8px 16px',
+                    backgroundColor: (disabledConfirm || !status || isSelectDisabled) ? '#aaa' : '#007bff',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: (disabledConfirm || !status || isSelectDisabled) ? 'not-allowed' : 'pointer'
+                }}
             >
-              Em Contato
+                Confirmar
             </button>
+        ) : ( // Se não estiver no modo de edição
             <button
-              onClick={() => handleStatusChange('Sem Contato')}
-              style={{
-                padding: '8px 15px',
-                backgroundColor: '#dc3545', // Vermelho
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: disabledConfirm ? 'not-allowed' : 'pointer',
-                opacity: disabledConfirm ? 0.6 : 1,
-              }}
-              disabled={disabledConfirm}
+                onClick={() => onAlterarStatus(lead.id)} // Chama a função do pai para habilitar a edição
+                style={{
+                    padding: '8px 15px',
+                    backgroundColor: '#ffc107', // Amarelo para Alterar
+                    color: 'black',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                }}
             >
-              Sem Contato
+                Alterar Status
             </button>
-            <button
-              onClick={() => handleStatusChange('Fechado')}
-              style={{
-                padding: '8px 15px',
-                backgroundColor: '#28a745', // Verde
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: disabledConfirm ? 'not-allowed' : 'pointer',
-                opacity: disabledConfirm ? 0.6 : 1,
-              }}
-              disabled={disabledConfirm}
-            >
-              Fechado
-            </button>
-            <button
-              onClick={() => handleStatusChange('Perdido')}
-              style={{
-                padding: '8px 15px',
-                backgroundColor: '#6c757d', // Cinza
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: disabledConfirm ? 'not-allowed' : 'pointer',
-                opacity: disabledConfirm ? 0.6 : 1,
-              }}
-              disabled={disabledConfirm}
-            >
-              Perdido
-            </button>
-          </>
-        ) : (
-          <button
-            onClick={() => onAlterarStatus(lead.id)}
-            style={{
-              padding: '8px 15px',
-              backgroundColor: '#ffc107', // Amarelo para Alterar
-              color: 'black',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-            }}
-          >
-            Alterar Status
-          </button>
         )}
       </div>
     </div>
