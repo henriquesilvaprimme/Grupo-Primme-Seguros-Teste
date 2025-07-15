@@ -31,7 +31,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const initialIsEditingObservacao = {};
     leads.forEach(lead => {
       initialObservacoes[lead.id] = lead.observacao || ''; // Carrega a observação existente
-      initialIsEditingObservacao[lead.id] = false; // Começa desabilitado
+      initialIsEditingObservacao[lead.id] = true; // Começa desabilitado
     });
     setObservacoes(initialObservacoes);
     setIsEditingObservacao(initialIsEditingObservacao);
