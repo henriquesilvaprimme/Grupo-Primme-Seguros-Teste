@@ -5,7 +5,7 @@ import { RefreshCcw } from 'lucide-react'; // Importado para o ícone de refresh
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
 // ⚠️ ATENÇÃO: VOCÊ PRECISARÁ CRIAR ESTE SCRIPT NO GAS para salvar observações.
-const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao'; 
+const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
 
 
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
@@ -31,7 +31,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const initialIsEditingObservacao = {};
     leads.forEach(lead => {
       initialObservacoes[lead.id] = lead.observacao || ''; // Carrega a observação existente
-      initialIsEditingObservacao[lead.id] = true; // Começa desabilitado
+      // CORREÇÃO AQUI: Se a observação já existe, isEditingObservacao é false (para mostrar o botão Alterar)
+      // Caso contrário, é true (para permitir a digitação e mostrar o botão Salvar)
+      initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
     });
     setObservacoes(initialObservacoes);
     setIsEditingObservacao(initialIsEditingObservacao);
@@ -46,7 +48,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       // NOVO: Reinicia o estado de edição da observação após um refresh
       const refreshedIsEditingObservacao = {};
       leads.forEach(lead => {
-        refreshedIsEditingObservacao[lead.id] = false;
+        // Após o refresh, reavalia se a observação já existe para definir o estado de edição
+        refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
       });
       setIsEditingObservacao(refreshedIsEditingObservacao);
     } catch (error) {
@@ -211,7 +214,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   const handleSalvarObservacao = async (leadId) => {
-    const observacaoTexto = observacoes[leadId] || '';
+    const observacaoTexto = observacoes[lead.id] || '';
     if (!observacaoTexto.trim()) {
       alert('Por favor, digite uma observação antes de salvar.');
       return;
@@ -235,7 +238,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       // Após salvar, bloqueia o campo e mostra o botão "Alterar"
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
       // Opcional: Recarregar os leads para garantir que a observação atualizada seja exibida
-      fetchLeadsFromSheet(); 
+      fetchLeadsFromSheet();
     } catch (error) {
       console.error('Erro ao salvar observação:', error);
       alert('Erro ao salvar observação. Por favor, tente novamente.');
@@ -255,10 +258,17 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const handleConfirmStatus = (leadId, novoStatus, phone) => {
     onUpdateStatus(leadId, novoStatus, phone);
     // Se o status for "Em Contato" ou "Sem Contato", habilita a edição da observação
-    if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
-      setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+    // E se não houver observação prévia, também habilita para digitar
+    const currentLead = leads.find(l => l.id === leadId);
+    const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
+
+    if ( (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao ) {
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+    } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
+        // Se já tinha observação e o status é Em Contato/Sem Contato, mantém bloqueado para Alterar
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     } else {
-      setIsEditingObservacao(prev => ({ ...prev, [leadId]: false })); // Desabilita para outros status
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false })); // Desabilita para outros status
     }
     fetchLeadsFromSheet(); // Recarrega os leads para refletir a mudança de status
   };
