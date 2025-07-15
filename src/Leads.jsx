@@ -1,14 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Lead from './components/Lead';
 import { RefreshCcw } from 'lucide-react'; // Importado para o ícone de refresh
 
+// URL do script Google Apps Script para atualizar o status e agora, as observações
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
+// URL para alterar o atribuído (mantido, pois você já o tem)
+const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
+// Novo URL para salvar observações - VOCÊ PRECISARÁ CRIAR ESTE SCRIPT NO GAS
+const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao'; // ⚠️ ATENÇÃO: Substitua 'SEU_ID_DO_SCRIPT_AQUI' pelo ID do seu script GAS para salvar observações.
 
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
   const [selecionados, setSelecionados] = useState({}); // { [leadId]: userId }
   const [paginaAtual, setPaginaAtual] = useState(1);
-  // Novo estado para controlar o estado de carregamento
   const [isLoading, setIsLoading] = useState(false);
+  // Novo estado para armazenar as observações de cada lead
+  const [observacoes, setObservacoes] = useState({}); // { [leadId]: 'texto da observação' }
+  // Estado para controlar a edição da observação por lead
+  const [isEditingObservacao, setIsEditingObservacao] = useState({}); // { [leadId]: true/false }
+  // Estado para controlar a edição do status (Em Contato/Sem Contato)
+  const [isEditingStatus, setIsEditingStatus] = useState({}); // { [leadId]: true/false }
 
   // Estados para filtro por data (mes e ano) - INICIAM LIMPOS
   const [dataInput, setDataInput] = useState('');
@@ -18,12 +28,32 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const [nomeInput, setNomeInput] = useState('');
   const [filtroNome, setFiltroNome] = useState('');
 
+  // Sincroniza o estado de observações e edição com os leads carregados
+  useEffect(() => {
+    const initialObservacoes = {};
+    const initialIsEditingObservacao = {};
+    const initialIsEditingStatus = {};
+    leads.forEach(lead => {
+      initialObservacoes[lead.id] = lead.observacao || '';
+      initialIsEditingObservacao[lead.id] = false;
+      initialIsEditingStatus[lead.id] = false;
+    });
+    setObservacoes(initialObservacoes);
+    setIsEditingObservacao(initialIsEditingObservacao);
+    setIsEditingStatus(initialIsEditingStatus);
+  }, [leads]);
+
   // Função para buscar leads atualizados do Google Sheets, agora controlando o isLoading
   const handleRefreshLeads = async () => {
     setIsLoading(true); // Ativa o loader
     try {
-      // Chama a função fetchLeadsFromSheet passada como prop
       await fetchLeadsFromSheet();
+      // Após o refresh, re-inicia o estado de edição para todos os leads
+      const refreshedIsEditingStatus = {};
+      leads.forEach(lead => {
+        refreshedIsEditingStatus[lead.id] = false;
+      });
+      setIsEditingStatus(refreshedIsEditingStatus);
     } catch (error) {
       console.error('Erro ao buscar leads atualizados:', error);
     } finally {
@@ -33,7 +63,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const leadsPorPagina = 10;
 
-  // Função para normalizar strings (remover acento, pontuação, espaços, etc)
   const normalizarTexto = (texto = '') => {
     return texto
       .toString()
@@ -60,15 +89,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setPaginaAtual(1);
   };
 
-  const isSameMonthAndYear = (leadDateStr, filtroMesAno) => {
-    if (!filtroMesAno) return true;
-    if (!leadDateStr) return false;
-    const leadData = new Date(leadDateStr);
-    const leadAno = leadData.getFullYear();
-    const leadMes = String(leadData.getMonth() + 1).padStart(2, '0');
-    return filtroMesAno === `${leadAno}-${leadMes}`;
-  };
-
   const nomeContemFiltro = (leadNome, filtroNome) => {
     if (!filtroNome) return true;
     if (!leadNome) return false;
@@ -81,10 +101,10 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   // Filtragem dos leads pendentes + filtro data ou nome
   const gerais = leads.filter((lead) => {
+    // Leads 'Fechado' ou 'Perdido' não devem aparecer nos 'gerais'
     if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
 
     if (filtroData) {
-      // Considerando que lead.createdAt é uma string no formato 'YYYY-MM-DD'
       const leadMesAno = lead.createdAt ? lead.createdAt.substring(0, 7) : '';
       return leadMesAno === filtroData;
     }
@@ -126,7 +146,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const enviarLeadAtualizado = async (lead) => {
     try {
-      const response = await fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_atribuido', {
+      await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify(lead),
@@ -134,17 +154,22 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
+      // Após o envio, recarregar os leads para que a UI reflita a mudança
+      fetchLeadsFromSheet();
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
+      alert('Erro ao transferir lead. Por favor, tente novamente.');
     }
   };
 
   const handleAlterar = (leadId) => {
+    // Ao clicar em Alterar, remove o userId selecionado para reativar a seleção
     setSelecionados((prev) => ({
       ...prev,
-      [leadId]: '',
+      [leadId]: '', // Define como vazio para que o select exiba a opção padrão
     }));
-    transferirLead(leadId, null);
+    // Se desejar, pode-se também chamar transferirLead(leadId, null) aqui para 'desatribuir' visualmente
+    // transferirLead(leadId, null);
   };
 
   const inicio = (paginaCorrigida - 1) * leadsPorPagina;
@@ -161,29 +186,76 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const formatarData = (dataStr) => {
     if (!dataStr) return '';
-    // A API Google Sheets pode retornar datas como 'DD/MM/AAAA' ou 'YYYY-MM-DD'.
-    // Tentamos parsear ambas, priorizando 'YYYY-MM-DD' que Date() entende melhor.
     let data;
     if (dataStr.includes('/')) {
-        const partes = dataStr.split('/');
-        data = new Date(`${partes[2]}-${partes[1]}-${partes[0]}`);
+      const partes = dataStr.split('/');
+      data = new Date(`${partes[2]}-${partes[1]}-${partes[0]}`);
     } else {
-        data = new Date(dataStr);
+      data = new Date(dataStr);
     }
 
-    // Verifica se a data é válida
     if (isNaN(data.getTime())) {
-        return ''; // Retorna vazio se a data for inválida
+      return '';
     }
     return data.toLocaleDateString('pt-BR');
   };
 
+  const handleObservacaoChange = (leadId, text) => {
+    setObservacoes((prev) => ({
+      ...prev,
+      [leadId]: text,
+    }));
+  };
+
+  const handleSalvarObservacao = async (leadId) => {
+    const observacaoTexto = observacoes[leadId] || '';
+    if (!observacaoTexto.trim()) {
+      alert('Por favor, digite uma observação antes de salvar.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({
+          leadId: leadId,
+          observacao: observacaoTexto,
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+      fetchLeadsFromSheet();
+    } catch (error) {
+      console.error('Erro ao salvar observação:', error);
+      alert('Erro ao salvar observação. Por favor, tente novamente.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAlterarObservacao = (leadId) => {
+    setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+  };
+
+  const handleConfirmStatus = (leadId, novoStatus, phone) => {
+    onUpdateStatus(leadId, novoStatus, phone);
+    setIsEditingStatus(prev => ({ ...prev, [leadId]: false }));
+    fetchLeadsFromSheet();
+  };
+
+  const handleAlterarStatus = (leadId) => {
+    setIsEditingStatus(prev => ({ ...prev, [leadId]: true }));
+  };
+
   return (
-    // Adicione um minHeight aqui para garantir que o container do Leads tenha altura suficiente
-    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}> {/* Exemplo: 100vh - altura do cabeçalho/navbar */}
-      {/* Loader de carregamento (overlay da página interna com fundo branco) */}
+    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
       {isLoading && (
-        <div className="absolute inset-0 bg-white flex justify-center items-center z-10"> {/* Mantido 'absolute' */}
+        <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
           <p className="ml-4 text-lg text-gray-700">Carregando LEADS...</p>
         </div>
@@ -204,10 +276,20 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
           <button
             title='Clique para atualizar os dados'
-            onClick={handleRefreshLeads} // Chamando a nova função para lidar com o refresh
-            disabled={isLoading} // Desabilita o botão enquanto estiver carregando
+            onClick={handleRefreshLeads}
+            disabled={isLoading}
+            style={{
+                background: 'none',
+                border: 'none',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                padding: '0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#007bff'
+            }}
           >
-            {isLoading ? ( // Mostra o spinner se estiver carregando
+            {isLoading ? (
               <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -218,7 +300,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           </button>
         </div>
 
-        {/* Filtro nome - centralizado */}
         <div
           style={{
             display: 'flex',
@@ -259,7 +340,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           />
         </div>
 
-        {/* Filtro data - direita */}
         <div
           style={{
             display: 'flex',
@@ -296,15 +376,24 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         </div>
       </div>
 
-      {isLoading ? ( // Mostra a mensagem de carregamento quando isLoading for true
-        // Removi o <p> "Carregando leads..." daqui para evitar duplicidade com o loader overlay
+      {isLoading ? (
         null
       ) : gerais.length === 0 ? (
         <p>Não há leads pendentes para os filtros aplicados.</p>
       ) : (
         <>
           {leadsPagina.map((lead) => {
-            const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
+            const responsavel = usuarios.find((u) => u.id === lead.usuarioId); // Busca por usuarioId agora
+            const canEditStatus = isEditingStatus[lead.id];
+            const canEditObservacao = isEditingObservacao[lead.id];
+
+            const shouldShowAlterarStatusButtonForLead =
+                (lead.status === 'Em Contato' || lead.status === 'Sem Contato') && !canEditStatus;
+            
+            const shouldShowConfirmButtonForLead = canEditStatus || (!lead.status && lead.responsavel); // Confirmar aparece se editando ou se ainda não tem status mas já tem responsavel
+
+            // Lógica para habilitar/desabilitar a caixa de seleção de atribuição
+            const isAssignmentBlocked = lead.responsavel && (lead.status === 'Em Contato' || lead.status === 'Sem Contato');
 
             return (
               <div
@@ -315,78 +404,154 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   padding: '15px',
                   marginBottom: '15px',
                   position: 'relative',
+                  display: 'flex',
+                  gap: '20px',
+                  alignItems: 'flex-start',
+                  flexWrap: 'wrap',
                 }}
               >
-                <Lead
-                  lead={lead}
-                  onUpdateStatus={onUpdateStatus}
-                  disabledConfirm={!lead.responsavel}
-                />
+                <div style={{ flex: '1 1 50%', minWidth: '300px' }}>
+                  <Lead
+                    lead={lead}
+                    onUpdateStatus={handleConfirmStatus}
+                    // O botão Confirmar no Lead.jsx agora depende do isEditingStatus
+                    disabledConfirm={!canEditStatus}
+                    isEditingStatus={canEditStatus}
+                    onAlterarStatus={handleAlterarStatus}
+                    shouldShowAlterarStatusButton={shouldShowAlterarStatusButtonForLead}
+                    shouldShowConfirmButton={shouldShowConfirmButtonForLead}
+                  />
+                </div>
 
-                {lead.responsavel && responsavel ? (
-                  <div style={{ marginTop: '10px' }}>
-                    <p style={{ color: '#28a745' }}>
-                      Transferido para <strong>{responsavel.nome}</strong>
-                    </p>
-                    {isAdmin && (
+                {lead.status === 'Em Contato' && (
+                  <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
+                    <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
+                      Observações:
+                    </label>
+                    <textarea
+                      id={`observacao-${lead.id}`}
+                      value={observacoes[lead.id] || ''}
+                      onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
+                      placeholder="Adicione suas observações aqui..."
+                      rows="3"
+                      disabled={!canEditObservacao}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        borderRadius: '6px',
+                        border: '1px solid #ccc',
+                        resize: 'vertical',
+                        boxSizing: 'border-box',
+                        backgroundColor: canEditObservacao ? '#fff' : '#f0f0f0',
+                        cursor: canEditObservacao ? 'text' : 'not-allowed',
+                      }}
+                    ></textarea>
+                    {canEditObservacao ? (
                       <button
-                        onClick={() => handleAlterar(lead.id)}
+                        onClick={() => handleSalvarObservacao(lead.id)}
                         style={{
-                          marginTop: '5px',
-                          padding: '5px 12px',
+                          marginTop: '10px',
+                          padding: '8px 16px',
+                          backgroundColor: '#007bff',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        Salvar Observação
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleAlterarObservacao(lead.id)}
+                        style={{
+                          marginTop: '10px',
+                          padding: '8px 16px',
                           backgroundColor: '#ffc107',
                           color: '#000',
                           border: 'none',
                           borderRadius: '4px',
                           cursor: 'pointer',
+                          fontWeight: 'bold',
                         }}
                       >
-                        Alterar
+                        Alterar Observação
                       </button>
                     )}
                   </div>
-                ) : (
-                  <div
-                    style={{
-                      marginTop: '10px',
-                      display: 'flex',
-                      gap: '10px',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <select
-                      value={selecionados[lead.id] || ''}
-                      onChange={(e) => handleSelect(lead.id, e.target.value)}
-                      style={{
-                        padding: '5px',
-                        borderRadius: '4px',
-                        border: '1px solid #ccc',
-                      }}
-                    >
-                      <option value="">Selecione usuário ativo</option>
-                      {usuariosAtivos.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.nome}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => handleEnviar(lead.id)}
-                      style={{
-                        padding: '5px 12px',
-                        backgroundColor: '#28a745',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Enviar
-                    </button>
-                  </div>
                 )}
 
-                {/* Data no canto inferior direito */}
+                <div style={{ width: '100%' }}>
+                  {lead.responsavel && responsavel && (lead.status === 'Em Contato' || lead.status === 'Sem Contato') ? (
+                    <div style={{ marginTop: '10px' }}>
+                      <p style={{ color: '#28a745' }}>
+                        Transferido para <strong>{responsavel.nome}</strong>
+                      </p>
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleAlterar(lead.id)}
+                          style={{
+                            marginTop: '5px',
+                            padding: '5px 12px',
+                            backgroundColor: '#ffc107',
+                            color: '#000',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Alterar
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        marginTop: '10px',
+                        display: 'flex',
+                        gap: '10px',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <select
+                        value={selecionados[lead.id] || (lead.responsavel ? lead.usuarioId : '')} // Exibe o responsável atual se houver
+                        onChange={(e) => handleSelect(lead.id, e.target.value)}
+                        disabled={isAssignmentBlocked && !selecionados[lead.id]} // Desabilita se já atribuído e confirmado status, a menos que esteja no processo de alteração
+                        style={{
+                          padding: '5px',
+                          borderRadius: '4px',
+                          border: '1px solid #ccc',
+                          backgroundColor: isAssignmentBlocked && !selecionados[lead.id] ? '#f0f0f0' : '#fff',
+                          cursor: isAssignmentBlocked && !selecionados[lead.id] ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        <option value="">Selecione usuário ativo</option>
+                        {usuariosAtivos.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.nome}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => handleEnviar(lead.id)}
+                        disabled={isAssignmentBlocked && !selecionados[lead.id]} // Desabilita se já atribuído e confirmado status
+                        style={{
+                          padding: '5px 12px',
+                          backgroundColor: '#28a745',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: isAssignmentBlocked && !selecionados[lead.id] ? 'not-allowed' : 'pointer',
+                          opacity: isAssignmentBlocked && !selecionados[lead.id] ? 0.6 : 1,
+                        }}
+                      >
+                        Enviar
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <div
                   style={{
                     position: 'absolute',
@@ -404,7 +569,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             );
           })}
 
-          {/* Paginação */}
           <div
             style={{
               display: 'flex',
@@ -415,7 +579,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           >
             <button
               onClick={handlePaginaAnterior}
-              disabled={paginaCorrigida <= 1 || isLoading} // Desabilita se estiver carregando
+              disabled={paginaCorrigida <= 1 || isLoading}
               style={{
                 padding: '6px 14px',
                 borderRadius: '6px',
@@ -431,7 +595,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             </span>
             <button
               onClick={handlePaginaProxima}
-              disabled={paginaCorrigida >= totalPaginas || isLoading} // Desabilita se estiver carregando
+              disabled={paginaCorrigida >= totalPaginas || isLoading}
               style={{
                 padding: '6px 14px',
                 borderRadius: '6px',
