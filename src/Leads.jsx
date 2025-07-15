@@ -18,9 +18,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   // Estado para controlar a edição da observação por lead
   const [isEditingObservacao, setIsEditingObservacao] = useState({}); // { [leadId]: true/false }
   // Estado para controlar a edição do status (Em Contato/Sem Contato)
-  // Agora, isEditingStatus controla se o select está habilitado para edição
   const [isEditingStatus, setIsEditingStatus] = useState({}); // { [leadId]: true/false }
-
 
   // Estados para filtro por data (mes e ano) - INICIAM LIMPOS
   const [dataInput, setDataInput] = useState('');
@@ -34,13 +32,10 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   useEffect(() => {
     const initialObservacoes = {};
     const initialIsEditingObservacao = {};
-    const initialIsEditingStatus = {}; // Adicionado
+    const initialIsEditingStatus = {};
     leads.forEach(lead => {
       initialObservacoes[lead.id] = lead.observacao || '';
-      // A edição da observação começa sempre como false
       initialIsEditingObservacao[lead.id] = false;
-      // O status de edição do status também começa como false por padrão
-      // Ele só será true se o usuário clicar em "Alterar Status"
       initialIsEditingStatus[lead.id] = false;
     });
     setObservacoes(initialObservacoes);
@@ -54,7 +49,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     try {
       await fetchLeadsFromSheet();
       // Após o refresh, re-inicia o estado de edição para todos os leads
-      // para garantir que os selects de status estejam desabilitados por padrão
       const refreshedIsEditingStatus = {};
       leads.forEach(lead => {
         refreshedIsEditingStatus[lead.id] = false;
@@ -93,15 +87,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroData('');
     setDataInput('');
     setPaginaAtual(1);
-  };
-
-  const isSameMonthAndYear = (leadDateStr, filtroMesAno) => {
-    if (!filtroMesAno) return true;
-    if (!leadDateStr) return false;
-    const leadData = new Date(leadDateStr);
-    const leadAno = leadData.getFullYear();
-    const leadMes = String(leadData.getMonth() + 1).padStart(2, '0');
-    return filtroMesAno === `${leadAno}-${leadMes}`;
   };
 
   const nomeContemFiltro = (leadNome, filtroNome) => {
@@ -169,6 +154,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
+      // Após o envio, recarregar os leads para que a UI reflita a mudança
+      fetchLeadsFromSheet();
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
       alert('Erro ao transferir lead. Por favor, tente novamente.');
@@ -176,11 +163,13 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   const handleAlterar = (leadId) => {
+    // Ao clicar em Alterar, remove o userId selecionado para reativar a seleção
     setSelecionados((prev) => ({
       ...prev,
-      [leadId]: '',
+      [leadId]: '', // Define como vazio para que o select exiba a opção padrão
     }));
-    transferirLead(leadId, null);
+    // Se desejar, pode-se também chamar transferirLead(leadId, null) aqui para 'desatribuir' visualmente
+    // transferirLead(leadId, null);
   };
 
   const inicio = (paginaCorrigida - 1) * leadsPorPagina;
@@ -211,7 +200,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     return data.toLocaleDateString('pt-BR');
   };
 
-  // Nova função para lidar com a mudança no campo de observação
   const handleObservacaoChange = (leadId, text) => {
     setObservacoes((prev) => ({
       ...prev,
@@ -219,7 +207,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     }));
   };
 
-  // Nova função para salvar a observação no Google Sheets
   const handleSalvarObservacao = async (leadId) => {
     const observacaoTexto = observacoes[leadId] || '';
     if (!observacaoTexto.trim()) {
@@ -227,9 +214,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       return;
     }
 
-    setIsLoading(true); // Ativa o loader
+    setIsLoading(true);
     try {
-      const response = await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
+      await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify({
@@ -241,31 +228,26 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         },
       });
 
-      // Uma vez salvo, desabilita a edição e esconde o botão Salvar
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-      fetchLeadsFromSheet(); // Recarrega os leads para exibir a observação salva
+      fetchLeadsFromSheet();
     } catch (error) {
       console.error('Erro ao salvar observação:', error);
       alert('Erro ao salvar observação. Por favor, tente novamente.');
     } finally {
-      setIsLoading(false); // Desativa o loader
+      setIsLoading(false);
     }
   };
 
-  // Função para habilitar a edição da observação
   const handleAlterarObservacao = (leadId) => {
     setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
   };
 
-  // Função para lidar com a confirmação de status (chamado pelo Lead.jsx)
   const handleConfirmStatus = (leadId, novoStatus, phone) => {
     onUpdateStatus(leadId, novoStatus, phone);
-    // Após confirmar, desabilita a edição do status para aquele lead
     setIsEditingStatus(prev => ({ ...prev, [leadId]: false }));
-    fetchLeadsFromSheet(); // Recarrega os leads para garantir o estado atualizado
+    fetchLeadsFromSheet();
   };
 
-  // Função para habilitar a alteração do status (chamado pelo Lead.jsx)
   const handleAlterarStatus = (leadId) => {
     setIsEditingStatus(prev => ({ ...prev, [leadId]: true }));
   };
@@ -401,20 +383,17 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       ) : (
         <>
           {leadsPagina.map((lead) => {
-            const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
+            const responsavel = usuarios.find((u) => u.id === lead.usuarioId); // Busca por usuarioId agora
             const canEditStatus = isEditingStatus[lead.id];
             const canEditObservacao = isEditingObservacao[lead.id];
 
-            // Determina se o botão "Alterar Status" deve ser exibido.
-            // Ele aparece se o status for 'Em Contato' ou 'Sem Contato' E o select não estiver em modo de edição
             const shouldShowAlterarStatusButtonForLead =
                 (lead.status === 'Em Contato' || lead.status === 'Sem Contato') && !canEditStatus;
             
-            // Determina se o botão "Confirmar" deve ser exibido.
-            // Ele aparece se o lead estiver em modo de edição de status OU
-            // se o status atual não for "Fechado" nem "Perdido" e não houver um responsavel ainda (para o primeiro status)
-            const shouldShowConfirmButtonForLead = canEditStatus || (!lead.status && !lead.responsavel);
+            const shouldShowConfirmButtonForLead = canEditStatus || (!lead.status && lead.responsavel); // Confirmar aparece se editando ou se ainda não tem status mas já tem responsavel
 
+            // Lógica para habilitar/desabilitar a caixa de seleção de atribuição
+            const isAssignmentBlocked = lead.responsavel && (lead.status === 'Em Contato' || lead.status === 'Sem Contato');
 
             return (
               <div
@@ -425,26 +404,25 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   padding: '15px',
                   marginBottom: '15px',
                   position: 'relative',
-                  display: 'flex', // Habilita flexbox para alinhar lado a lado
-                  gap: '20px',    // Espaçamento entre os elementos filhos
-                  alignItems: 'flex-start', // Alinha os itens ao topo
-                  flexWrap: 'wrap', // Permite quebrar linha em telas menores
+                  display: 'flex',
+                  gap: '20px',
+                  alignItems: 'flex-start',
+                  flexWrap: 'wrap',
                 }}
               >
-                <div style={{ flex: '1 1 50%', minWidth: '300px' }}> {/* Área das informações do Lead */}
+                <div style={{ flex: '1 1 50%', minWidth: '300px' }}>
                   <Lead
                     lead={lead}
-                    onUpdateStatus={handleConfirmStatus} // Usa a nova função de confirmação de status
-                    // Desabilita o confirmar no Lead.jsx se não tiver responsavel OU se o select não estiver habilitado para edição
-                    disabledConfirm={!lead.responsavel || !canEditStatus}
-                    isEditingStatus={canEditStatus} // Passa o estado de edição do status
-                    onAlterarStatus={handleAlterarStatus} // Passa a função para alterar status
-                    shouldShowAlterarStatusButton={shouldShowAlterarStatusButtonForLead} // Passa para o Lead decidir qual botão mostrar
-                    shouldShowConfirmButton={shouldShowConfirmButtonForLead} // Passa para o Lead decidir qual botão mostrar
+                    onUpdateStatus={handleConfirmStatus}
+                    // O botão Confirmar no Lead.jsx agora depende do isEditingStatus
+                    disabledConfirm={!canEditStatus}
+                    isEditingStatus={canEditStatus}
+                    onAlterarStatus={handleAlterarStatus}
+                    shouldShowAlterarStatusButton={shouldShowAlterarStatusButtonForLead}
+                    shouldShowConfirmButton={shouldShowConfirmButtonForLead}
                   />
                 </div>
 
-                {/* Se o status for "Em Contato", mostra o campo de observação ao lado */}
                 {lead.status === 'Em Contato' && (
                   <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
@@ -456,7 +434,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                       onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
                       placeholder="Adicione suas observações aqui..."
                       rows="3"
-                      disabled={!canEditObservacao} // Desabilita se não estiver em modo de edição
+                      disabled={!canEditObservacao}
                       style={{
                         width: '100%',
                         padding: '10px',
@@ -464,7 +442,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                         border: '1px solid #ccc',
                         resize: 'vertical',
                         boxSizing: 'border-box',
-                        backgroundColor: canEditObservacao ? '#fff' : '#f0f0f0', // Muda cor de fundo se desabilitado
+                        backgroundColor: canEditObservacao ? '#fff' : '#f0f0f0',
                         cursor: canEditObservacao ? 'text' : 'not-allowed',
                       }}
                     ></textarea>
@@ -490,7 +468,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                         style={{
                           marginTop: '10px',
                           padding: '8px 16px',
-                          backgroundColor: '#ffc107', // Amarelo
+                          backgroundColor: '#ffc107',
                           color: '#000',
                           border: 'none',
                           borderRadius: '4px',
@@ -504,8 +482,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   </div>
                 )}
 
-                <div style={{ width: '100%' }}> {/* Mantém o controle de transferência abaixo */}
-                  {lead.responsavel && responsavel ? (
+                <div style={{ width: '100%' }}>
+                  {lead.responsavel && responsavel && (lead.status === 'Em Contato' || lead.status === 'Sem Contato') ? (
                     <div style={{ marginTop: '10px' }}>
                       <p style={{ color: '#28a745' }}>
                         Transferido para <strong>{responsavel.nome}</strong>
@@ -537,12 +515,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                       }}
                     >
                       <select
-                        value={selecionados[lead.id] || ''}
+                        value={selecionados[lead.id] || (lead.responsavel ? lead.usuarioId : '')} // Exibe o responsável atual se houver
                         onChange={(e) => handleSelect(lead.id, e.target.value)}
+                        disabled={isAssignmentBlocked && !selecionados[lead.id]} // Desabilita se já atribuído e confirmado status, a menos que esteja no processo de alteração
                         style={{
                           padding: '5px',
                           borderRadius: '4px',
                           border: '1px solid #ccc',
+                          backgroundColor: isAssignmentBlocked && !selecionados[lead.id] ? '#f0f0f0' : '#fff',
+                          cursor: isAssignmentBlocked && !selecionados[lead.id] ? 'not-allowed' : 'pointer',
                         }}
                       >
                         <option value="">Selecione usuário ativo</option>
@@ -554,13 +535,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                       </select>
                       <button
                         onClick={() => handleEnviar(lead.id)}
+                        disabled={isAssignmentBlocked && !selecionados[lead.id]} // Desabilita se já atribuído e confirmado status
                         style={{
                           padding: '5px 12px',
                           backgroundColor: '#28a745',
                           color: 'white',
                           border: 'none',
                           borderRadius: '4px',
-                          cursor: 'pointer',
+                          cursor: isAssignmentBlocked && !selecionados[lead.id] ? 'not-allowed' : 'pointer',
+                          opacity: isAssignmentBlocked && !selecionados[lead.id] ? 0.6 : 1,
                         }}
                       >
                         Enviar
