@@ -3,7 +3,7 @@ import Lead from './components/Lead';
 import { RefreshCcw } from 'lucide-react'; // Importado para o ícone de refresh
 
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
-const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_atribuido';
+const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
 // ⚠️ ATENÇÃO: VOCÊ PRECISARÁ CRIAR ESTE SCRIPT NO GAS para salvar observações.
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao'; 
 
@@ -432,7 +432,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                       onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
                       placeholder="Adicione suas observações aqui..."
                       rows="3"
-                      disabled={!isEditingObservacao[lead.id]} {/* Desabilita se não estiver editando */}
+                      disabled={!isEditingObservacao[lead.id]} /* Desabilita se não estiver editando */
                       style={{
                         width: '100%',
                         padding: '10px',
