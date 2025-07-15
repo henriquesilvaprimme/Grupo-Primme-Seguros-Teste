@@ -18,6 +18,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   // Estado para controlar a edição da observação por lead
   const [isEditingObservacao, setIsEditingObservacao] = useState({}); // { [leadId]: true/false }
   // Estado para controlar a edição do status (Em Contato/Sem Contato)
+  // Agora, isEditingStatus controla se o select está habilitado para edição
   const [isEditingStatus, setIsEditingStatus] = useState({}); // { [leadId]: true/false }
 
 
@@ -36,12 +37,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const initialIsEditingStatus = {}; // Adicionado
     leads.forEach(lead => {
       initialObservacoes[lead.id] = lead.observacao || '';
-      initialIsEditingObservacao[lead.id] = false; // Começa sempre bloqueado
-      initialIsEditingStatus[lead.id] = false; // Começa sempre bloqueado
+      // A edição da observação começa sempre como false
+      initialIsEditingObservacao[lead.id] = false;
+      // O status de edição do status também começa como false por padrão
+      // Ele só será true se o usuário clicar em "Alterar Status"
+      initialIsEditingStatus[lead.id] = false;
     });
     setObservacoes(initialObservacoes);
     setIsEditingObservacao(initialIsEditingObservacao);
-    setIsEditingStatus(initialIsEditingStatus); // Adicionado
+    setIsEditingStatus(initialIsEditingStatus);
   }, [leads]);
 
   // Função para buscar leads atualizados do Google Sheets, agora controlando o isLoading
@@ -49,6 +53,13 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setIsLoading(true); // Ativa o loader
     try {
       await fetchLeadsFromSheet();
+      // Após o refresh, re-inicia o estado de edição para todos os leads
+      // para garantir que os selects de status estejam desabilitados por padrão
+      const refreshedIsEditingStatus = {};
+      leads.forEach(lead => {
+        refreshedIsEditingStatus[lead.id] = false;
+      });
+      setIsEditingStatus(refreshedIsEditingStatus);
     } catch (error) {
       console.error('Erro ao buscar leads atualizados:', error);
     } finally {
@@ -105,6 +116,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   // Filtragem dos leads pendentes + filtro data ou nome
   const gerais = leads.filter((lead) => {
+    // Leads 'Fechado' ou 'Perdido' não devem aparecer nos 'gerais'
     if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
 
     if (filtroData) {
@@ -149,7 +161,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const enviarLeadAtualizado = async (lead) => {
     try {
-      const response = await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
+      await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify(lead),
@@ -245,14 +257,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
   };
 
-  // Função para lidar com a confirmação de status (Em Contato/Sem Contato)
+  // Função para lidar com a confirmação de status (chamado pelo Lead.jsx)
   const handleConfirmStatus = (leadId, novoStatus, phone) => {
     onUpdateStatus(leadId, novoStatus, phone);
-    setIsEditingStatus(prev => ({ ...prev, [leadId]: false })); // Desabilita a edição do status
+    // Após confirmar, desabilita a edição do status para aquele lead
+    setIsEditingStatus(prev => ({ ...prev, [leadId]: false }));
     fetchLeadsFromSheet(); // Recarrega os leads para garantir o estado atualizado
   };
 
-  // Função para habilitar a alteração do status
+  // Função para habilitar a alteração do status (chamado pelo Lead.jsx)
   const handleAlterarStatus = (leadId) => {
     setIsEditingStatus(prev => ({ ...prev, [leadId]: true }));
   };
@@ -260,7 +273,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   return (
     <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
       {isLoading && (
-        <div className="absolute inset-0 bg-white flex justify-center items-center z-10">
+        <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
           <p className="ml-4 text-lg text-gray-700">Carregando LEADS...</p>
         </div>
@@ -283,6 +296,16 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             title='Clique para atualizar os dados'
             onClick={handleRefreshLeads}
             disabled={isLoading}
+            style={{
+                background: 'none',
+                border: 'none',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                padding: '0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#007bff'
+            }}
           >
             {isLoading ? (
               <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -382,6 +405,17 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             const canEditStatus = isEditingStatus[lead.id];
             const canEditObservacao = isEditingObservacao[lead.id];
 
+            // Determina se o botão "Alterar Status" deve ser exibido.
+            // Ele aparece se o status for 'Em Contato' ou 'Sem Contato' E o select não estiver em modo de edição
+            const shouldShowAlterarStatusButtonForLead =
+                (lead.status === 'Em Contato' || lead.status === 'Sem Contato') && !canEditStatus;
+            
+            // Determina se o botão "Confirmar" deve ser exibido.
+            // Ele aparece se o lead estiver em modo de edição de status OU
+            // se o status atual não for "Fechado" nem "Perdido" e não houver um responsavel ainda (para o primeiro status)
+            const shouldShowConfirmButtonForLead = canEditStatus || (!lead.status && !lead.responsavel);
+
+
             return (
               <div
                 key={lead.id}
@@ -401,9 +435,12 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   <Lead
                     lead={lead}
                     onUpdateStatus={handleConfirmStatus} // Usa a nova função de confirmação de status
-                    disabledConfirm={!lead.responsavel || !canEditStatus} // Desabilita se não puder editar o status
+                    // Desabilita o confirmar no Lead.jsx se não tiver responsavel OU se o select não estiver habilitado para edição
+                    disabledConfirm={!lead.responsavel || !canEditStatus}
                     isEditingStatus={canEditStatus} // Passa o estado de edição do status
                     onAlterarStatus={handleAlterarStatus} // Passa a função para alterar status
+                    shouldShowAlterarStatusButton={shouldShowAlterarStatusButtonForLead} // Passa para o Lead decidir qual botão mostrar
+                    shouldShowConfirmButton={shouldShowConfirmButtonForLead} // Passa para o Lead decidir qual botão mostrar
                   />
                 </div>
 
