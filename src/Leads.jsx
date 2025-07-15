@@ -5,9 +5,9 @@ import { RefreshCcw } from 'lucide-react'; // Importado para o ícone de refresh
 // URL do script Google Apps Script para atualizar o status e agora, as observações
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 // URL para alterar o atribuído (mantido, pois você já o tem)
-const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_atribuido';
+const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
 // Novo URL para salvar observações - VOCÊ PRECISARÁ CRIAR ESTE SCRIPT NO GAS
-const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/SEU_ID_DO_SCRIPT_AQUI/exec?action=salvarObservacao'; // ⚠️ ATENÇÃO: Substitua 'SEU_ID_DO_SCRIPT_AQUI' pelo ID do seu script GAS para salvar observações.
+const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao'; // ⚠️ ATENÇÃO: Substitua 'SEU_ID_DO_SCRIPT_AQUI' pelo ID do seu script GAS para salvar observações.
 
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
   const [selecionados, setSelecionados] = useState({}); // { [leadId]: userId }
