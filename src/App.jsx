@@ -140,10 +140,12 @@ function App() {
           comissao: item.comissao || '',
           parcelamento: item.parcelamento || '',
           VigenciaFinal: item.VigenciaFinal || '',
-          VigenciaInicial: item.VigenciaInicial || '', // Adicionado VigenciaInicial
+          VigenciaInicial: item.VigenciaInicial || '',
           createdAt: item.data || new Date().toISOString(),
           responsavel: item.responsavel || '',
-          editado: item.editado || ''
+          editado: item.editado || '',
+          // ADIÇÃO DO CAMPO OBSERVACAO AQUI
+          observacao: item.observacao || ''
         }));
 
         if (!leadSelecionado) {
@@ -180,7 +182,7 @@ function App() {
       const formattedData = data.map(item => ({
         ...item,
         // *** MUDANÇA AQUI PARA GARANTIR CONSISTÊNCIA DE CASE ***
-        insuranceType: item.insuranceType || '', 
+        insuranceType: item.insuranceType || '',
       }));
       setLeadsFechados(formattedData);
 
@@ -259,7 +261,7 @@ function App() {
               vehicleYearModel: leadParaAdicionar.vehicleYearModel,
               city: leadParaAdicionar.city,
               phone: leadParaAdicionar.phone,
-              insuranceType: leadParaAdicionar.insuranceType || leadParaAdicionar.insuranceType || "", // Mantendo insuranceType
+              insuranceType: leadParaAdicionar.insuranceType || leadParaAdicionar.insuranceType || "",
               Data: leadParaAdicionar.createdAt || new Date().toISOString(),
               Responsavel: leadParaAdicionar.responsavel || "",
               Status: "Fechado",
@@ -268,7 +270,7 @@ function App() {
               Comissao: leadParaAdicionar.Comissao || "",
               Parcelamento: leadParaAdicionar.Parcelamento || "",
               VigenciaFinal: leadParaAdicionar.VigenciaFinal || "",
-              VigenciaInicial: leadParaAdicionar.VigenciaInicial || "", // Adicionado aqui
+              VigenciaInicial: leadParaAdicionar.VigenciaInicial || "",
               id: leadParaAdicionar.id || null,
               usuario: leadParaAdicionar.usuario || "",
               nome: leadParaAdicionar.nome || "",
@@ -277,7 +279,9 @@ function App() {
               status: leadParaAdicionar.status || "Ativo",
               tipo: leadParaAdicionar.tipo || "Usuario",
               "Ativo/Inativo": leadParaAdicionar["Ativo/Inativo"] || "Ativo",
-              confirmado: true
+              confirmado: true,
+              // ADIÇÃO DO CAMPO OBSERVACAO AQUI
+              observacao: leadParaAdicionar.observacao || ''
             };
             return [...prev, novoLeadFechado];
           }
@@ -303,10 +307,9 @@ function App() {
     premioLiquido: "",
     comissao: "",
     VigenciaFinal: "",
-    VigenciaInicial: "", // Limpar também VigenciaInicial
+    VigenciaInicial: "",
   })
 
-  // Modificado para incluir vigenciaInicial
   const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal, vigenciaInicial) => {
     const lead = leadsFechados.find((lead) => lead.ID == id);
 
@@ -321,7 +324,7 @@ function App() {
     lead.Comissao = comissao;
     lead.Parcelamento = parcelamento;
     lead.VigenciaFinal = vigenciaFinal || '';
-    lead.VigenciaInicial = vigenciaInicial || ''; // Adicionado aqui
+    lead.VigenciaInicial = vigenciaInicial || '';
 
     setLeadsFechados((prev) => {
       const atualizados = prev.map((l) =>
@@ -333,7 +336,7 @@ function App() {
           Comissao: comissao,
           Parcelamento: parcelamento,
           VigenciaFinal: vigenciaFinal || '',
-          VigenciaInicial: vigenciaInicial || '' // Adicionado aqui
+          VigenciaInicial: vigenciaInicial || ''
         } : l
       );
       return atualizados;
@@ -506,6 +509,8 @@ function App() {
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 transferirLead={transferirLead}
                 usuarioLogado={usuarioLogado}
+                // PASSA A PROPRIEDADE leadSelecionado PARA Leads
+                leadSelecionado={leadSelecionado}
               />
             }
           />
@@ -531,7 +536,8 @@ function App() {
             path="/leads-perdidos"
             element={
               <LeadsPerdidos
-                leads={isAdmin ? leads : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)}
+                // Filtra os leads para mostrar apenas os "Perdidos"
+                leads={isAdmin ? leads.filter((lead) => lead.status === 'Perdido') : leads.filter((lead) => lead.responsavel === usuarioLogado.nome && lead.status === 'Perdido')}
                 usuarios={usuarios}
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 onAbrirLead={onAbrirLead}
@@ -596,7 +602,7 @@ const formatarDataParaDDMMYYYY = (dataString) => {
     const mesIndex = dateObj.getMonth();
     const ano = dateObj.getFullYear();
     const nomeMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-                       "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+                        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
     const mesExtenso = nomeMeses[mesIndex];
     const anoCurto = String(ano).substring(2);
 
