@@ -2,13 +2,19 @@ import React, { useState } from 'react';
 import Lead from './components/Lead';
 import { RefreshCcw } from 'lucide-react'; // Importado para o ícone de refresh
 
+// URL do script Google Apps Script para atualizar o status e agora, as observações
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
+// URL para alterar o atribuído (mantido, pois você já o tem)
+const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_atribuido';
+// Novo URL para salvar observações - VOCÊ PRECISARÁ CRIAR ESTE SCRIPT NO GAS
+const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/SEU_ID_DO_SCRIPT_AQUI/exec?action=salvarObservacao'; // ⚠️ ATENÇÃO: Substitua 'SEU_ID_DO_SCRIPT_AQUI' pelo ID do seu script GAS para salvar observações.
 
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
   const [selecionados, setSelecionados] = useState({}); // { [leadId]: userId }
   const [paginaAtual, setPaginaAtual] = useState(1);
-  // Novo estado para controlar o estado de carregamento
   const [isLoading, setIsLoading] = useState(false);
+  // Novo estado para armazenar as observações de cada lead
+  const [observacoes, setObservacoes] = useState({}); // { [leadId]: 'texto da observação' }
 
   // Estados para filtro por data (mes e ano) - INICIAM LIMPOS
   const [dataInput, setDataInput] = useState('');
@@ -22,7 +28,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const handleRefreshLeads = async () => {
     setIsLoading(true); // Ativa o loader
     try {
-      // Chama a função fetchLeadsFromSheet passada como prop
       await fetchLeadsFromSheet();
     } catch (error) {
       console.error('Erro ao buscar leads atualizados:', error);
@@ -33,7 +38,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const leadsPorPagina = 10;
 
-  // Função para normalizar strings (remover acento, pontuação, espaços, etc)
   const normalizarTexto = (texto = '') => {
     return texto
       .toString()
@@ -84,7 +88,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
 
     if (filtroData) {
-      // Considerando que lead.createdAt é uma string no formato 'YYYY-MM-DD'
       const leadMesAno = lead.createdAt ? lead.createdAt.substring(0, 7) : '';
       return leadMesAno === filtroData;
     }
@@ -126,7 +129,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const enviarLeadAtualizado = async (lead) => {
     try {
-      const response = await fetch('https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=alterar_atribuido', {
+      const response = await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify(lead),
@@ -134,8 +137,12 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
+      // Como é no-cors, não podemos inspecionar a resposta.
+      // Você pode adicionar um tratamento de UI aqui se a operação for bem-sucedida,
+      // talvez um feedback visual para o usuário.
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
+      alert('Erro ao transferir lead. Por favor, tente novamente.');
     }
   };
 
@@ -161,29 +168,73 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const formatarData = (dataStr) => {
     if (!dataStr) return '';
-    // A API Google Sheets pode retornar datas como 'DD/MM/AAAA' ou 'YYYY-MM-DD'.
-    // Tentamos parsear ambas, priorizando 'YYYY-MM-DD' que Date() entende melhor.
     let data;
     if (dataStr.includes('/')) {
-        const partes = dataStr.split('/');
-        data = new Date(`${partes[2]}-${partes[1]}-${partes[0]}`);
+      const partes = dataStr.split('/');
+      data = new Date(`${partes[2]}-${partes[1]}-${partes[0]}`);
     } else {
-        data = new Date(dataStr);
+      data = new Date(dataStr);
     }
 
-    // Verifica se a data é válida
     if (isNaN(data.getTime())) {
-        return ''; // Retorna vazio se a data for inválida
+      return '';
     }
     return data.toLocaleDateString('pt-BR');
   };
 
+  // Nova função para lidar com a mudança no campo de observação
+  const handleObservacaoChange = (leadId, text) => {
+    setObservacoes((prev) => ({
+      ...prev,
+      [leadId]: text,
+    }));
+  };
+
+  // Nova função para salvar a observação no Google Sheets
+  const handleSalvarObservacao = async (leadId) => {
+    const observacaoTexto = observacoes[leadId] || '';
+    if (!observacaoTexto.trim()) {
+      alert('Por favor, digite uma observação antes de salvar.');
+      return;
+    }
+
+    setIsLoading(true); // Ativa o loader
+    try {
+      // Envia a observação para o Google Apps Script
+      const response = await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors', // Importante para evitar erros CORS
+        body: JSON.stringify({
+          leadId: leadId,
+          observacao: observacaoTexto,
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      // No modo 'no-cors', não podemos verificar `response.ok` ou `response.json()`.
+      // Você pode assumir sucesso ou implementar um mecanismo de callback no GAS.
+      alert('Observação salva com sucesso!');
+      // Opcional: Limpar a observação do estado local após salvar, ou recarregar os leads
+      setObservacoes((prev) => {
+        const newState = { ...prev };
+        delete newState[leadId]; // Remove a observação do estado para este lead
+        return newState;
+      });
+      fetchLeadsFromSheet(); // Recarrega os leads para exibir a observação salva
+    } catch (error) {
+      console.error('Erro ao salvar observação:', error);
+      alert('Erro ao salvar observação. Por favor, tente novamente.');
+    } finally {
+      setIsLoading(false); // Desativa o loader
+    }
+  };
+
   return (
-    // Adicione um minHeight aqui para garantir que o container do Leads tenha altura suficiente
-    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}> {/* Exemplo: 100vh - altura do cabeçalho/navbar */}
-      {/* Loader de carregamento (overlay da página interna com fundo branco) */}
+    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
       {isLoading && (
-        <div className="absolute inset-0 bg-white flex justify-center items-center z-10"> {/* Mantido 'absolute' */}
+        <div className="absolute inset-0 bg-white flex justify-center items-center z-10">
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
           <p className="ml-4 text-lg text-gray-700">Carregando LEADS...</p>
         </div>
@@ -204,10 +255,10 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
           <button
             title='Clique para atualizar os dados'
-            onClick={handleRefreshLeads} // Chamando a nova função para lidar com o refresh
-            disabled={isLoading} // Desabilita o botão enquanto estiver carregando
+            onClick={handleRefreshLeads}
+            disabled={isLoading}
           >
-            {isLoading ? ( // Mostra o spinner se estiver carregando
+            {isLoading ? (
               <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -218,7 +269,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           </button>
         </div>
 
-        {/* Filtro nome - centralizado */}
         <div
           style={{
             display: 'flex',
@@ -259,7 +309,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           />
         </div>
 
-        {/* Filtro data - direita */}
         <div
           style={{
             display: 'flex',
@@ -296,8 +345,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         </div>
       </div>
 
-      {isLoading ? ( // Mostra a mensagem de carregamento quando isLoading for true
-        // Removi o <p> "Carregando leads..." daqui para evitar duplicidade com o loader overlay
+      {isLoading ? (
         null
       ) : gerais.length === 0 ? (
         <p>Não há leads pendentes para os filtros aplicados.</p>
@@ -322,6 +370,45 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   onUpdateStatus={onUpdateStatus}
                   disabledConfirm={!lead.responsavel}
                 />
+
+                {/* Se o status for "Em Contato", mostra o campo de observação */}
+                {lead.status === 'Em Contato' && (
+                  <div style={{ marginTop: '15px', borderTop: '1px dashed #eee', paddingTop: '15px' }}>
+                    <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
+                      Observações:
+                    </label>
+                    <textarea
+                      id={`observacao-${lead.id}`}
+                      value={observacoes[lead.id] || lead.observacao || ''} // Pré-preenche se já houver observação no lead
+                      onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
+                      placeholder="Adicione suas observações aqui..."
+                      rows="3"
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        borderRadius: '6px',
+                        border: '1px solid #ccc',
+                        resize: 'vertical', // Permite redimensionar verticalmente
+                        boxSizing: 'border-box',
+                      }}
+                    ></textarea>
+                    <button
+                      onClick={() => handleSalvarObservacao(lead.id)}
+                      style={{
+                        marginTop: '10px',
+                        padding: '8px 16px',
+                        backgroundColor: '#007bff',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      Salvar Observação
+                    </button>
+                  </div>
+                )}
 
                 {lead.responsavel && responsavel ? (
                   <div style={{ marginTop: '10px' }}>
@@ -386,7 +473,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   </div>
                 )}
 
-                {/* Data no canto inferior direito */}
                 <div
                   style={{
                     position: 'absolute',
@@ -404,7 +490,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             );
           })}
 
-          {/* Paginação */}
           <div
             style={{
               display: 'flex',
@@ -415,7 +500,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           >
             <button
               onClick={handlePaginaAnterior}
-              disabled={paginaCorrigida <= 1 || isLoading} // Desabilita se estiver carregando
+              disabled={paginaCorrigida <= 1 || isLoading}
               style={{
                 padding: '6px 14px',
                 borderRadius: '6px',
@@ -431,7 +516,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             </span>
             <button
               onClick={handlePaginaProxima}
-              disabled={paginaCorrigida >= totalPaginas || isLoading} // Desabilita se estiver carregando
+              disabled={paginaCorrigida >= totalPaginas || isLoading}
               style={{
                 padding: '6px 14px',
                 borderRadius: '6px',
