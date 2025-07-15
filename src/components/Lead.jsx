@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'; // Importado useEffect
-import { Phone } from 'lucide-react'; // Importado Phone para o botão WhatsApp
+import React, { useState, useEffect } from 'react';
+// import { Phone } from 'lucide-react'; <-- REMOVIDO: Ícone de telefone para o botão do WhatsApp não é mais necessário
 
 const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
   const [status, setStatus] = useState(lead.status || '');
@@ -111,11 +111,11 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
           }}
         >
           <option value="">Selecione o status</option>
-          <option value="Novo">Novo</option> {/* Adicionado "Novo" */}
+          {/* REMOVIDO: <option value="Novo">Novo</option> */}
           <option value="Em Contato">Em Contato</option>
-          <option value="Sem Contato">Sem Contato</option>
           <option value="Fechado">Fechado</option>
           <option value="Perdido">Perdido</option>
+          <option value="Sem Contato">Sem Contato</option>
         </select>
 
         {/* Lógica condicional para exibir Confirmar ou Alterar */}
@@ -151,6 +151,8 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
         )}
       </div>
 
+      {/* REMOVIDO: Botão do WhatsApp */}
+      {/*
       <div style={{ marginTop: '10px' }}>
         <a
           href={`https://wa.me/${lead.phone}`}
@@ -171,6 +173,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
           <Phone size={16} /> Enviar WhatsApp
         </a>
       </div>
+      */}
     </div>
   );
 };
