@@ -23,7 +23,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     setLoading(true);
     try {
       // Adicionando os parâmetros de data na URL para o GAS
-      const url = `https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados&dataInicio=${filtroAplicado.inicio}&dataFim=${filtroAplicado.fim}`;
+      const url = `https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=pegar_clientes_fechados&dataInicio=${filtroAplicado.inicio}&dataFim=${filtroAplicado.fim}`;
       const respostaLeads = await fetch(url);
       const dadosLeads = await respostaLeads.json();
       setLeadsClosed(dadosLeads);
@@ -43,19 +43,25 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     setFiltroAplicado({ inicio: dataInicio, fim: dataFim });
   };
 
-  // As contagens para "Total de Leads", "Leads Fechados", "Leads Perdidos", "Em Contato" e "Sem Contato"
-  // devem vir da prop 'leads' (que representa os leads gerais e deve ser filtrada externamente ou por outra lógica).
-  // Se a prop `leads` já está vindo filtrada por outro componente ou API,
-  // então as contagens abaixo já estariam corretas.
-  // Se `leads` no seu contexto é o total de leads não filtrados por data, e você quer que essas
-  // contagens respeitem as datas do filtro (`filtroAplicado`), então precisamos aplicar o filtro
-  // de data na própria prop `leads` aqui antes de fazer as contagens.
-
   // Filtra a prop 'leads' por data (se necessário)
   const leadsGeraisFiltradosPorData = leads.filter((lead) => {
-    // Certifique-se de que `lead.createdAt` ou a propriedade de data para leads gerais exista e seja válida.
-    // Ajuste 'createdAt' se o nome da propriedade for diferente na sua estrutura de `leads` gerais.
-    const dataLeadStr = new Date(lead.data).toISOString().slice(0, 10); // Assumindo `lead.data` para leads gerais
+    // **ADICIONANDO VALIDAÇÃO AQUI**
+    // Verifica se 'lead.data' existe e não é nulo/vazio
+    if (!lead.data) {
+      // console.warn('Lead sem data válida:', lead); // Opcional: para depuração
+      return false; // Exclui leads sem uma data válida do filtro
+    }
+
+    const dateObj = new Date(lead.data);
+
+    // Verifica se o objeto Date é válido
+    if (isNaN(dateObj.getTime())) {
+      // console.error('Data inválida encontrada para o lead:', lead, 'Valor:', lead.data); // Opcional: para depuração
+      return false; // Exclui leads com data inválida do filtro
+    }
+
+    const dataLeadStr = dateObj.toISOString().slice(0, 10);
+    
     if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
     if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
     return true;
