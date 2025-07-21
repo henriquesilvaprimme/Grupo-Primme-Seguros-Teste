@@ -22,7 +22,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const buscarLeads = async () => {
     try {
       const respostaLeads = await fetch(
-        'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
+        'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=pegar_clientes_fechados'
       );
       const dadosLeads = await respostaLeads.json();
       setLeadsClosed(dadosLeads);
@@ -51,7 +51,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   });
 
   const totalLeads = leadsFiltrados.length;
-  const leadsFechadosCount = leadsFiltrados.filter((lead) => lead.status === 'Fechado').length;
+  // REMOVIDO: const leadsFechadosCount = leadsFiltrados.filter((lead) => lead.status === 'Fechado').length;
   const leadsPerdidos = leadsFiltrados.filter((lead) => lead.status === 'Perdido').length;
   const leadsEmContato = leadsFiltrados.filter((lead) => lead.status === 'Em Contato').length;
   const leadsSemContato = leadsFiltrados.filter((lead) => lead.status === 'Sem Contato').length;
@@ -76,6 +76,9 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const azulSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
   const itauSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
   const demais = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
+
+  // AJUSTE: O campo Vendas agora soma os contadores das seguradoras
+  const leadsFechadosCount = portoSeguro + azulSeguros + itauSeguros + demais;
 
   // Soma de prêmio líquido e média ponderada de comissão
   const totalPremioLiquido = leadsFiltradosClosed.reduce(
