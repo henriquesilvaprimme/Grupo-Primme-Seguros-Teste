@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 // URL para buscar leads fechados diretamente do Dashboard
-const GOOGLE_SHEETS_LEADS_FECHADOS_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados';
+const GOOGLE_SHEETS_LEADS_FECHADOS_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec'; // URL base sem os parâmetros de data, eles serão adicionados dinamicamente
 
 // Função auxiliar para formatar a data para o input type="date" (YYYY-MM-DD)
 const formatarDataParaInput = (data) => {
@@ -29,37 +29,20 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const buscarLeadsFechadosDoSheets = async () => {
     setLoadingFechados(true);
     try {
-      const response = await axios.get(GOOGLE_SHEETS_LEADS_FECHADOS_URL);
+      // Modificação principal: Adicionar parâmetros de data à URL
+      const urlComFiltro = `${GOOGLE_SHEETS_LEADS_FECHADOS_URL}?v=pegar_clientes_fechados&dataInicio=${dataInicio}&dataFim=${dataFim}`;
+      const response = await axios.get(urlComFiltro);
 
       console.log("Dados brutos de 'pegar_clientes_fechados' (vindo do GAS para o Dashboard):", response.data);
 
+      // A filtragem por data deve ser feita no lado do Google Apps Script.
+      // Aqui, mantemos apenas os filtros que ainda seriam relevantes no frontend,
+      // como o filtro por responsável e a validação de Seguradora e Status.
       const filteredLeads = response.data.filter(
         (lead) => {
-          // Filtro principal: lead.Status deve ser 'Fechado' E 'Seguradora' deve estar preenchida
           const isFechadoEComSeguradora = lead.Status === 'Fechado' && lead.Seguradora && String(lead.Seguradora).trim() !== '';
-
-          // Filtro por responsável (Admin vê todos, Usuário Comum vê os seus)
           const isResponsavel = usuarioLogado?.tipo === 'Admin' || lead.Responsavel === usuarioLogado?.nome;
-
-          // Lógica de filtro por data
-          let isWithinDateRange = true;
-          if (dataInicio && lead.Data) {
-            const leadDate = new Date(lead.Data); // 'Data' é a coluna H, Data de Criação
-            const startDate = new Date(dataInicio);
-            leadDate.setHours(0, 0, 0, 0);
-            startDate.setHours(0, 0, 0, 0);
-            isWithinDateRange = isWithinDateRange && (leadDate >= startDate);
-          }
-          if (dataFim && lead.Data) {
-            const leadDate = new Date(lead.Data);
-            const endDate = new Date(dataFim);
-            leadDate.setHours(0, 0, 0, 0);
-            endDate.setHours(23, 59, 59, 999);
-            isWithinDateRange = isWithinDateRange && (leadDate <= endDate);
-          }
-
-          // Retorna apenas se todas as condições forem verdadeiras
-          return isFechadoEComSeguradora && isResponsavel && isWithinDateRange;
+          return isFechadoEComSeguradora && isResponsavel;
         }
       );
 
@@ -90,7 +73,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const leadsEmContato = leads.filter((lead) => lead.status === 'Em Contato').length;
   const leadsSemContato = leads.filter((lead) => lead.status === 'Sem Contato').length;
 
-  // ESTES AGORA USAM APENAS leadsFechadosDoDashboard, que já está pré-filtrado
+  // ESTES AGORA USAM APENAS leadsFechadosDoDashboard, que já está pré-filtrado pela API
   const leadsFechados = leadsFechadosDoDashboard.length;
 
   const portoSeguro = leadsFechadosDoDashboard.filter((lead) => String(lead.Seguradora).trim() === 'Porto Seguro').length;
