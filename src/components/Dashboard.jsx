@@ -1,105 +1,100 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-
-// URL para buscar leads fechados diretamente do Dashboard
-const GOOGLE_SHEETS_LEADS_FECHADOS_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec'; // URL base sem os parâmetros de data, eles serão adicionados dinamicamente
-
-// Função auxiliar para formatar a data para o input type="date" (YYYY-MM-DD)
-const formatarDataParaInput = (data) => {
-  if (!data) return '';
-  const d = new Date(data);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 const Dashboard = ({ leads, usuarioLogado }) => {
-  const [leadsFechadosDoDashboard, setLeadsFechadosDoDashboard] = useState([]);
-  const [loadingFechados, setLoadingFechados] = useState(true);
+  const [leadsClosed, setLeadsClosed] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // --- Lógica para as datas padrão ---
-  const hoje = new Date();
-  const primeiroDiaMesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  // Inicializar dataInicio e dataFim com valores padrão ao carregar o componente
+  const getPrimeiroDiaMes = () => {
+    const hoje = new Date();
+    return new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
+  };
 
-  // Estados dos filtros de data, inicializados com as datas padrão
-  const [dataInicio, setDataInicio] = useState(formatarDataParaInput(primeiroDiaMesAtual));
-  const [dataFim, setDataFim] = useState(formatarDataParaInput(hoje));
+  const getDataHoje = () => {
+    return new Date().toISOString().slice(0, 10);
+  };
 
-  const buscarLeadsFechadosDoSheets = async () => {
-    setLoadingFechados(true);
+  const [dataInicio, setDataInicio] = useState(getPrimeiroDiaMes());
+  const [dataFim, setDataFim] = useState(getDataHoje());
+  const [filtroAplicado, setFiltroAplicado] = useState({ inicio: getPrimeiroDiaMes(), fim: getDataHoje() });
+
+  // Busca leads fechados - AGORA ENVIANDO DATAS PARA O GAS
+  const buscarLeadsClosed = async () => {
+    setLoading(true);
     try {
-      // Modificação principal: Adicionar parâmetros de data à URL
-      const urlComFiltro = `${GOOGLE_SHEETS_LEADS_FECHADOS_URL}?v=pegar_clientes_fechados&dataInicio=${dataInicio}&dataFim=${dataFim}`;
-      const response = await axios.get(urlComFiltro);
-
-      console.log("Dados brutos de 'pegar_clientes_fechados' (vindo do GAS para o Dashboard):", response.data);
-
-      // A filtragem por data deve ser feita no lado do Google Apps Script.
-      // Aqui, mantemos apenas os filtros que ainda seriam relevantes no frontend,
-      // como o filtro por responsável e a validação de Seguradora e Status.
-      const filteredLeads = response.data.filter(
-        (lead) => {
-          const isFechadoEComSeguradora = lead.Status === 'Fechado' && lead.Seguradora && String(lead.Seguradora).trim() !== '';
-          const isResponsavel = usuarioLogado?.tipo === 'Admin' || lead.Responsavel === usuarioLogado?.nome;
-          return isFechadoEComSeguradora && isResponsavel;
-        }
-      );
-
-      console.log("Leads 'Fechados' (da aba 'Leads Fechados'), com Seguradora, e filtrados por data/responsável no Dashboard:", filteredLeads);
-
-      setLeadsFechadosDoDashboard(filteredLeads);
+      // Adicionando os parâmetros de data na URL para o GAS
+      const url = `https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=pegar_clientes_fechados&dataInicio=${filtroAplicado.inicio}&dataFim=${filtroAplicado.fim}`;
+      const respostaLeads = await fetch(url);
+      const dadosLeads = await respostaLeads.json();
+      setLeadsClosed(dadosLeads);
     } catch (error) {
-      console.error('Erro ao buscar leads fechados específicos no Dashboard:', error);
-      setLeadsFechadosDoDashboard([]);
+      console.error('Erro ao buscar leads fechados:', error);
     } finally {
-      setLoadingFechados(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    // A busca é re-executada quando as datas de início/fim ou o usuário logado mudam
-    buscarLeadsFechadosDoSheets();
+    // Buscar leads fechados sempre que o filtroAplicado mudar
+    buscarLeadsClosed();
+  }, [filtroAplicado]); // Dependência adicionada
 
-    // Mantém o intervalo de atualização para sincronização
-    const interval = setInterval(buscarLeadsFechadosDoSheets, 60000); // Pode ser reduzido para 10000 ou 30000ms
-    return () => clearInterval(interval);
-  }, [usuarioLogado, dataInicio, dataFim]); // Adicionadas dependências dataInicio e dataFim
+  const aplicarFiltroData = () => {
+    setFiltroAplicado({ inicio: dataInicio, fim: dataFim });
+  };
 
-  // --- CONTADORES ---
-  // Estes continuam vindo da prop 'leads' (da aba 'Leads')
-  const totalLeads = leads.length;
-  const leadsPerdidos = leads.filter((lead) => lead.status === 'Perdido').length;
-  const leadsEmContato = leads.filter((lead) => lead.status === 'Em Contato').length;
-  const leadsSemContato = leads.filter((lead) => lead.status === 'Sem Contato').length;
+  // As contagens para "Total de Leads", "Leads Fechados", "Leads Perdidos", "Em Contato" e "Sem Contato"
+  // devem vir da prop 'leads' (que representa os leads gerais e deve ser filtrada externamente ou por outra lógica).
+  // Se a prop `leads` já está vindo filtrada por outro componente ou API,
+  // então as contagens abaixo já estariam corretas.
+  // Se `leads` no seu contexto é o total de leads não filtrados por data, e você quer que essas
+  // contagens respeitem as datas do filtro (`filtroAplicado`), então precisamos aplicar o filtro
+  // de data na própria prop `leads` aqui antes de fazer as contagens.
 
-  // ESTES AGORA USAM APENAS leadsFechadosDoDashboard, que já está pré-filtrado pela API
-  const leadsFechados = leadsFechadosDoDashboard.length;
+  // Filtra a prop 'leads' por data (se necessário)
+  const leadsGeraisFiltradosPorData = leads.filter((lead) => {
+    // Certifique-se de que `lead.createdAt` ou a propriedade de data para leads gerais exista e seja válida.
+    // Ajuste 'createdAt' se o nome da propriedade for diferente na sua estrutura de `leads` gerais.
+    const dataLeadStr = new Date(lead.data).toISOString().slice(0, 10); // Assumindo `lead.data` para leads gerais
+    if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
+    if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
+    return true;
+  });
 
-  const portoSeguro = leadsFechadosDoDashboard.filter((lead) => String(lead.Seguradora).trim() === 'Porto Seguro').length;
-  const azulSeguros = leadsFechadosDoDashboard.filter((lead) => String(lead.Seguradora).trim() === 'Azul Seguros').length;
-  const itauSeguros = leadsFechadosDoDashboard.filter((lead) => String(lead.Seguradora).trim() === 'Itau Seguros').length;
-  const demais = leadsFechadosDoDashboard.filter((lead) => String(lead.Seguradora).trim() === 'Demais Seguradoras').length;
+  const totalLeads = leadsGeraisFiltradosPorData.length;
+  const leadsFechadosCount = leadsGeraisFiltradosPorData.filter((lead) => lead.status === 'Fechado').length;
+  const leadsPerdidos = leadsGeraisFiltradosPorData.filter((lead) => lead.status === 'Perdido').length;
+  const leadsEmContato = leadsGeraisFiltradosPorData.filter((lead) => lead.status === 'Em Contato').length;
+  const leadsSemContato = leadsGeraisFiltradosPorData.filter((lead) => lead.status === 'Sem Contato').length;
 
-  const totalPremioLiquido = leadsFechadosDoDashboard.reduce(
-    (acc, curr) => acc + (Number(curr.PremioLiquido) || 0),
+
+  // Filtra leads fechados (vindo do GAS, já filtrado por data lá) por responsável no frontend
+  let leadsFiltradosClosedPorResponsavel =
+    usuarioLogado.tipo === 'Admin'
+      ? leadsClosed
+      : leadsClosed.filter((lead) => lead.Responsavel === usuarioLogado.nome);
+
+
+  // Contadores por seguradora - USAM leadsFiltradosClosedPorResponsavel
+  const portoSeguro = leadsFiltradosClosedPorResponsavel.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
+  const azulSeguros = leadsFiltradosClosedPorResponsavel.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
+  const itauSeguros = leadsFiltradosClosedPorResponsavel.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
+  const demais = leadsFiltradosClosedPorResponsavel.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
+
+  // Soma de prêmio líquido e média ponderada de comissão - USAM leadsFiltradosClosedPorResponsavel
+  const totalPremioLiquido = leadsFiltradosClosedPorResponsavel.reduce(
+    (acc, lead) => acc + (Number(lead.PremioLiquido) || 0),
     0
   );
 
-  // Calcula a soma ponderada da comissão para a média
-  const somaPonderadaComissao = leadsFechadosDoDashboard.reduce((acc, lead) => {
+  const somaPonderadaComissao = leadsFiltradosClosedPorResponsavel.reduce((acc, lead) => {
     const premio = Number(lead.PremioLiquido) || 0;
-    // Garante que 'Comissao' é um número (pode vir como string "XX%")
-    const comissaoString = String(lead.Comissao).replace(',', '.').replace('%', '');
-    const comissao = parseFloat(comissaoString) || 0; // Se for '20%', será 20
-
-    return acc + premio * (comissao / 100); // Divide por 100 para transformar % em decimal
+    const comissao = Number(lead.Comissao) || 0;
+    return acc + premio * (comissao / 100);
   }, 0);
 
-  // Comissão média global baseada no prêmio líquido total
   const comissaoMediaGlobal =
     totalPremioLiquido > 0 ? (somaPonderadaComissao / totalPremioLiquido) * 100 : 0;
-
 
   const boxStyle = {
     padding: '10px',
@@ -109,36 +104,57 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     textAlign: 'center',
   };
 
-  if (loadingFechados) {
-    return <div style={{ padding: '20px', textAlign: 'center' }}>Carregando dados de leads fechados...</div>;
-  }
-
   return (
     <div style={{ padding: '20px' }}>
       <h1>Dashboard</h1>
 
-      {/* --- Filtros de Data --- */}
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '20px' }}>
-        <div>
-          <label htmlFor="dataInicio">Data Início: </label>
-          <input
-            id="dataInicio"
-            type="date"
-            value={dataInicio}
-            onChange={(e) => setDataInicio(e.target.value)}
-            className="p-2 border rounded"
-          />
-        </div>
-        <div>
-          <label htmlFor="dataFim">Data Fim: </label>
-          <input
-            id="dataFim"
-            type="date"
-            value={dataFim}
-            onChange={(e) => setDataFim(e.target.value)}
-            className="p-2 border rounded"
-          />
-        </div>
+      {/* Filtro de datas com botão */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginBottom: '20px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <input
+          type="date"
+          value={dataInicio}
+          onChange={(e) => setDataInicio(e.target.value)}
+          style={{
+            padding: '6px 10px',
+            borderRadius: '6px',
+            border: '1px solid #ccc',
+            cursor: 'pointer',
+          }}
+          title="Data de Início"
+        />
+        <input
+          type="date"
+          value={dataFim}
+          onChange={(e) => setDataFim(e.target.value)}
+          style={{
+            padding: '6px 10px',
+            borderRadius: '6px',
+            border: '1px solid #ccc',
+            cursor: 'pointer',
+          }}
+          title="Data de Fim"
+        />
+        <button
+          onClick={aplicarFiltroData}
+          style={{
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            padding: '6px 14px',
+            cursor: 'pointer',
+          }}
+        >
+          Filtrar
+        </button>
       </div>
 
       {/* Primeira linha de contadores */}
@@ -149,7 +165,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
         </div>
         <div style={{ ...boxStyle, backgroundColor: '#4CAF50' }}>
           <h3>Vendas</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsFechados}</p>
+          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsFechadosCount}</p>
         </div>
         <div style={{ ...boxStyle, backgroundColor: '#F44336' }}>
           <h3>Leads Perdidos</h3>
@@ -165,7 +181,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
         </div>
       </div>
 
-      {/* Segunda linha de contadores (por seguradora) */}
+      {/* Segunda linha de contadores */}
       <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
         <div style={{ ...boxStyle, backgroundColor: '#003366' }}>
           <h3>Porto Seguro</h3>
@@ -185,24 +201,26 @@ const Dashboard = ({ leads, usuarioLogado }) => {
         </div>
       </div>
 
-      {/* Linha extra para Prêmio Líquido e Comissão */}
-      <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
-        <div style={{ ...boxStyle, backgroundColor: '#3f51b5' }}>
-          <h3>Total Prêmio Líquido</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
-            {totalPremioLiquido.toLocaleString('pt-BR', {
-              style: 'currency',
-              currency: 'BRL',
-            })}
-          </p>
+      {/* Somente para Admin: linha de Prêmio Líquido e Comissão */}
+      {usuarioLogado.tipo === 'Admin' && (
+        <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
+          <div style={{ ...boxStyle, backgroundColor: '#3f51b5' }}>
+            <h3>Total Prêmio Líquido</h3>
+            <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
+              {totalPremioLiquido.toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+              })}
+            </p>
+          </div>
+          <div style={{ ...boxStyle, backgroundColor: '#009688' }}>
+            <h3>Média Comissão</h3>
+            <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
+              {comissaoMediaGlobal.toFixed(2).replace('.', ',')}%
+            </p>
+          </div>
         </div>
-        <div style={{ ...boxStyle, backgroundColor: '#009688' }}>
-          <h3>Média Comissão</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
-            {comissaoMediaGlobal.toFixed(2).replace('.', ',')}%
-          </p>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
