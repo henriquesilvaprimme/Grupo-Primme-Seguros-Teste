@@ -23,7 +23,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     setLoading(true);
     try {
       // Adicionando os parâmetros de data na URL para o GAS
-      const url = `https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=pegar_clientes_fechados&dataInicio=${filtroAplicado.inicio}&dataFim=${filtroAplicado.fim}`;
+      const url = `https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados&dataInicio=${filtroAplicado.inicio}&dataFim=${filtroAplicado.fim}`;
       const respostaLeads = await fetch(url);
       const dadosLeads = await respostaLeads.json();
       setLeadsClosed(dadosLeads);
