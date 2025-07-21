@@ -19,100 +19,71 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const [filtroAplicado, setFiltroAplicado] = useState({ inicio: getPrimeiroDiaMes(), fim: getDataHoje() });
 
   // Busca leads fechados
-  // Esta função agora buscará leads fechados E os filtrará por data no frontend,
-  // pois a API não estava recebendo os parâmetros de data.
-  // Se sua API de leads fechados (GAS) puder receber parâmetros de data, seria mais eficiente filtrar lá.
-  const buscarLeadsClosedFromAPI = async () => {
-    setLoading(true);
+  const buscarLeads = async () => {
     try {
-      // A URL original sem parâmetros de data, como no seu código inicial
       const respostaLeads = await fetch(
-        'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
+        'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=pegar_clientes_fechados'
       );
-      const dadosLeads = await respostaLerespostaLeads.json();
+      const dadosLeads = await respostaLeads.json();
       setLeadsClosed(dadosLeads);
     } catch (error) {
-      console.error('Erro ao buscar leads fechados da API:', error);
+      console.error('Erro ao buscar leads:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Carrega leads fechados da API uma vez na montagem inicial do componente
   useEffect(() => {
-    buscarLeadsClosedFromAPI();
+    buscarLeads();
   }, []);
 
   const aplicarFiltroData = () => {
-    // Atualiza o filtro aplicado, o que fará com que as variáveis computadas sejam recalculadas
     setFiltroAplicado({ inicio: dataInicio, fim: dataFim });
   };
 
-  // --- Lógica de Filtragem e Contagem ---
-
-  // Função auxiliar para validar e formatar a data
-  const getValidDateStr = (dateValue) => {
-    if (!dateValue) return null; // Retorna nulo se a data não existir
-    const dateObj = new Date(dateValue);
-    if (isNaN(dateObj.getTime())) {
-      // console.warn('Data inválida detectada:', dateValue); // Para depuração
-      return null; // Retorna nulo se a data for inválida
-    }
-    return dateObj.toISOString().slice(0, 10);
-  };
-
-  // 1. Filtro dos LEADS GERAIS (vindos via prop `leads`) por data
-  const leadsFiltradosPorDataGeral = leads.filter((lead) => {
-    // Usando 'createdAt' como no seu código original para leads gerais
-    const dataLeadStr = getValidDateStr(lead.createdAt);
-
-    if (!dataLeadStr) return false; // Exclui leads com data inválida ou ausente
-
+  // Filtro por data
+  let leadsFiltrados = leads.filter((lead) => {
+    if (!filtroAplicado.inicio && !filtroAplicado.fim) return true;
+    const dataLeadStr = new Date(lead.createdAt).toISOString().slice(0, 10);
     if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
     if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
     return true;
   });
 
-  // Contagens para os leads gerais filtrados
-  const totalLeads = leadsFiltradosPorDataGeral.length;
-  const leadsFechadosCount = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Fechado').length;
-  const leadsPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Perdido').length;
-  const leadsEmContato = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Em Contato').length;
-  const leadsSemContato = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Sem Contato').length;
+  const totalLeads = leadsFiltrados.length;
+  const leadsFechadosCount = leadsFiltrados.filter((lead) => lead.status === 'Fechado').length;
+  const leadsPerdidos = leadsFiltrados.filter((lead) => lead.status === 'Perdido').length;
+  const leadsEmContato = leadsFiltrados.filter((lead) => lead.status === 'Em Contato').length;
+  const leadsSemContato = leadsFiltrados.filter((lead) => lead.status === 'Sem Contato').length;
 
-  // 2. Filtro dos LEADS FECHADOS (vindos da `leadsClosed` state)
-  // Primeiro, filtra por responsável (se não for admin)
-  let leadsFiltradosClosedPorResponsavel =
+  // Filtra leads fechados por responsável
+  let leadsFiltradosClosed =
     usuarioLogado.tipo === 'Admin'
       ? leadsClosed
       : leadsClosed.filter((lead) => lead.Responsavel === usuarioLogado.nome);
 
-  // Segundo, aplica o filtro de data nos leads fechados já filtrados por responsável
-  const leadsFiltradosClosedFinal = leadsFiltradosClosedPorResponsavel.filter((lead) => {
-    // Usando 'Data' como no seu código original para leads fechados
-    const dataLeadStr = getValidDateStr(lead.Data);
-
-    if (!dataLeadStr) return false; // Exclui leads com data inválida ou ausente
-
+  // Filtro de data nos leads fechados
+  leadsFiltradosClosed = leadsFiltradosClosed.filter((lead) => {
+    if (!filtroAplicado.inicio && !filtroAplicado.fim) return true;
+    const dataLeadStr = new Date(lead.Data).toISOString().slice(0, 10);
     if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
     if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
     return true;
   });
 
-
-  // Contadores por seguradora (baseados nos leads fechados filtrados e por responsável)
-  const portoSeguro = leadsFiltradosClosedFinal.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
-  const azulSeguros = leadsFiltradosClosedFinal.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
-  const itauSeguros = leadsFiltradosClosedFinal.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
-  const demais = leadsFiltradosClosedFinal.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
+  // Contadores por seguradora
+  const portoSeguro = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
+  const azulSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
+  const itauSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
+  const demais = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
 
   // Soma de prêmio líquido e média ponderada de comissão
-  const totalPremioLiquido = leadsFiltradosClosedFinal.reduce(
+  const totalPremioLiquido = leadsFiltradosClosed.reduce(
     (acc, lead) => acc + (Number(lead.PremioLiquido) || 0),
     0
   );
 
-  const somaPonderadaComissao = leadsFiltradosClosedFinal.reduce((acc, lead) => {
+  const somaPonderadaComissao = leadsFiltradosClosed.reduce((acc, lead) => {
     const premio = Number(lead.PremioLiquido) || 0;
     const comissao = Number(lead.Comissao) || 0;
     return acc + premio * (comissao / 100);
