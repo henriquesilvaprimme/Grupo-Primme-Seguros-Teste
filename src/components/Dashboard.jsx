@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { RefreshCcw } from 'lucide-react'; // Importação do ícone de refresh
 
 const Dashboard = ({ leads, usuarioLogado }) => {
   const [leadsClosed, setLeadsClosed] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Estado original do Dashboard
+  const [isLoading, setIsLoading] = useState(false); // Novo estado para o botão de refresh
 
   // Inicializar dataInicio e dataFim com valores padrão ao carregar o componente
   const getPrimeiroDiaMes = () => {
@@ -18,45 +20,58 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const [dataFim, setDataFim] = useState(getDataHoje());
   const [filtroAplicado, setFiltroAplicado] = useState({ inicio: getPrimeiroDiaMes(), fim: getDataHoje() });
 
-  // Busca leads fechados
-  const buscarLeads = async () => {
+  // Função auxiliar para validar e formatar a data (mantida da iteração anterior)
+  const getValidDateStr = (dateValue) => {
+    if (!dateValue) return null;
+    const dateObj = new Date(dateValue);
+    if (isNaN(dateObj.getTime())) {
+      return null;
+    }
+    return dateObj.toISOString().slice(0, 10);
+  };
+
+  // Busca leads fechados (adaptada para ser a que será chamada pelo refresh)
+  const buscarLeadsClosedFromAPI = async () => {
+    setIsLoading(true); // Ativa o loading do botão
+    setLoading(true); // Ativa o loading original do Dashboard
     try {
       const respostaLeads = await fetch(
-        'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
+        'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec?v=pegar_clientes_fechados'
       );
       const dadosLeads = await respostaLeads.json();
       setLeadsClosed(dadosLeads);
     } catch (error) {
       console.error('Erro ao buscar leads:', error);
     } finally {
-      setLoading(false);
+      setIsLoading(false); // Desativa o loading do botão
+      setLoading(false); // Desativa o loading original do Dashboard
     }
   };
 
+  // refresh automático ao entrar na aba (similar ao useEffect do LeadsFechados)
   useEffect(() => {
-    buscarLeads();
-  }, []);
+    buscarLeadsClosedFromAPI();
+  }, []); // Array de dependências vazia para rodar apenas uma vez na montagem
 
   const aplicarFiltroData = () => {
     setFiltroAplicado({ inicio: dataInicio, fim: dataFim });
   };
 
-  // Filtro por data
-  let leadsFiltrados = leads.filter((lead) => {
-    if (!filtroAplicado.inicio && !filtroAplicado.fim) return true;
-    const dataLeadStr = new Date(lead.createdAt).toISOString().slice(0, 10);
+  // Filtro por data dos leads gerais (vindos via prop `leads`)
+  const leadsFiltradosPorDataGeral = leads.filter((lead) => {
+    const dataLeadStr = getValidDateStr(lead.createdAt);
+    if (!dataLeadStr) return false;
     if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
     if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
     return true;
   });
 
-  const totalLeads = leadsFiltrados.length;
-  // REMOVIDO: const leadsFechadosCount = leadsFiltrados.filter((lead) => lead.status === 'Fechado').length;
-  const leadsPerdidos = leadsFiltrados.filter((lead) => lead.status === 'Perdido').length;
-  const leadsEmContato = leadsFiltrados.filter((lead) => lead.status === 'Em Contato').length;
-  const leadsSemContato = leadsFiltrados.filter((lead) => lead.status === 'Sem Contato').length;
+  const totalLeads = leadsFiltradosPorDataGeral.length;
+  const leadsPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Perdido').length;
+  const leadsEmContato = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Em Contato').length;
+  const leadsSemContato = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Sem Contato').length;
 
-  // Filtra leads fechados por responsável
+  // Filtra leads fechados por responsável (do estado `leadsClosed`)
   let leadsFiltradosClosed =
     usuarioLogado.tipo === 'Admin'
       ? leadsClosed
@@ -64,8 +79,8 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
   // Filtro de data nos leads fechados
   leadsFiltradosClosed = leadsFiltradosClosed.filter((lead) => {
-    if (!filtroAplicado.inicio && !filtroAplicado.fim) return true;
-    const dataLeadStr = new Date(lead.Data).toISOString().slice(0, 10);
+    const dataLeadStr = getValidDateStr(lead.Data);
+    if (!dataLeadStr) return false;
     if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
     if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
     return true;
@@ -77,7 +92,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const itauSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
   const demais = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
 
-  // AJUSTE: O campo Vendas agora soma os contadores das seguradoras
+  // O campo Vendas soma os contadores das seguradoras
   const leadsFechadosCount = portoSeguro + azulSeguros + itauSeguros + demais;
 
   // Soma de prêmio líquido e média ponderada de comissão
@@ -107,7 +122,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     <div style={{ padding: '20px' }}>
       <h1>Dashboard</h1>
 
-      {/* Filtro de datas com botão */}
+      {/* Filtro de datas com botão e o NOVO Botão de Refresh */}
       <div
         style={{
           display: 'flex',
@@ -154,71 +169,112 @@ const Dashboard = ({ leads, usuarioLogado }) => {
         >
           Filtrar
         </button>
+
+        {/* Botão de Refresh */}
+        <button
+          title='Clique para atualizar os dados'
+          onClick={buscarLeadsClosedFromAPI} // Chama a função que busca e atualiza os leads fechados
+          disabled={isLoading}
+          style={{
+            backgroundColor: '#6c757d', // Cor cinza para o botão de refresh
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            padding: '6px 10px', // Um pouco menor para o ícone
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: '36px', // Tamanho mínimo para o ícone
+            height: '36px',
+          }}
+        >
+          {isLoading ? (
+            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          ) : (
+            <RefreshCcw size={20} /> // Ícone de refresh
+          )}
+        </button>
       </div>
 
-      {/* Primeira linha de contadores */}
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-        <div style={{ ...boxStyle, backgroundColor: '#eee', color: '#333' }}>
-          <h3>Total de Leads</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{totalLeads}</p>
+      {/* Spinner de carregamento para o Dashboard geral (opcional, pode ser removido se o `isLoading` for suficiente) */}
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          <p>Carregando dados do dashboard...</p>
+          {/* Você pode adicionar um spinner aqui se quiser um indicador visual */}
         </div>
-        <div style={{ ...boxStyle, backgroundColor: '#4CAF50' }}>
-          <h3>Vendas</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsFechadosCount}</p>
-        </div>
-        <div style={{ ...boxStyle, backgroundColor: '#F44336' }}>
-          <h3>Leads Perdidos</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsPerdidos}</p>
-        </div>
-        <div style={{ ...boxStyle, backgroundColor: '#FF9800' }}>
-          <h3>Em Contato</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsEmContato}</p>
-        </div>
-        <div style={{ ...boxStyle, backgroundColor: '#9E9E9E' }}>
-          <h3>Sem Contato</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsSemContato}</p>
-        </div>
-      </div>
+      )}
 
-      {/* Segunda linha de contadores */}
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-        <div style={{ ...boxStyle, backgroundColor: '#003366' }}>
-          <h3>Porto Seguro</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{portoSeguro}</p>
-        </div>
-        <div style={{ ...boxStyle, backgroundColor: '#87CEFA' }}>
-          <h3>Azul Seguros</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{azulSeguros}</p>
-        </div>
-        <div style={{ ...boxStyle, backgroundColor: '#FF8C00' }}>
-          <h3>Itau Seguros</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{itauSeguros}</p>
-        </div>
-        <div style={{ ...boxStyle, backgroundColor: '#4CAF50' }}>
-          <h3>Demais Seguradoras</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{demais}</p>
-        </div>
-      </div>
-
-      {/* Somente para Admin: linha de Prêmio Líquido e Comissão */}
-      {usuarioLogado.tipo === 'Admin' && (
-        <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
-          <div style={{ ...boxStyle, backgroundColor: '#3f51b5' }}>
-            <h3>Total Prêmio Líquido</h3>
-            <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
-              {totalPremioLiquido.toLocaleString('pt-BR', {
-                style: 'currency',
-                currency: 'BRL',
-              })}
-            </p>
+      {!loading && ( // Renderiza o conteúdo apenas quando não estiver carregando
+        <>
+          {/* Primeira linha de contadores */}
+          <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+            <div style={{ ...boxStyle, backgroundColor: '#eee', color: '#333' }}>
+              <h3>Total de Leads</h3>
+              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{totalLeads}</p>
+            </div>
+            <div style={{ ...boxStyle, backgroundColor: '#4CAF50' }}>
+              <h3>Vendas</h3>
+              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsFechadosCount}</p>
+            </div>
+            <div style={{ ...boxStyle, backgroundColor: '#F44336' }}>
+              <h3>Leads Perdidos</h3>
+              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsPerdidos}</p>
+            </div>
+            <div style={{ ...boxStyle, backgroundColor: '#FF9800' }}>
+              <h3>Em Contato</h3>
+              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsEmContato}</p>
+            </div>
+            <div style={{ ...boxStyle, backgroundColor: '#9E9E9E' }}>
+              <h3>Sem Contato</h3>
+              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsSemContato}</p>
+            </div>
           </div>
-          <div style={{ ...boxStyle, backgroundColor: '#009688' }}>
-            <h3>Média Comissão</h3>
-            <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
-              {comissaoMediaGlobal.toFixed(2).replace('.', ',')}%
-            </p>
+
+          {/* Segunda linha de contadores */}
+          <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+            <div style={{ ...boxStyle, backgroundColor: '#003366' }}>
+              <h3>Porto Seguro</h3>
+              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{portoSeguro}</p>
+            </div>
+            <div style={{ ...boxStyle, backgroundColor: '#87CEFA' }}>
+              <h3>Azul Seguros</h3>
+              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{azulSeguros}</p>
+            </div>
+            <div style={{ ...boxStyle, backgroundColor: '#FF8C00' }}>
+              <h3>Itau Seguros</h3>
+              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{itauSeguros}</p>
+            </div>
+            <div style={{ ...boxStyle, backgroundColor: '#4CAF50' }}>
+              <h3>Demais Seguradoras</h3>
+              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{demais}</p>
+            </div>
           </div>
-        </div>
+
+          {/* Somente para Admin: linha de Prêmio Líquido e Comissão */}
+          {usuarioLogado.tipo === 'Admin' && (
+            <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
+              <div style={{ ...boxStyle, backgroundColor: '#3f51b5' }}>
+                <h3>Total Prêmio Líquido</h3>
+                <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
+                  {totalPremioLiquido.toLocaleString('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                  })}
+                </p>
+              </div>
+              <div style={{ ...boxStyle, backgroundColor: '#009688' }}>
+                <h3>Média Comissão</h3>
+                <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
+                  {comissaoMediaGlobal.toFixed(2).replace('.', ',')}%
+                </p>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
