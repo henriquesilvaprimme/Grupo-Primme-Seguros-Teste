@@ -458,7 +458,6 @@ function App() {
           />
           <div className="text-right text-sm mb-4">
             <a href="#" className="text-white underline">
-              Esqueci minha senha
             </a>
           </div>
           <button
