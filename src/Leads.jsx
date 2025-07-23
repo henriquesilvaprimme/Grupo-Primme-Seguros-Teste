@@ -526,7 +526,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   ) : (
                     <div
                       style={{
-                        marginTop: '10px',
+                        marginTop: '0px',
                         display: 'flex',
                         gap: '10px',
                         alignItems: 'center',
