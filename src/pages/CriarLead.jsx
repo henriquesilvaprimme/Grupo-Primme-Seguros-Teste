@@ -77,7 +77,7 @@ const CriarLead = () => {
       // Chama a função para enviar o lead para o GAS
       await criarLeadFunc(novoLead); 
 
-      setMensagemFeedback('✅ Lead criado com sucesso! Verifique na aba "Leads Fechados" do Google Sheet.'); // Mensagem de sucesso
+      setMensagemFeedback('✅ Lead criado com sucesso!.'); // Mensagem de sucesso
       // Limpeza do formulário após sucesso
       setNomeLead('');
       setModeloVeiculo('');
@@ -202,7 +202,7 @@ const CriarLead = () => {
           required
         >
           <option value="">Selecione um tipo</option>
-          <option value="Automovel">Automóvel</option> 
+          <option value="Novo">Novo</option> 
           <option value="Renovacao">Renovação</option>
           <option value="Indicacao">Indicação</option>
         </select>
