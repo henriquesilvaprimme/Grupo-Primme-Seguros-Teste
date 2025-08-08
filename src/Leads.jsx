@@ -107,12 +107,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     return nomeNormalizado.includes(filtroNormalizado);
   };
 
-  // Filtragem dos leads pendentes + filtro data ou nome
-  const gerais = leads.filter((lead) => {
+  // Filtragem dos leads pendentes
+  const leadsFiltrados = leads.filter((lead) => {
     if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
 
     if (filtroData) {
-      // Considerando que lead.createdAt é uma string no formato 'YYYY-MM-DD'
       const leadMesAno = lead.createdAt ? lead.createdAt.substring(0, 7) : '';
       return leadMesAno === filtroData;
     }
@@ -123,6 +122,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
     return true;
   });
+
+  // Ordena os leads filtrados pela data de criação (coluna H) do mais novo para o mais antigo
+  const gerais = [...leadsFiltrados].sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt) : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt) : 0;
+    return dateB - dateA;
+  });
+
 
   const totalPaginas = Math.max(1, Math.ceil(gerais.length / leadsPorPagina));
   const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
@@ -497,7 +504,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                         Alterar Observação
                       </button>
                     )}
-                  </div>
+                </div>
                 )}
 
                 <div style={{ width: '100%' }}>
