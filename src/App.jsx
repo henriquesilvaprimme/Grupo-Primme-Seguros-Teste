@@ -232,6 +232,7 @@ function App() {
   };
 
   const atualizarStatusLead = (id, novoStatus, phone) => {
+    // Atualiza o estado local imediatamente
     setLeads((prev) =>
       prev.map((lead) =>
         lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
@@ -287,6 +288,11 @@ function App() {
         }
       });
     }
+    
+    // Adiciona um pequeno atraso antes de buscar a planilha novamente
+    setTimeout(() => {
+      fetchLeadsFromSheet();
+    }, 1000);
   };
 
   const atualizarSeguradoraLead = (id, seguradora) => {
