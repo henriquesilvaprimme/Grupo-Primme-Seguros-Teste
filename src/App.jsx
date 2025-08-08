@@ -292,7 +292,7 @@ function App() {
     // Adiciona um pequeno atraso antes de buscar a planilha novamente
     setTimeout(() => {
       fetchLeadsFromSheet();
-    }, 5000);
+    }, 10000);
   };
 
   const atualizarSeguradoraLead = (id, seguradora) => {
@@ -361,7 +361,7 @@ function App() {
           console.log('Requisição de dados da seguradora enviada (com no-cors).');
           setTimeout(() => {
             fetchLeadsFechadosFromSheet();
-          }, 5000);
+          }, 10000);
       })
       .catch(error => {
         console.error('Erro ao enviar lead (rede ou CORS):', error);
