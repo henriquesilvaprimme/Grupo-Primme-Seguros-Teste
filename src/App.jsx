@@ -144,22 +144,30 @@ function App() {
         setLeads(prevLeads => {
           // Cria um mapa dos leads existentes para uma busca rápida
           const leadsMap = new Map(prevLeads.map(lead => [lead.id, lead]));
+          const newLeadsMap = new Map(formattedLeads.map(lead => [lead.id, lead]));
           let updated = false;
 
-          const novosLeads = formattedLeads.map(newLead => {
-            const oldLead = leadsMap.get(newLead.id);
-            if (oldLead && JSON.stringify(oldLead) !== JSON.stringify(newLead)) {
-              updated = true;
-              return newLead;
-            } else if (!oldLead) {
+          const updatedLeads = prevLeads.map(lead => {
+            const newLead = newLeadsMap.get(lead.id);
+            if (newLead && JSON.stringify(lead) !== JSON.stringify(newLead)) {
               updated = true;
               return newLead;
             }
-            return oldLead || newLead;
+            return lead;
+          });
+          
+          formattedLeads.forEach(newLead => {
+            if (!leadsMap.has(newLead.id)) {
+              updated = true;
+              updatedLeads.push(newLead);
+            }
           });
 
-          if (updated || prevLeads.length !== formattedLeads.length) {
-            return novosLeads;
+          // Remove leads que não existem mais na planilha
+          const finalLeads = updatedLeads.filter(lead => newLeadsMap.has(lead.id));
+          
+          if (updated || prevLeads.length !== finalLeads.length) {
+            return finalLeads;
           }
 
           return prevLeads;
@@ -186,22 +194,29 @@ function App() {
       
       setLeadsFechados(prevLeads => {
         const leadsMap = new Map(prevLeads.map(lead => [lead.ID, lead]));
+        const newLeadsMap = new Map(formattedData.map(lead => [lead.ID, lead]));
         let updated = false;
-
-        const novosLeads = formattedData.map(newLead => {
-          const oldLead = leadsMap.get(newLead.ID);
-          if (oldLead && JSON.stringify(oldLead) !== JSON.stringify(newLead)) {
-            updated = true;
-            return newLead;
-          } else if (!oldLead) {
+        
+        const updatedLeads = prevLeads.map(lead => {
+          const newLead = newLeadsMap.get(lead.ID);
+          if (newLead && JSON.stringify(lead) !== JSON.stringify(newLead)) {
             updated = true;
             return newLead;
           }
-          return oldLead || newLead;
+          return lead;
         });
+
+        formattedData.forEach(newLead => {
+          if (!leadsMap.has(newLead.ID)) {
+            updated = true;
+            updatedLeads.push(newLead);
+          }
+        });
+
+        const finalLeads = updatedLeads.filter(lead => newLeadsMap.has(lead.ID));
         
-        if (updated || prevLeads.length !== formattedData.length) {
-          return novosLeads;
+        if (updated || prevLeads.length !== finalLeads.length) {
+          return finalLeads;
         }
 
         return prevLeads;
