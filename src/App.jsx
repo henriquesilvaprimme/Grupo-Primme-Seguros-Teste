@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 
 // Importe os componentes do seu projeto
@@ -117,10 +117,7 @@ function App() {
       const data = await response.json();
 
       if (Array.isArray(data)) {
-        // Remove a ordenação aqui. O Apps Script já deve retornar a ordem correta.
-        const sortedData = data; 
-        
-        const formattedLeads = sortedData.map((item, index) => ({
+        const formattedLeads = data.map((item, index) => ({
           id: item.id ? Number(item.id) : index + 1,
           name: item.name || item.Name || '',
           vehicleModel: item.vehiclemodel || item.vehicleModel || '',
@@ -141,37 +138,41 @@ function App() {
           createdAt: item.data || new Date().toISOString(),
           responsavel: item.responsavel || '',
           editado: item.editado || '',
-          // ADIÇÃO DO CAMPO OBSERVACAO AQUI
           observacao: item.observacao || ''
         }));
+        
+        setLeads(prevLeads => {
+          // Cria um mapa dos leads existentes para uma busca rápida
+          const leadsMap = new Map(prevLeads.map(lead => [lead.id, lead]));
+          let updated = false;
 
-        // Se não houver um lead selecionado, atualiza a lista de leads
-        // para evitar sobrescrever dados de um lead que está sendo editado.
-        if (!leadSelecionado) {
-          setLeads(formattedLeads);
-        }
+          const novosLeads = formattedLeads.map(newLead => {
+            const oldLead = leadsMap.get(newLead.id);
+            if (oldLead && JSON.stringify(oldLead) !== JSON.stringify(newLead)) {
+              updated = true;
+              return newLead;
+            } else if (!oldLead) {
+              updated = true;
+              return newLead;
+            }
+            return oldLead || newLead;
+          });
+
+          if (updated || prevLeads.length !== formattedLeads.length) {
+            return novosLeads;
+          }
+
+          return prevLeads;
+        });
+
       } else {
-        if (!leadSelecionado) {
-          setLeads([]);
-        }
+        setLeads([]);
       }
     } catch (error) {
       console.error('Erro ao buscar leads da planilha:', error);
-      if (!leadSelecionado) {
-        setLeads([]);
-      }
+      setLeads([]);
     }
   };
-
-  useEffect(() => {
-    fetchLeadsFromSheet();
-
-    const interval = setInterval(() => {
-      fetchLeadsFromSheet();
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [leadSelecionado]);
 
   const fetchLeadsFechadosFromSheet = async () => {
     try {
@@ -180,16 +181,44 @@ function App() {
 
       const formattedData = data.map(item => ({
         ...item,
-        // *** MUDANÇA AQUI PARA GARANTIR CONSISTÊNCIA DE CASE ***
         insuranceType: item.insuranceType || '',
       }));
-      setLeadsFechados(formattedData);
+      
+      setLeadsFechados(prevLeads => {
+        const leadsMap = new Map(prevLeads.map(lead => [lead.ID, lead]));
+        let updated = false;
+
+        const novosLeads = formattedData.map(newLead => {
+          const oldLead = leadsMap.get(newLead.ID);
+          if (oldLead && JSON.stringify(oldLead) !== JSON.stringify(newLead)) {
+            updated = true;
+            return newLead;
+          } else if (!oldLead) {
+            updated = true;
+            return newLead;
+          }
+          return oldLead || newLead;
+        });
+        
+        if (updated || prevLeads.length !== formattedData.length) {
+          return novosLeads;
+        }
+
+        return prevLeads;
+      });
 
     } catch (error) {
       console.error('Erro ao buscar leads fechados:', error);
       setLeadsFechados([]);
     }
   };
+  
+  // Alterado para buscar imediatamente e depois a cada 1 minuto
+  useEffect(() => {
+    fetchLeadsFromSheet();
+    const interval = setInterval(fetchLeadsFromSheet, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     fetchLeadsFechadosFromSheet();
@@ -200,6 +229,7 @@ function App() {
 
     return () => clearInterval(interval);
   }, []);
+
 
   const [ultimoFechadoId, setUltimoFechadoId] = useState(null);
 
