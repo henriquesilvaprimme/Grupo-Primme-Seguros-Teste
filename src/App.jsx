@@ -292,7 +292,7 @@ function App() {
     // Adiciona um pequeno atraso antes de buscar a planilha novamente
     setTimeout(() => {
       fetchLeadsFromSheet();
-    }, 1000);
+    }, 5000);
   };
 
   const atualizarSeguradoraLead = (id, seguradora) => {
