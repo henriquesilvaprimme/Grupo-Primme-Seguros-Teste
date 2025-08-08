@@ -15,7 +15,8 @@ import CriarLead from './pages/CriarLead';
 
 // Constante para a URL BASE do Google Apps Script Web App
 // Esta URL NÃO deve conter "?v=..."
-const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec';
+// Use a URL que você copiou da implantação do seu GAS (sem o ?v=...)
+const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 
 // URLs para buscar dados, que ainda usam o ?v=...
 const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads`;
@@ -116,8 +117,12 @@ function App() {
       const data = await response.json();
 
       if (Array.isArray(data)) {
-        const sortedData = data; 
-        
+        const sortedData = data.sort((a, b) => {
+          const dateA = new Date(a.editado);
+          const dateB = new Date(b.editado);
+          return dateB - dateA;
+        });
+
         const formattedLeads = sortedData.map((item, index) => ({
           id: item.id ? Number(item.id) : index + 1,
           name: item.name || item.Name || '',
@@ -297,6 +302,7 @@ function App() {
       return;
     }
 
+    // Atualiza o estado local ANTES de enviar para o GAS
     lead.Seguradora = seguradora;
     lead.PremioLiquido = premio;
     lead.Comissao = comissao;
@@ -336,7 +342,7 @@ function App() {
           console.log('Requisição de dados da seguradora enviada (com no-cors).');
           setTimeout(() => {
             fetchLeadsFechadosFromSheet();
-          }, 5000);
+          }, 1000);
       })
       .catch(error => {
         console.error('Erro ao enviar lead (rede ou CORS):', error);
@@ -436,6 +442,7 @@ function App() {
           />
           <div className="text-right text-sm mb-4">
             <a href="#" className="text-white underline">
+              Esqueci minha senha
             </a>
           </div>
           <button
