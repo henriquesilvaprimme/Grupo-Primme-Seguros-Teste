@@ -54,15 +54,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   }, []);
 
   const handleRefreshLeads = async () => {
-    const isAnyLeadBeingEdited = Object.values(isEditingObservacao).some(status => status);
-
-    if (isAnyLeadBeingEdited) {
-      const confirmRefresh = window.confirm('Você tem observações não salvas. Deseja atualizar a lista e perder as alterações?');
-      if (!confirmRefresh) {
-        return;
-      }
-    }
-
     setIsLoading(true);
     try {
       await fetchLeadsFromSheet();
