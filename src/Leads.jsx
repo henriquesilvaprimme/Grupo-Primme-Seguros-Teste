@@ -1,72 +1,69 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Lead from './components/Lead';
 import { RefreshCcw } from 'lucide-react';
 
-const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec';
-const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?v=alterar_atribuido';
-const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?action=salvarObservacao';
+const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
+const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
+const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
 
-const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
+const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, isEditing, setIsEditing }) => {
   const [selecionados, setSelecionados] = useState({});
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+
   const [observacoes, setObservacoes] = useState({});
   const [isEditingObservacao, setIsEditingObservacao] = useState({});
+
   const [dataInput, setDataInput] = useState('');
   const [filtroData, setFiltroData] = useState('');
+
   const [nomeInput, setNomeInput] = useState('');
   const [filtroNome, setFiltroNome] = useState('');
 
-  // 1. NOVO: Estado para monitorar se alguma observação está em edição
-  const [isEditing, setIsEditing] = useState(false);
+  // 1. NOVO: Crie um ref para armazenar a referência atual de isEditing
+  const isEditingRef = useRef(isEditing);
+
+  // 2. NOVO: Mantenha o ref sincronizado com o estado isEditing
+  useEffect(() => {
+    isEditingRef.current = isEditing;
+  }, [isEditing]);
 
   useEffect(() => {
     const initialObservacoes = {};
     const initialIsEditingObservacao = {};
     leads.forEach(lead => {
       initialObservacoes[lead.id] = lead.observacao || '';
-      initialIsEditingObservacao[lead.id] = false;
+      initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
     });
     setObservacoes(initialObservacoes);
     setIsEditingObservacao(initialIsEditingObservacao);
   }, [leads]);
 
-  // 2. NOVO: Sincroniza o estado geral de edição com o estado de edição individual
-  useEffect(() => {
-    const anyEditing = Object.values(isEditingObservacao).some(status => status);
-    setIsEditing(anyEditing);
-  }, [isEditingObservacao]);
-
-  // 3. NOVO: Adiciona os eventos para detectar a saída da página
+  // 3. NOVO: O useEffect do 'beforeunload' não depende mais de isEditing
   useEffect(() => {
     const handleBeforeUnload = (event) => {
-      if (isEditing) {
+      // Use a referência mutável para verificar o estado atual
+      if (isEditingRef.current) {
         event.preventDefault();
-        event.returnValue = ''; // Exibe o pop-up padrão do navegador
-      }
-    };
-
-    const handleHashChange = (event) => {
-      if (isEditing) {
-        const confirmNavigation = window.confirm('Você tem observações não salvas. Deseja sair e perder as alterações?');
-        if (!confirmNavigation) {
-          // Se o usuário cancelar, tentamos reverter a URL para o estado anterior
-          window.location.hash = event.oldURL.split('#')[1] || '';
-        }
+        event.returnValue = 'Você tem observações não salvas. Deseja sair e perder as alterações?';
+        return event.returnValue;
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('hashchange', handleHashChange);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('hashchange', handleHashChange);
     };
-  }, [isEditing]); // Depende do estado de edição
+  }, []);
+
 
   const handleRefreshLeads = async () => {
-    if (isEditing) {
+    // Checa se há alguma observação sendo editada
+    const isAnyLeadBeingEdited = Object.values(isEditingObservacao).some(status => status);
+
+    if (isAnyLeadBeingEdited) {
+      // Confirma com o usuário antes de perder dados não salvos
       const confirmRefresh = window.confirm('Você tem observações não salvas. Deseja atualizar a lista e perder as alterações?');
       if (!confirmRefresh) {
         return;
@@ -76,6 +73,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setIsLoading(true);
     try {
       await fetchLeadsFromSheet();
+      const refreshedIsEditingObservacao = {};
+      leads.forEach(lead => {
+        refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
+      });
+      setIsEditingObservacao(refreshedIsEditingObservacao);
     } catch (error) {
       console.error('Erro ao buscar leads atualizados:', error);
     } finally {
@@ -84,6 +86,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   const leadsPorPagina = 10;
+
   const normalizarTexto = (texto = '') => {
     return texto
       .toString()
@@ -110,23 +113,37 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setPaginaAtual(1);
   };
 
+  const isSameMonthAndYear = (leadDateStr, filtroMesAno) => {
+    if (!filtroMesAno) return true;
+    if (!leadDateStr) return false;
+    const leadData = new Date(leadDateStr);
+    const leadAno = leadData.getFullYear();
+    const leadMes = String(leadData.getMonth() + 1).padStart(2, '0');
+    return filtroMesAno === `${leadAno}-${leadMes}`;
+  };
+
   const nomeContemFiltro = (leadNome, filtroNome) => {
     if (!filtroNome) return true;
     if (!leadNome) return false;
+
     const nomeNormalizado = normalizarTexto(leadNome);
     const filtroNormalizado = normalizarTexto(filtroNome);
+
     return nomeNormalizado.includes(filtroNormalizado);
   };
 
   const leadsFiltrados = leads.filter((lead) => {
     if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
+
     if (filtroData) {
       const leadMesAno = lead.createdAt ? lead.createdAt.substring(0, 7) : '';
       return leadMesAno === filtroData;
     }
+
     if (filtroNome) {
       return nomeContemFiltro(lead.name, filtroNome);
     }
+
     return true;
   });
 
@@ -136,8 +153,10 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     return dateB - dateA;
   });
 
+
   const totalPaginas = Math.max(1, Math.ceil(gerais.length / leadsPorPagina));
   const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
+
   const usuariosAtivos = usuarios.filter((u) => u.status === 'Ativo');
   const isAdmin = usuarioLogado?.tipo === 'Admin';
 
@@ -154,9 +173,12 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       alert('Selecione um usuário antes de enviar.');
       return;
     }
+
     transferirLead(leadId, userId);
+
     const lead = leads.find((l) => l.id === leadId);
     const leadAtualizado = { ...lead, usuarioId: userId };
+
     enviarLeadAtualizado(leadAtualizado);
   };
 
@@ -170,6 +192,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
+      // Removido o fetchLeadsFromSheet() para evitar reset
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
     }
@@ -199,16 +222,17 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     if (!dataStr) return '';
     let data;
     if (dataStr.includes('/')) {
-      const partes = dataStr.split('/');
-      data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+        const partes = dataStr.split('/');
+        data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
     } else if (dataStr.includes('-') && dataStr.length === 10) {
-      const partes = dataStr.split('-');
-      data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+        const partes = dataStr.split('-');
+        data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
     } else {
-      data = new Date(dataStr);
+        data = new Date(dataStr);
     }
+
     if (isNaN(data.getTime())) {
-      return '';
+        return '';
     }
     return data.toLocaleDateString('pt-BR');
   };
@@ -218,8 +242,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       ...prev,
       [leadId]: text,
     }));
-    // Aqui você pode adicionar lógica para monitorar se o texto mudou
-    // para habilitar/desabilitar o botão de salvar, se necessário.
   };
 
   const handleSalvarObservacao = async (leadId) => {
@@ -243,7 +265,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         },
       });
 
-      // Após salvar, desativa o modo de edição
+      // Após salvar, desativa o modo de edição e reativa a atualização automática
+      setIsEditing(false);
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
 
       // Força a atualização dos leads para exibir os dados mais recentes
@@ -263,13 +286,24 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   const handleConfirmStatus = (leadId, novoStatus, phone) => {
+    // Pausa a atualização automática se o status for Em Contato ou Sem Contato
+    if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
+      setIsEditing(true);
+    } else {
+      setIsEditing(false);
+    }
+
     onUpdateStatus(leadId, novoStatus, phone);
+
     const currentLead = leads.find(l => l.id === leadId);
     const hasNoObservacao = !currentLead?.observacao || currentLead.observacao.trim() === '';
-    if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao) {
-      setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+
+    if ( (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao ) {
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+    } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     } else {
-      setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     }
   };
 
@@ -406,6 +440,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         <>
           {leadsPagina.map((lead) => {
             const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
+
             return (
               <div
                 key={lead.id}
@@ -487,6 +522,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     )}
                 </div>
                 )}
+
                 <div style={{ width: '100%' }}>
                   {lead.responsavel && responsavel ? (
                     <div style={{ marginTop: '10px' }}>
@@ -551,6 +587,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     </div>
                   )}
                 </div>
+
                 <div
                   style={{
                     position: 'absolute',
