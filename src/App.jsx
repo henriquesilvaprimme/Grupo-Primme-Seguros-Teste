@@ -76,7 +76,7 @@ function App() {
   useEffect(() => {
     if (!isEditing) {
       fetchUsuariosForLogin();
-      const interval = setInterval(fetchUsuariosForLogin, 300000);
+      const interval = setInterval(fetchUsuariosForLogin, 60000);
       return () => clearInterval(interval);
     }
   }, [isEditing]);
@@ -173,7 +173,7 @@ function App() {
 
       const interval = setInterval(() => {
         fetchLeadsFromSheet();
-      }, 300000);
+      }, 60000);
 
       return () => clearInterval(interval);
     }
@@ -204,7 +204,7 @@ function App() {
 
       const interval = setInterval(() => {
         fetchLeadsFechadosFromSheet();
-      }, 300000);
+      }, 60000);
 
       return () => clearInterval(interval);
     }
