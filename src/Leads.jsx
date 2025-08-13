@@ -6,8 +6,7 @@ const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vuj
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
 
-// Adicionado setIsEditing nas props para controle de edição em App.jsx
-const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, setIsEditing }) => {
+const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, isEditing, setIsEditing }) => {
   const [selecionados, setSelecionados] = useState({});
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -162,8 +161,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
-      // A linha abaixo foi REMOVIDA para evitar o "reset"
-      // fetchLeadsFromSheet();
+      // Removido o fetchLeadsFromSheet() para evitar reset
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
     }
@@ -223,8 +221,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     }
 
     setIsLoading(true);
-    // Inicia a edição globalmente para evitar o refresh automático
-    setIsEditing(true);
     try {
       await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
         method: 'POST',
@@ -238,13 +234,13 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         },
       });
 
+      // Após salvar, desativa o modo de edição e reativa a atualização automática
+      setIsEditing(false);
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-      // Agora, em vez de recarregar, vamos agendar um refresh automático para daqui a alguns segundos.
-      // Isso dá tempo para a atualização local ser processada e evita o reset visual.
-      setTimeout(() => {
-        fetchLeadsFromSheet();
-        setIsEditing(false); // Desativa a edição global após o refresh
-      }, 5000); // 5 segundos de atraso
+
+      // Força a atualização dos leads para exibir os dados mais recentes
+      fetchLeadsFromSheet();
+
     } catch (error) {
       console.error('Erro ao salvar observação:', error);
       alert('Erro ao salvar observação. Por favor, tente novamente.');
@@ -254,21 +250,22 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   const handleAlterarObservacao = (leadId) => {
+    // Permite a edição do campo de observação
     setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-    // Ativa o modo de edição globalmente para pausar o refresh automático
-    setIsEditing(true);
   };
 
   const handleConfirmStatus = (leadId, novoStatus, phone) => {
-    // Ação de atualização de status do lead
+    // Pausa a atualização automática se o status for Em Contato ou Sem Contato
+    if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
+      setIsEditing(true);
+    } else {
+      setIsEditing(false);
+    }
+
     onUpdateStatus(leadId, novoStatus, phone);
-    // Em vez de recarregar imediatamente, vamos agendar um refresh
-    setTimeout(() => {
-      fetchLeadsFromSheet();
-    }, 5000); // 5 segundos de atraso
 
     const currentLead = leads.find(l => l.id === leadId);
-    const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
+    const hasNoObservacao = !currentLead?.observacao || currentLead.observacao.trim() === '';
 
     if ( (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao ) {
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
@@ -305,11 +302,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           <button
             title='Clique para atualizar os dados'
             onClick={handleRefreshLeads}
-            disabled={isLoading || Object.values(isEditingObservacao).some(status => status)}
+            disabled={isLoading || isEditing}
             style={{
               background: 'none',
               border: 'none',
-              cursor: (isLoading || Object.values(isEditingObservacao).some(status => status)) ? 'not-allowed' : 'pointer',
+              cursor: (isLoading || isEditing) ? 'not-allowed' : 'pointer',
               padding: '0',
               display: 'flex',
               alignItems: 'center',
@@ -492,7 +489,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                         Alterar Observação
                       </button>
                     )}
-                  </div>
+                </div>
                 )}
 
                 <div style={{ width: '100%' }}>
