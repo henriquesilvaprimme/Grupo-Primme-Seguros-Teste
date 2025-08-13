@@ -31,6 +31,22 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setIsEditingObservacao(initialIsEditingObservacao);
   }, [leads]);
 
+  // NOVO useEffect para o pop-up de saída
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      if (isEditing) {
+        event.preventDefault();
+        event.returnValue = 'Você tem observações não salvas. Deseja sair e perder as alterações?';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isEditing]);
+
 
   const handleRefreshLeads = async () => {
     // Checa se há alguma observação sendo editada
@@ -519,7 +535,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                           Alterar
                         </button>
                       )}
-                  </div>
+                </div>
                   ) : (
                     <div
                       style={{
