@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Lead from './components/Lead';
 import { RefreshCcw } from 'lucide-react';
 
@@ -20,6 +20,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const [nomeInput, setNomeInput] = useState('');
   const [filtroNome, setFiltroNome] = useState('');
 
+  // 1. NOVO: Crie um ref para armazenar a referência atual de isEditing
+  const isEditingRef = useRef(isEditing);
+
+  // 2. NOVO: Mantenha o ref sincronizado com o estado isEditing
+  useEffect(() => {
+    isEditingRef.current = isEditing;
+  }, [isEditing]);
+
   useEffect(() => {
     const initialObservacoes = {};
     const initialIsEditingObservacao = {};
@@ -31,12 +39,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setIsEditingObservacao(initialIsEditingObservacao);
   }, [leads]);
 
-  // NOVO useEffect para o pop-up de saída
+  // 3. NOVO: O useEffect do 'beforeunload' não depende mais de isEditing
   useEffect(() => {
     const handleBeforeUnload = (event) => {
-      if (isEditing) {
+      // Use a referência mutável para verificar o estado atual
+      if (isEditingRef.current) {
         event.preventDefault();
         event.returnValue = 'Você tem observações não salvas. Deseja sair e perder as alterações?';
+        return event.returnValue;
       }
     };
 
@@ -45,7 +55,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [isEditing]);
+  }, []);
 
 
   const handleRefreshLeads = async () => {
