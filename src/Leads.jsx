@@ -175,7 +175,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
-      // Removido o fetchLeadsFromSheet() para evitar reset
+      // A chamada para `fetchLeadsFromSheet()` foi removida aqui para permitir que `App.jsx` gerencie o refresh.
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
     }
@@ -251,7 +251,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       setIsEditing(false);
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
 
-      fetchLeadsFromSheet();
+      // A chamada para `fetchLeadsFromSheet()` foi removida aqui para permitir que `App.jsx` gerencie o refresh.
     } catch (error) {
       console.error('Erro ao salvar observação:', error);
       alert('Erro ao salvar observação. Por favor, tente novamente.');
