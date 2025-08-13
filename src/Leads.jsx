@@ -33,10 +33,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
 
   const handleRefreshLeads = async () => {
+    // Checa se há alguma observação sendo editada
     const isAnyLeadBeingEdited = Object.values(isEditingObservacao).some(status => status);
+
     if (isAnyLeadBeingEdited) {
-      alert('Não é possível atualizar enquanto uma observação está sendo editada. Salve ou cancele a edição primeiro.');
-      return;
+      // Confirma com o usuário antes de perder dados não salvos
+      const confirmRefresh = window.confirm('Você tem observações não salvas. Deseja atualizar a lista e perder as alterações?');
+      if (!confirmRefresh) {
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -302,11 +307,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           <button
             title='Clique para atualizar os dados'
             onClick={handleRefreshLeads}
-            disabled={isLoading || isEditing}
+            disabled={isLoading}
             style={{
               background: 'none',
               border: 'none',
-              cursor: (isLoading || isEditing) ? 'not-allowed' : 'pointer',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
               padding: '0',
               display: 'flex',
               alignItems: 'center',
