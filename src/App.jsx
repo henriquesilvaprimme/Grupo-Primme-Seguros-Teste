@@ -38,6 +38,8 @@ function App() {
   const [leadSelecionado, setLeadSelecionado] = useState(null);
 
   const [usuarios, setUsuarios] = useState([]);
+  // NOVO ESTADO: Adicione um estado para controlar se há uma edição em andamento
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     const img = new Image();
@@ -70,11 +72,14 @@ function App() {
     }
   };
 
+  // MODIFICAÇÃO: A função agora só roda se não houver edição em andamento
   useEffect(() => {
-    fetchUsuariosForLogin();
-    const interval = setInterval(fetchUsuariosForLogin, 60000);
-    return () => clearInterval(interval);
-  }, []);
+    if (!isEditing) {
+      fetchUsuariosForLogin();
+      const interval = setInterval(fetchUsuariosForLogin, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [isEditing]);
 
   const formatarDataParaExibicao = (dataString) => {
     if (!dataString) return '';
@@ -118,8 +123,8 @@ function App() {
 
       if (Array.isArray(data)) {
         // Remove a ordenação aqui. O Apps Script já deve retornar a ordem correta.
-        const sortedData = data; 
-        
+        const sortedData = data; 
+        
         const formattedLeads = sortedData.map((item, index) => ({
           id: item.id ? Number(item.id) : index + 1,
           name: item.name || item.Name || '',
@@ -161,15 +166,18 @@ function App() {
     }
   };
 
+  // MODIFICAÇÃO: A função só será executada se não houver uma edição em andamento.
   useEffect(() => {
-    fetchLeadsFromSheet();
-
-    const interval = setInterval(() => {
+    if (!isEditing) {
       fetchLeadsFromSheet();
-    }, 60000);
 
-    return () => clearInterval(interval);
-  }, [leadSelecionado]);
+      const interval = setInterval(() => {
+        fetchLeadsFromSheet();
+      }, 60000);
+
+      return () => clearInterval(interval);
+    }
+  }, [leadSelecionado, isEditing]);
 
   const fetchLeadsFechadosFromSheet = async () => {
     try {
@@ -189,15 +197,18 @@ function App() {
     }
   };
 
+  // MODIFICAÇÃO: A função só será executada se não houver uma edição em andamento.
   useEffect(() => {
-    fetchLeadsFechadosFromSheet();
-
-    const interval = setInterval(() => {
+    if (!isEditing) {
       fetchLeadsFechadosFromSheet();
-    }, 60000);
 
-    return () => clearInterval(interval);
-  }, []);
+      const interval = setInterval(() => {
+        fetchLeadsFechadosFromSheet();
+      }, 60000);
+
+      return () => clearInterval(interval);
+    }
+  }, [isEditing]);
 
   const [ultimoFechadoId, setUltimoFechadoId] = useState(null);
 
@@ -492,6 +503,8 @@ function App() {
                     : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)
                 }
                 usuarioLogado={usuarioLogado}
+                // PASSE A PROPRIEDADE setIsEditing PARA OS COMPONENTES QUE PODEM SER EDITADOS
+                setIsEditing={setIsEditing}
               />
             }
           />
@@ -507,6 +520,8 @@ function App() {
                 usuarioLogado={usuarioLogado}
                 // PASSA A PROPRIEDADE leadSelecionado PARA Leads
                 leadSelecionado={leadSelecionado}
+                // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE Leads
+                setIsEditing={setIsEditing}
               />
             }
           />
@@ -525,6 +540,8 @@ function App() {
                 onAbrirLead={onAbrirLead}
                 leadSelecionado={leadSelecionado}
                 formatarDataParaExibicao={formatarDataParaExibicao}
+                // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE LeadsFechados
+                setIsEditing={setIsEditing}
               />
             }
           />
@@ -539,6 +556,8 @@ function App() {
                 onAbrirLead={onAbrirLead}
                 isAdmin={isAdmin}
                 leadSelecionado={leadSelecionado}
+                // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE LeadsPerdidos
+                setIsEditing={setIsEditing}
               />
             }
           />
@@ -546,6 +565,8 @@ function App() {
             leads={leads}
             fetchLeadsFromSheet={fetchLeadsFromSheet}
             fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
+            // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE BuscarLead
+            setIsEditing={setIsEditing}
           />} />
           <Route
             path="/criar-lead"
