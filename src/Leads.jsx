@@ -20,10 +20,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const [nomeInput, setNomeInput] = useState('');
   const [filtroNome, setFiltroNome] = useState('');
 
-  // 1. NOVO: Crie um ref para armazenar a referência atual de isEditing
   const isEditingRef = useRef(isEditing);
 
-  // 2. NOVO: Mantenha o ref sincronizado com o estado isEditing
   useEffect(() => {
     isEditingRef.current = isEditing;
   }, [isEditing]);
@@ -39,10 +37,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setIsEditingObservacao(initialIsEditingObservacao);
   }, [leads]);
 
-  // 3. NOVO: O useEffect do 'beforeunload' não depende mais de isEditing
   useEffect(() => {
     const handleBeforeUnload = (event) => {
-      // Use a referência mutável para verificar o estado atual
       if (isEditingRef.current) {
         event.preventDefault();
         event.returnValue = 'Você tem observações não salvas. Deseja sair e perder as alterações?';
@@ -59,11 +55,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
 
   const handleRefreshLeads = async () => {
-    // Checa se há alguma observação sendo editada
     const isAnyLeadBeingEdited = Object.values(isEditingObservacao).some(status => status);
 
     if (isAnyLeadBeingEdited) {
-      // Confirma com o usuário antes de perder dados não salvos
       const confirmRefresh = window.confirm('Você tem observações não salvas. Deseja atualizar a lista e perder as alterações?');
       if (!confirmRefresh) {
         return;
@@ -265,11 +259,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         },
       });
 
-      // Após salvar, desativa o modo de edição e reativa a atualização automática
       setIsEditing(false);
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
 
-      // Força a atualização dos leads para exibir os dados mais recentes
       fetchLeadsFromSheet();
 
     } catch (error) {
@@ -281,12 +273,10 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   const handleAlterarObservacao = (leadId) => {
-    // Permite a edição do campo de observação
     setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
   };
 
   const handleConfirmStatus = (leadId, novoStatus, phone) => {
-    // Pausa a atualização automática se o status for Em Contato ou Sem Contato
     if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
       setIsEditing(true);
     } else {
