@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // Importe 'useRef'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 
 // Importe os componentes do seu projeto
@@ -26,6 +26,7 @@ const GOOGLE_SHEETS_USERS_AUTH_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_usu
 
 function App() {
   const navigate = useNavigate();
+  const mainContentRef = useRef(null); // Cria uma referência para o elemento main
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginInput, setLoginInput] = useState('');
@@ -485,7 +486,7 @@ function App() {
     <div style={{ display: 'flex', height: '100vh' }}>
       <Sidebar isAdmin={isAdmin} nomeUsuario={usuarioLogado} />
 
-      <main style={{ flex: 1, overflow: 'auto' }}>
+      <main ref={mainContentRef} style={{ flex: 1, overflow: 'auto' }}>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route
@@ -522,6 +523,8 @@ function App() {
                 leadSelecionado={leadSelecionado}
                 // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE Leads
                 setIsEditing={setIsEditing}
+                // PASSE A REFERÊNCIA PARA O COMPONENTE Leads
+                scrollContainerRef={mainContentRef}
               />
             }
           />
