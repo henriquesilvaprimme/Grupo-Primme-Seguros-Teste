@@ -357,7 +357,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
             <p className="ml-4 text-lg text-gray-700">Carregando LEADS FECHADOS...</p>
           </div>
-        </div>
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
