@@ -53,11 +53,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     };
   }, []);
 
-  // --- Lógica adicionada para rolar ao topo da página ao mudar a paginaAtual ---
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [paginaAtual]);
-  // --- Fim da lógica adicionada ---
 
   const handleRefreshLeads = async () => {
     setIsLoading(true);
@@ -181,7 +179,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
-      // A chamada para `fetchLeadsFromSheet()` foi removida aqui para permitir que `App.jsx` gerencie o refresh.
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
     }
@@ -211,17 +208,17 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     if (!dataStr) return '';
     let data;
     if (dataStr.includes('/')) {
-        const partes = dataStr.split('/');
-        data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+      const partes = dataStr.split('/');
+      data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
     } else if (dataStr.includes('-') && dataStr.length === 10) {
-        const partes = dataStr.split('-');
-        data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+      const partes = dataStr.split('-');
+      data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
     } else {
-        data = new Date(dataStr);
+      data = new Date(dataStr);
     }
 
     if (isNaN(data.getTime())) {
-        return '';
+      return '';
     }
     return data.toLocaleDateString('pt-BR');
   };
@@ -257,7 +254,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       setIsEditing(false);
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
 
-      // A chamada para `fetchLeadsFromSheet()` foi removida aqui para permitir que `App.jsx` gerencie o refresh.
     } catch (error) {
       console.error('Erro ao salvar observação:', error);
       alert('Erro ao salvar observação. Por favor, tente novamente.');
@@ -527,7 +523,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                         >
                           Alterar
                         </button>
-                    </div>
+                      )}
+                  </div>
                   ) : (
                     <div
                       style={{
