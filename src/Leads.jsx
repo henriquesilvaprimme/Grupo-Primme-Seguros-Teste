@@ -6,7 +6,7 @@ const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vuj
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?v=alterar_atribuido';
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?action=salvarObservacao';
 
-const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, isEditing, setIsEditing }) => {
+const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, isEditing, setIsEditing, scrollContainerRef }) => {
   const [selecionados, setSelecionados] = useState({});
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -89,7 +89,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroNome('');
     setNomeInput('');
     setPaginaAtual(1);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const aplicarFiltroNome = () => {
@@ -98,7 +100,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroData('');
     setDataInput('');
     setPaginaAtual(1);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const isSameMonthAndYear = (leadDateStr, filtroMesAno) => {
@@ -200,7 +204,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const handlePaginaAnterior = () => {
     setPaginaAtual((prev) => {
       const novaPagina = Math.max(prev - 1, 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' }); // Rola para o topo
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' }); // Rola para o topo
+      }
       return novaPagina;
     });
   };
@@ -208,7 +214,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const handlePaginaProxima = () => {
     setPaginaAtual((prev) => {
       const novaPagina = Math.min(prev + 1, totalPaginas);
-      window.scrollTo({ top: 0, behavior: 'smooth' }); // Rola para o topo
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' }); // Rola para o topo
+      }
       return novaPagina;
     });
   };
@@ -503,7 +511,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                           border: 'none',
                           borderRadius: '4px',
                           cursor: 'pointer',
-                          fontWeight: 'bold',
                         }}
                       >
                         Alterar Observação
@@ -534,7 +541,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                           Alterar
                         </button>
                       )}
-                  </div>
+                </div>
                   ) : (
                     <div
                       style={{
