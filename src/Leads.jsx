@@ -53,9 +53,16 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     };
   }, []);
 
+  // --- Lógica corrigida para rolar ao topo da página ---
   useEffect(() => {
-    window.scrollTo(0, 0);
+    const container = document.getElementById('leads-container');
+    if (container) {
+      container.scrollTop = 0;
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }, [paginaAtual]);
+  // --- Fim da lógica corrigida ---
 
   const handleRefreshLeads = async () => {
     setIsLoading(true);
@@ -288,7 +295,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   return (
-    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
+    <div id="leads-container" style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
       {isLoading && (
         <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
