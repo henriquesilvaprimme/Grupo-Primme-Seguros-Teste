@@ -347,13 +347,15 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   };
 
   return (
-    <div id="leads-container" style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
-      {isLoading && (
-        <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
-          <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
-          <p className="ml-4 text-lg text-gray-700">Carregando LEADS FECHADOS...</p>
-        </div>
-      )}
+    <div style={{ padding: '20px', position: 'relative' }}>
+      {isLoading && (
+        <div className="absolute inset-0 bg-white flex justify-center items-center z-10">
+          <div style={{ position: 'relative', top: '-75vh' }} className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
+          <p className="ml-4 text-lg text-gray-700">Carregando LEADS FECHADOS...</p>
+        </div>
+      </div>
+      )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <h1 style={{ margin: 0 }}>Leads Fechados</h1>
