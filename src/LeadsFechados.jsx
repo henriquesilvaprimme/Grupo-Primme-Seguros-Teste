@@ -43,15 +43,32 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   const [filtroData, setFiltroData] = useState(getMesAnoAtual());
   const [premioLiquidoInputDisplay, setPremioLiquidoInputDisplay] = useState({});
 
-  const normalizarTexto = (texto) =>
-    texto
+  const normalizarTexto = (texto = '') => {
+    return texto
+      .toString()
+      .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '')
-      .toLowerCase();
+      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()@\+\?><\[\]\+]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const nomeContemFiltro = (leadNome, filtroNome) => {
+    if (!filtroNome) return true;
+    if (!leadNome) return false;
+
+    const nomeNormalizado = normalizarTexto(leadNome);
+    const filtroNormalizado = normalizarTexto(filtroNome);
+
+    return nomeNormalizado.includes(filtroNormalizado);
+  };
 
   const aplicarFiltroNome = () => {
-    setFiltroNome(nomeInput.trim());
+    const filtroLimpo = nomeInput.trim();
+    setFiltroNome(filtroLimpo);
+    setFiltroData('');
+    setDataInput('');
     setPaginaAtual(1);
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
@@ -60,6 +77,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
   const aplicarFiltroData = () => {
     setFiltroData(dataInput);
+    setFiltroNome('');
+    setNomeInput('');
     setPaginaAtual(1);
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
@@ -159,16 +178,22 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       return dataB.getTime() - dataA.getTime();
     });
 
-    const leadsFiltrados = fechadosOrdenados.filter(lead => {
-      const nomeMatch = normalizarTexto(lead.name || '').includes(normalizarTexto(filtroNome || ''));
-      const dataLeadMesAno = lead.Data ? getDataParaComparacao(lead.Data).substring(0, 7) : '';
-      const dataMatch = filtroData ? dataLeadMesAno === filtroData : true;
-      return nomeMatch && dataMatch;
-    });
+    // Lógica de filtragem corrigida
+    let leadsFiltrados;
+    if (filtroNome) {
+      leadsFiltrados = fechadosOrdenados.filter(lead =>
+        nomeContemFiltro(lead.name, filtroNome)
+      );
+    } else if (filtroData) {
+      leadsFiltrados = fechadosOrdenados.filter(lead => {
+        const dataLeadMesAno = lead.Data ? getDataParaComparacao(lead.Data).substring(0, 7) : '';
+        return dataLeadMesAno === filtroData;
+      });
+    } else {
+      leadsFiltrados = fechadosOrdenados;
+    }
 
     setFechadosFiltradosInterno(leadsFiltrados);
-    // AQUI ESTÁ O AJUSTE. REMOVA A LINHA ABAIXO PARA QUE NÃO RESETE A PÁGINA
-    // setPaginaAtual(1); 
   }, [leads, filtroNome, filtroData]);
 
   const formatarMoeda = (valorCentavos) => {
@@ -347,349 +372,368 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   };
 
   return (
-    <div id="leads-container" style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
+    <>
+      {/* Elemento de carregamento fixo no topo */}
       {isLoading && (
-        <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
-          <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
-          <p className="ml-4 text-lg text-gray-700">Carregando LEADS FECHADOS...</p>
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          backgroundColor: '#fff',
+          padding: '10px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          borderBottom: '1px solid #ccc',
+          zIndex: 1000,
+        }}>
+          <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-indigo-500"></div>
+          <p className="ml-4 text-lg text-gray-700" style={{ margin: 0, fontSize: '1em' }}>
+            Carregando LEADS FECHADOS...
+          </p>
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <h1 style={{ margin: 0 }}>Leads Fechados</h1>
-
-        <button title='Clique para atualizar os dados'
-          onClick={handleRefresh}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          ) : (
-            <RefreshCcw size={20} />
-          )}
-        </button>
-      </div>
-
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '20px',
-          flexWrap: 'wrap',
-          gap: '10px',
-        }}
-      >
+      <div id="leads-container" style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <h1 style={{ margin: 0 }}>Leads Fechados</h1>
+          <button
+            title='Clique para atualizar os dados'
+            onClick={handleRefresh}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              <RefreshCcw size={20} />
+            )}
+          </button>
+        </div>
+        
+        {/* Resto do seu código JSX... */}
+        {/* ... */}
         <div
           style={{
             display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'center',
-            gap: '8px',
-            flex: '1',
-            justifyContent: 'center',
-            minWidth: '280px',
+            marginBottom: '20px',
+            flexWrap: 'wrap',
+            gap: '10px',
           }}
         >
-          <button
-            onClick={aplicarFiltroNome}
+          <div
             style={{
-              backgroundColor: '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '6px 14px',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              height: '36px',
-            }}
-          >
-            Filtrar
-          </button>
-          <input
-            type="text"
-            placeholder="Filtrar por nome"
-            value={nomeInput}
-            onChange={(e) => setNomeInput(e.target.value)}
-            style={{
-              padding: '6px 10px',
-              borderRadius: '6px',
-              border: '1px solid #ccc',
-              width: '220px',
-              maxWidth: '100%',
-              height: '36px',
-              fontSize: '14px',
-            }}
-            title="Filtrar leads pelo nome (contém)"
-          />
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            minWidth: '230px',
-            justifyContent: 'flex-end',
-          }}
-        >
-          <button
-            onClick={aplicarFiltroData}
-            style={{
-              backgroundColor: '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '6px 14px',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              height: '36px',
-            }}
-          >
-            Filtrar
-          </button>
-          <input
-            type="month"
-            value={dataInput}
-            onChange={(e) => setDataInput(e.target.value)}
-            style={{
-              padding: '6px 10px',
-              borderRadius: '6px',
-              border: '1px solid #ccc',
-              cursor: 'pointer',
-              height: '36px',
-              fontSize: '14px',
-            }}
-            title="Filtrar leads pelo mês e ano de criação"
-          />
-        </div>
-      </div>
-
-      {fechadosFiltradosInterno.length === 0 ? (
-        <p>Não há leads fechados que correspondam ao filtro aplicado.</p>
-      ) : (
-        <>
-          {leadsPagina.map((lead) => {
-            const containerStyle = {
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '15px',
-              marginBottom: '15px',
-              borderRadius: '5px',
-              backgroundColor: lead.Seguradora ? '#e6f4ea' : '#fff',
-              border: lead.Seguradora ? '2px solid #4CAF50' : '1px solid #ddd',
-            };
-
-            const responsavel = usuarios.find((u) => u.nome === lead.Responsavel && isAdmin);
-
-            const isSeguradoraPreenchida = !!lead.Seguradora;
-
-            const isButtonDisabled =
-              !valores[`${lead.ID}`]?.insurer ||
-              valores[`${lead.ID}`]?.PremioLiquido === null ||
-              valores[`${lead.ID}`]?.PremioLiquido === undefined ||
-              !valores[`${lead.ID}`]?.Comissao ||
-              parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')) === 0 ||
-              !valores[`${lead.ID}`]?.Parcelamento ||
-              valores[`${lead.ID}`]?.Parcelamento === '' ||
-              !vigencia[`${lead.ID}`]?.inicio ||
-              !vigencia[`${lead.ID}`]?.final;
-
-            return (
-              <div key={lead.ID} style={containerStyle}>
-                <div style={{ flex: 1 }}>
-                  <h3>{lead.name}</h3>
-                  <p><strong>Modelo:</strong> {lead.vehicleModel}</p>
-                  <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
-                  <p><strong>Cidade:</strong> {lead.city}</p>
-                  <p><strong>Telefone:</strong> {lead.phone}</p>
-                  <p><strong>Tipo de Seguro:</strong> {lead.insuranceType}</p>
-
-                  {responsavel && (
-                    <p style={{ marginTop: '10px', color: '#007bff' }}>
-                      Transferido para <strong>{responsavel.nome}</strong>
-                    </p>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '250px' }}>
-                  <select
-                    value={valores[`${lead.ID}`]?.insurer || ''}
-                    onChange={(e) => handleInsurerChange(lead.ID, e.target.value)}
-                    disabled={isSeguradoraPreenchida}
-                    style={{
-                      padding: '8px',
-                      border: '2px solid #ccc',
-                      borderRadius: '4px',
-                      width: '100%',
-                      marginBottom: '8px',
-                    }}
-                  >
-                    <option value="">Selecione a seguradora</option>
-                    <option value="Porto Seguro">Porto Seguro</option>
-                    <option value="Azul Seguros">Azul Seguros</option>
-                    <option value="Itau Seguros">Itau Seguros</option>
-                    <option value="Demais Seguradoras">Demais Seguradoras</option>
-                  </select>
-
-                  <div style={inputWrapperStyle}>
-                    <span style={prefixStyle}>R$</span>
-                    <input
-                      type="text"
-                      placeholder="Prêmio Líquido"
-                      value={premioLiquidoInputDisplay[`${lead.ID}`] || ''}
-                      onChange={(e) => handlePremioLiquidoChange(lead.ID, e.target.value)}
-                      onBlur={() => handlePremioLiquidoBlur(lead.ID)}
-                      disabled={isSeguradoraPreenchida}
-                      style={inputWithPrefixStyle}
-                    />
-                  </div>
-
-                  <div style={inputWrapperStyle}>
-                    <span style={prefixStyle}>%</span>
-                    <input
-                      type="text"
-                      placeholder="Comissão (%)"
-                      value={valores[`${lead.ID}`]?.Comissao || ''}
-                      onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
-                      disabled={isSeguradoraPreenchida}
-                      style={inputWithPrefixStyle}
-                    />
-                  </div>
-
-                  <select
-                    value={valores[`${lead.ID}`]?.Parcelamento || ''}
-                    onChange={(e) => handleParcelamentoChange(lead.ID, e.target.value)}
-                    disabled={isSeguradoraPreenchida}
-                    style={{
-                      padding: '8px',
-                      border: '1px solid #ccc',
-                      borderRadius: '4px',
-                      width: '100%',
-                      marginBottom: '8px',
-                    }}
-                  >
-                    <option value="">Parcelamento</option>
-                    {[...Array(12)].map((_, i) => (
-                      <option key={i + 1} value={`${i + 1}x`}>{i + 1}x</option>
-                    ))}
-                  </select>
-
-                  <div style={inputWrapperStyle}>
-                    <label htmlFor={`vigencia-inicio-${lead.ID}`} style={{ fontSize: '0.85em', color: '#555', display: 'block', marginBottom: '4px' }}>Vigência Início:</label>
-                    <input
-                      id={`vigencia-inicio-${lead.ID}`}
-                      type="date"
-                      value={vigencia[`${lead.ID}`]?.inicio || ''}
-                      onChange={(e) => handleVigenciaInicioChange(lead.ID, e.target.value)}
-                      disabled={isSeguradoraPreenchida}
-                      style={{
-                        ...inputNoPrefixStyle,
-                        marginBottom: '8px',
-                      }}
-                    />
-                  </div>
-
-                  <div style={inputWrapperStyle}>
-                    <label htmlFor={`vigencia-final-${lead.ID}`} style={{ fontSize: '0.85em', color: '#555', display: 'block', marginBottom: '4px' }}>Vigência Final:</label>
-                    <input
-                      id={`vigencia-final-${lead.ID}`}
-                      type="date"
-                      value={vigencia[`${lead.ID}`]?.final || ''}
-                      readOnly
-                      disabled={true}
-                      style={{
-                        ...inputNoPrefixStyle,
-                        backgroundColor: '#f0f0f0',
-                        cursor: 'not-allowed',
-                        marginBottom: '8px',
-                      }}
-                    />
-                  </div>
-
-                  {!isSeguradoraPreenchida ? (
-                    <button
-                      onClick={async () => {
-                        await onConfirmInsurer(
-                          lead.ID,
-                          valores[`${lead.ID}`]?.PremioLiquido === null ? null : valores[`${lead.ID}`]?.PremioLiquido / 100,
-                          valores[`${lead.ID}`]?.insurer,
-                          parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')),
-                          valores[`${lead.ID}`]?.Parcelamento,
-                          vigencia[`${lead.ID}`]?.final,
-                          vigencia[`${lead.ID}`]?.inicio
-                        );
-                        await fetchLeadsFechadosFromSheet();
-                      }}
-                      disabled={isButtonDisabled}
-                      style={{
-                        padding: '8px 16px',
-                        backgroundColor: isButtonDisabled ? '#999' : '#007bff',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: isButtonDisabled ? 'default' : 'pointer',
-                        width: '100%',
-                      }}
-                    >
-                      Confirmar Seguradora
-                    </button>
-                  ) : (
-                    <span style={{ marginTop: '8px', color: 'green', fontWeight: 'bold' }}>
-                      Status confirmado
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-
-          {fechadosFiltradosInterno.length > leadsPorPagina && (
-            <div
+              gap: '8px',
+              flex: '1',
+              justifyContent: 'center',
+              minWidth: '280px',
+            }}
+          >
+            <button
+              onClick={aplicarFiltroNome}
               style={{
-                display: 'flex',
-                justifyContent: 'center',
-                gap: '15px',
-                marginTop: '20px',
+                backgroundColor: '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '6px 14px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                height: '36px',
               }}
             >
-              <button
-                onClick={handlePaginaAnterior}
-                disabled={paginaAtual <= 1 || isLoading}
+              Filtrar
+            </button>
+            <input
+              type="text"
+              placeholder="Filtrar por nome"
+              value={nomeInput}
+              onChange={(e) => setNomeInput(e.target.value)}
+              style={{
+                padding: '6px 10px',
+                borderRadius: '6px',
+                border: '1px solid #ccc',
+                width: '220px',
+                maxWidth: '100%',
+                height: '36px',
+                fontSize: '14px',
+              }}
+              title="Filtrar leads pelo nome (contém)"
+            />
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              minWidth: '230px',
+              justifyContent: 'flex-end',
+            }}
+          >
+            <button
+              onClick={aplicarFiltroData}
+              style={{
+                backgroundColor: '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '6px 14px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                height: '36px',
+              }}
+            >
+              Filtrar
+            </button>
+            <input
+              type="month"
+              value={dataInput}
+              onChange={(e) => setDataInput(e.target.value)}
+              style={{
+                padding: '6px 10px',
+                borderRadius: '6px',
+                border: '1px solid #ccc',
+                cursor: 'pointer',
+                height: '36px',
+                fontSize: '14px',
+              }}
+              title="Filtrar leads pelo mês e ano de criação"
+            />
+          </div>
+        </div>
+
+        {fechadosFiltradosInterno.length === 0 ? (
+          <p>Não há leads fechados que correspondam ao filtro aplicado.</p>
+        ) : (
+          <>
+            {leadsPagina.map((lead) => {
+              const containerStyle = {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '15px',
+                marginBottom: '15px',
+                borderRadius: '5px',
+                backgroundColor: lead.Seguradora ? '#e6f4ea' : '#fff',
+                border: lead.Seguradora ? '2px solid #4CAF50' : '1px solid #ddd',
+              };
+
+              const responsavel = usuarios.find((u) => u.nome === lead.Responsavel && isAdmin);
+
+              const isSeguradoraPreenchida = !!lead.Seguradora;
+
+              const isButtonDisabled =
+                !valores[`${lead.ID}`]?.insurer ||
+                valores[`${lead.ID}`]?.PremioLiquido === null ||
+                valores[`${lead.ID}`]?.PremioLiquido === undefined ||
+                !valores[`${lead.ID}`]?.Comissao ||
+                parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')) === 0 ||
+                !valores[`${lead.ID}`]?.Parcelamento ||
+                valores[`${lead.ID}`]?.Parcelamento === '' ||
+                !vigencia[`${lead.ID}`]?.inicio ||
+                !vigencia[`${lead.ID}`]?.final;
+
+              return (
+                <div key={lead.ID} style={containerStyle}>
+                  <div style={{ flex: 1 }}>
+                    <h3>{lead.name}</h3>
+                    <p><strong>Modelo:</strong> {lead.vehicleModel}</p>
+                    <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
+                    <p><strong>Cidade:</strong> {lead.city}</p>
+                    <p><strong>Telefone:</strong> {lead.phone}</p>
+                    <p><strong>Tipo de Seguro:</strong> {lead.insuranceType}</p>
+
+                    {responsavel && (
+                      <p style={{ marginTop: '10px', color: '#007bff' }}>
+                        Transferido para <strong>{responsavel.nome}</strong>
+                      </p>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '250px' }}>
+                    <select
+                      value={valores[`${lead.ID}`]?.insurer || ''}
+                      onChange={(e) => handleInsurerChange(lead.ID, e.target.value)}
+                      disabled={isSeguradoraPreenchida}
+                      style={{
+                        padding: '8px',
+                        border: '2px solid #ccc',
+                        borderRadius: '4px',
+                        width: '100%',
+                        marginBottom: '8px',
+                      }}
+                    >
+                      <option value="">Selecione a seguradora</option>
+                      <option value="Porto Seguro">Porto Seguro</option>
+                      <option value="Azul Seguros">Azul Seguros</option>
+                      <option value="Itau Seguros">Itau Seguros</option>
+                      <option value="Demais Seguradoras">Demais Seguradoras</option>
+                    </select>
+
+                    <div style={inputWrapperStyle}>
+                      <span style={prefixStyle}>R$</span>
+                      <input
+                        type="text"
+                        placeholder="Prêmio Líquido"
+                        value={premioLiquidoInputDisplay[`${lead.ID}`] || ''}
+                        onChange={(e) => handlePremioLiquidoChange(lead.ID, e.target.value)}
+                        onBlur={() => handlePremioLiquidoBlur(lead.ID)}
+                        disabled={isSeguradoraPreenchida}
+                        style={inputWithPrefixStyle}
+                      />
+                    </div>
+
+                    <div style={inputWrapperStyle}>
+                      <span style={prefixStyle}>%</span>
+                      <input
+                        type="text"
+                        placeholder="Comissão (%)"
+                        value={valores[`${lead.ID}`]?.Comissao || ''}
+                        onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
+                        disabled={isSeguradoraPreenchida}
+                        style={inputWithPrefixStyle}
+                      />
+                    </div>
+
+                    <select
+                      value={valores[`${lead.ID}`]?.Parcelamento || ''}
+                      onChange={(e) => handleParcelamentoChange(lead.ID, e.target.value)}
+                      disabled={isSeguradoraPreenchida}
+                      style={{
+                        padding: '8px',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        width: '100%',
+                        marginBottom: '8px',
+                      }}
+                    >
+                      <option value="">Parcelamento</option>
+                      {[...Array(12)].map((_, i) => (
+                        <option key={i + 1} value={`${i + 1}x`}>{i + 1}x</option>
+                      ))}
+                    </select>
+
+                    <div style={inputWrapperStyle}>
+                      <label htmlFor={`vigencia-inicio-${lead.ID}`} style={{ fontSize: '0.85em', color: '#555', display: 'block', marginBottom: '4px' }}>Vigência Início:</label>
+                      <input
+                        id={`vigencia-inicio-${lead.ID}`}
+                        type="date"
+                        value={vigencia[`${lead.ID}`]?.inicio || ''}
+                        onChange={(e) => handleVigenciaInicioChange(lead.ID, e.target.value)}
+                        disabled={isSeguradoraPreenchida}
+                        style={{
+                          ...inputNoPrefixStyle,
+                          marginBottom: '8px',
+                        }}
+                      />
+                    </div>
+
+                    <div style={inputWrapperStyle}>
+                      <label htmlFor={`vigencia-final-${lead.ID}`} style={{ fontSize: '0.85em', color: '#555', display: 'block', marginBottom: '4px' }}>Vigência Final:</label>
+                      <input
+                        id={`vigencia-final-${lead.ID}`}
+                        type="date"
+                        value={vigencia[`${lead.ID}`]?.final || ''}
+                        readOnly
+                        disabled={true}
+                        style={{
+                          ...inputNoPrefixStyle,
+                          backgroundColor: '#f0f0f0',
+                          cursor: 'not-allowed',
+                          marginBottom: '8px',
+                        }}
+                      />
+                    </div>
+
+                    {!isSeguradoraPreenchida ? (
+                      <button
+                        onClick={async () => {
+                          await onConfirmInsurer(
+                            lead.ID,
+                            valores[`${lead.ID}`]?.PremioLiquido === null ? null : valores[`${lead.ID}`]?.PremioLiquido / 100,
+                            valores[`${lead.ID}`]?.insurer,
+                            parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')),
+                            valores[`${lead.ID}`]?.Parcelamento,
+                            vigencia[`${lead.ID}`]?.final,
+                            vigencia[`${lead.ID}`]?.inicio
+                          );
+                          await fetchLeadsFechadosFromSheet();
+                        }}
+                        disabled={isButtonDisabled}
+                        style={{
+                          padding: '8px 16px',
+                          backgroundColor: isButtonDisabled ? '#999' : '#007bff',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: isButtonDisabled ? 'default' : 'pointer',
+                          width: '100%',
+                        }}
+                      >
+                        Confirmar Seguradora
+                      </button>
+                    ) : (
+                      <span style={{ marginTop: '8px', color: 'green', fontWeight: 'bold' }}>
+                        Status confirmado
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {fechadosFiltradosInterno.length > leadsPorPagina && (
+              <div
                 style={{
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  border: '1px solid #ccc',
-                  cursor: (paginaAtual <= 1 || isLoading) ? 'not-allowed' : 'pointer',
-                  backgroundColor: (paginaAtual <= 1 || isLoading) ? '#f0f0f0' : '#fff',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: '15px',
+                  marginTop: '20px',
                 }}
               >
-                Anterior
-              </button>
-              <span style={{ alignSelf: 'center' }}>
-                Página {paginaAtual} de {totalPaginas}
-              </span>
-              <button
-                onClick={handlePaginaProxima}
-                disabled={paginaAtual >= totalPaginas || isLoading}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  border: '1px solid #ccc',
-                  cursor: (paginaAtual >= totalPaginas || isLoading) ? 'not-allowed' : 'pointer',
-                  backgroundColor: (paginaAtual >= totalPaginas || isLoading) ? '#f0f0f0' : '#fff',
-                }}
-              >
-                Próxima
-              </button>
-            </div>
-          )}
-        </>
-      )}
-    </div>
+                <button
+                  onClick={handlePaginaAnterior}
+                  disabled={paginaAtual <= 1 || isLoading}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    border: '1px solid #ccc',
+                    cursor: (paginaAtual <= 1 || isLoading) ? 'not-allowed' : 'pointer',
+                    backgroundColor: (paginaAtual <= 1 || isLoading) ? '#f0f0f0' : '#fff',
+                  }}
+                >
+                  Anterior
+                </button>
+                <span style={{ alignSelf: 'center' }}>
+                  Página {paginaAtual} de {totalPaginas}
+                </span>
+                <button
+                  onClick={handlePaginaProxima}
+                  disabled={paginaAtual >= totalPaginas || isLoading}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    border: '1px solid #ccc',
+                    cursor: (paginaAtual >= totalPaginas || isLoading) ? 'not-allowed' : 'pointer',
+                    backgroundColor: (paginaAtual >= totalPaginas || isLoading) ? '#f0f0f0' : '#fff',
+                  }}
+                >
+                  Próxima
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </>
   );
 };
 
