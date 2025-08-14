@@ -53,6 +53,12 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     };
   }, []);
 
+  // --- Lógica adicionada para rolar ao topo da página ao mudar a paginaAtual ---
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [paginaAtual]);
+  // --- Fim da lógica adicionada ---
+
   const handleRefreshLeads = async () => {
     setIsLoading(true);
     try {
@@ -195,12 +201,10 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const handlePaginaAnterior = () => {
     setPaginaAtual((prev) => Math.max(prev - 1, 1));
-    window.scrollTo(0, 0); // Adiciona a rolagem para o topo da página
   };
 
   const handlePaginaProxima = () => {
     setPaginaAtual((prev) => Math.min(prev + 1, totalPaginas));
-    window.scrollTo(0, 0); // Adiciona a rolagem para o topo da página
   };
 
   const formatarData = (dataStr) => {
@@ -523,8 +527,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                         >
                           Alterar
                         </button>
-                      )}
-                  </div>
+                    </div>
                   ) : (
                     <div
                       style={{
