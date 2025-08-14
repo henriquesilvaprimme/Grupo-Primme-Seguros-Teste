@@ -53,16 +53,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     };
   }, []);
 
-  // --- Lógica corrigida para rolar ao topo da página ---
-  useEffect(() => {
-    const container = document.getElementById('leads-container');
-    if (container) {
-      container.scrollTop = 0;
-    } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [paginaAtual]);
-  // --- Fim da lógica corrigida ---
+  // Removido o useEffect anterior para evitar conflitos
 
   const handleRefreshLeads = async () => {
     setIsLoading(true);
@@ -98,6 +89,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroNome('');
     setNomeInput('');
     setPaginaAtual(1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const aplicarFiltroNome = () => {
@@ -106,6 +98,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroData('');
     setDataInput('');
     setPaginaAtual(1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const isSameMonthAndYear = (leadDateStr, filtroMesAno) => {
@@ -203,13 +196,23 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const fim = inicio + leadsPorPagina;
   const leadsPagina = gerais.slice(inicio, fim);
 
+  // --- Funções de Paginação Modificadas ---
   const handlePaginaAnterior = () => {
-    setPaginaAtual((prev) => Math.max(prev - 1, 1));
+    setPaginaAtual((prev) => {
+      const novaPagina = Math.max(prev - 1, 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' }); // Rola para o topo
+      return novaPagina;
+    });
   };
 
   const handlePaginaProxima = () => {
-    setPaginaAtual((prev) => Math.min(prev + 1, totalPaginas));
+    setPaginaAtual((prev) => {
+      const novaPagina = Math.min(prev + 1, totalPaginas);
+      window.scrollTo({ top: 0, behavior: 'smooth' }); // Rola para o topo
+      return novaPagina;
+    });
   };
+  // --- Fim das Funções de Paginação Modificadas ---
 
   const formatarData = (dataStr) => {
     if (!dataStr) return '';
