@@ -207,11 +207,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     if (commaParts.length > 2) {
       cleanedValue = commaParts[0] + ',' + commaParts.slice(1).join('');
     }
-    
+      
     if (commaParts.length > 1 && commaParts[1].length > 2) {
       cleanedValue = commaParts[0] + ',' + commaParts[1].slice(0, 2);
     }
-    
+      
     setPremioLiquidoInputDisplay(prev => ({
       ...prev,
       [`${id}`]: cleanedValue,
@@ -255,7 +255,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     if (parts.length > 1 && parts[1].length > 2) {
       cleanedValue = parts[0] + ',' + parts[1].slice(0, 2);
     }
-    
+      
     setValores(prev => ({
       ...prev,
       [`${id}`]: {
@@ -373,23 +373,10 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
   return (
     <div id="leads-container" style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
-      {/* Elemento de carregamento movido para fora do container principal para posicionamento fixo */}
       {isLoading && (
-        <div style={{
-          position: 'fixed',
-          top: '0',
-          left: '0',
-          width: '100%',
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: '9999',
-          padding: '10px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        }}>
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
-          <p className="ml-4 text-lg text-gray-700 font-bold">Carregando LEADS FECHADOS...</p>
+        <div className="fixed inset-0 bg-white flex justify-center items-center z-50" style={{ opacity: 0.9 }}>
+          <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
+          <p className="ml-4 text-lg text-gray-700">Carregando LEADS...</p>
         </div>
       )}
 
