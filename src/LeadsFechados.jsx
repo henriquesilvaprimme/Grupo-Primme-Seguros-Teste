@@ -6,7 +6,6 @@ const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vuj
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?v=alterar_atribuido';
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?action=salvarObservacao';
 
-// Assegure-se de que a prop 'scrollContainerRef' está sendo recebida aqui
 const LeadsFechados = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, isEditing, setIsEditing, scrollContainerRef }) => {
   const [selecionados, setSelecionados] = useState({});
   const [paginaAtual, setPaginaAtual] = useState(1);
@@ -53,8 +52,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateStatus, transferirLead, usuari
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
-
-  // Removido o useEffect anterior para evitar conflitos
 
   const handleRefreshLeads = async () => {
     setIsLoading(true);
@@ -126,7 +123,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateStatus, transferirLead, usuari
   };
 
   const leadsFiltrados = leads.filter((lead) => {
-    // Filtro para mostrar apenas leads 'Fechado'
+    // Mantendo a lógica de filtro do código original
     if (lead.status !== 'Fechado' && lead.status !== 'Perdido') return false;
 
     if (filtroData) {
@@ -202,12 +199,12 @@ const LeadsFechados = ({ leads, usuarios, onUpdateStatus, transferirLead, usuari
   const fim = inicio + leadsPorPagina;
   const leadsPagina = gerais.slice(inicio, fim);
 
-  // --- Funções de Paginação Modificadas ---
+  // --- Funções de Paginação com a lógica de rolagem para o topo adicionada ---
   const handlePaginaAnterior = () => {
     setPaginaAtual((prev) => {
       const novaPagina = Math.max(prev - 1, 1);
       if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' }); // Rola para o topo
+        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
       }
       return novaPagina;
     });
@@ -217,12 +214,12 @@ const LeadsFechados = ({ leads, usuarios, onUpdateStatus, transferirLead, usuari
     setPaginaAtual((prev) => {
       const novaPagina = Math.min(prev + 1, totalPaginas);
       if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' }); // Rola para o topo
+        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
       }
       return novaPagina;
     });
   };
-  // --- Fim das Funções de Paginação Modificadas ---
+  // --- Fim das Funções de Paginação com a lógica de rolagem ---
 
   const formatarData = (dataStr) => {
     if (!dataStr) return '';
@@ -308,7 +305,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateStatus, transferirLead, usuari
   };
 
   return (
-    // Certifique-se de que este 'div' é o contêiner de rolagem
     <div id="leads-fechados-container" style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
       {isLoading && (
         <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
