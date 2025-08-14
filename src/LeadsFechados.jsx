@@ -43,7 +43,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   const [filtroData, setFiltroData] = useState(getMesAnoAtual());
   const [premioLiquidoInputDisplay, setPremioLiquidoInputDisplay] = useState({});
 
-  // Lógica de normalização de texto aprimorada
   const normalizarTexto = (texto = '') => {
     return texto
       .toString()
@@ -55,23 +54,21 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       .trim();
   };
 
-  // Lógica de filtro de nome adaptada
   const aplicarFiltroNome = () => {
     const filtroLimpo = nomeInput.trim();
     setFiltroNome(filtroLimpo);
-    setFiltroData(''); // Limpa o filtro de data
-    setDataInput(''); // Limpa o input de data
+    setFiltroData('');
+    setDataInput('');
     setPaginaAtual(1);
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  // Lógica de filtro de data adaptada
   const aplicarFiltroData = () => {
     setFiltroData(dataInput);
-    setFiltroNome(''); // Limpa o filtro de nome
-    setNomeInput(''); // Limpa o input de nome
+    setFiltroNome('');
+    setNomeInput('');
     setPaginaAtual(1);
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
@@ -171,22 +168,19 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       return dataB.getTime() - dataA.getTime();
     });
 
-    // Lógica de filtragem unificada e aprimorada
-    const leadsFiltrados = fechadosOrdenados.filter(lead => {
-      let nomeMatch = true;
-      let dataMatch = true;
+    // Lógica de filtragem aprimorada para funcionar de forma independente
+    let leadsFiltrados = fechadosOrdenados;
 
-      if (filtroNome) {
-        nomeMatch = normalizarTexto(lead.name || '').includes(normalizarTexto(filtroNome));
-      }
-
-      if (filtroData) {
+    if (filtroNome) {
+      leadsFiltrados = fechadosOrdenados.filter(lead =>
+        normalizarTexto(lead.name || '').includes(normalizarTexto(filtroNome))
+      );
+    } else if (filtroData) {
+      leadsFiltrados = fechadosOrdenados.filter(lead => {
         const dataLeadMesAno = lead.Data ? getDataParaComparacao(lead.Data).substring(0, 7) : '';
-        dataMatch = dataLeadMesAno === filtroData;
-      }
-      
-      return nomeMatch && dataMatch;
-    });
+        return dataLeadMesAno === filtroData;
+      });
+    }
 
     setFechadosFiltradosInterno(leadsFiltrados);
   }, [leads, filtroNome, filtroData]);
