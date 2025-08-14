@@ -352,7 +352,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
           <p className="ml-4 text-lg text-gray-700">Carregando LEADS FECHADOS...</p>
         </div>
       )}
-      
+
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <h1 style={{ margin: 0 }}>Leads Fechados</h1>
 
