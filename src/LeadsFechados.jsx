@@ -710,7 +710,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         </>
       )}
     </div>
-  );
 };
 
 export default LeadsFechados;
