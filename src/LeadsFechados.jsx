@@ -43,23 +43,35 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   const [filtroData, setFiltroData] = useState(getMesAnoAtual());
   const [premioLiquidoInputDisplay, setPremioLiquidoInputDisplay] = useState({});
 
-  const normalizarTexto = (texto) =>
-    texto
+  // Lógica de normalização de texto aprimorada
+  const normalizarTexto = (texto = '') => {
+    return texto
+      .toString()
+      .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '')
-      .toLowerCase();
+      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()@\+\?><\[\]\+]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
 
+  // Lógica de filtro de nome adaptada
   const aplicarFiltroNome = () => {
-    setFiltroNome(nomeInput.trim());
+    const filtroLimpo = nomeInput.trim();
+    setFiltroNome(filtroLimpo);
+    setFiltroData(''); // Limpa o filtro de data
+    setDataInput(''); // Limpa o input de data
     setPaginaAtual(1);
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
+  // Lógica de filtro de data adaptada
   const aplicarFiltroData = () => {
     setFiltroData(dataInput);
+    setFiltroNome(''); // Limpa o filtro de nome
+    setNomeInput(''); // Limpa o input de nome
     setPaginaAtual(1);
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
@@ -159,10 +171,20 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       return dataB.getTime() - dataA.getTime();
     });
 
+    // Lógica de filtragem unificada e aprimorada
     const leadsFiltrados = fechadosOrdenados.filter(lead => {
-      const nomeMatch = normalizarTexto(lead.name || '').includes(normalizarTexto(filtroNome || ''));
-      const dataLeadMesAno = lead.Data ? getDataParaComparacao(lead.Data).substring(0, 7) : '';
-      const dataMatch = filtroData ? dataLeadMesAno === filtroData : true;
+      let nomeMatch = true;
+      let dataMatch = true;
+
+      if (filtroNome) {
+        nomeMatch = normalizarTexto(lead.name || '').includes(normalizarTexto(filtroNome));
+      }
+
+      if (filtroData) {
+        const dataLeadMesAno = lead.Data ? getDataParaComparacao(lead.Data).substring(0, 7) : '';
+        dataMatch = dataLeadMesAno === filtroData;
+      }
+      
       return nomeMatch && dataMatch;
     });
 
