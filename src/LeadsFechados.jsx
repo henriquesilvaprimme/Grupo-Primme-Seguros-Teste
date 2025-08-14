@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RefreshCcw } from 'lucide-react';
 
 const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdateDetalhes, fetchLeadsFechadosFromSheet, isAdmin }) => {
   const [fechadosFiltradosInterno, setFechadosFiltradosInterno] = useState([]);
   const [paginaAtual, setPaginaAtual] = useState(1);
-  const [leadsPorPagina, setLeadsPorPagina] = useState(10);
-  const leadsContainerRef = useRef(null);
+  const leadsPorPagina = 10;
 
   const getMesAnoAtual = () => {
     const hoje = new Date();
@@ -332,33 +331,17 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
   const totalPaginas = Math.ceil(fechadosFiltradosInterno.length / leadsPorPagina);
 
-  const handleScroll = () => {
-    if (leadsContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = leadsContainerRef.current;
-      if (scrollTop + clientHeight >= scrollHeight - 50 && paginaAtual < totalPaginas) {
-        // Carrega a próxima página
-        setPaginaAtual(prevPagina => prevPagina + 1);
-      }
-    }
+  const mudarPagina = (numeroDaPagina) => {
+    setPaginaAtual(numeroDaPagina);
   };
 
-  // O efeito de rolagem (auto-scroll) será ativado quando o leadsAtuais mudar.
-  // Ele vai carregar mais leads, o que vai aumentar o scrollHeight, permitindo
-  // a rolagem automática.
+  // Efeito para rolar para o topo quando a página muda
   useEffect(() => {
-    // Adiciona o listener de scroll para o contêiner
-    const container = leadsContainerRef.current;
-    if (container) {
-      container.addEventListener('scroll', handleScroll);
-    }
-    // Remove o listener de scroll na limpeza
-    return () => {
-      if (container) {
-        container.removeEventListener('scroll', handleScroll);
-      }
-    };
-  }, [paginaAtual, totalPaginas, leadsAtuais]);
-
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }, [paginaAtual]);
 
   return (
     <div style={{ padding: '20px', position: 'relative' }}>
@@ -486,14 +469,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       {fechadosFiltradosInterno.length === 0 ? (
         <p>Não há leads fechados que correspondam ao filtro aplicado.</p>
       ) : (
-        <div
-          ref={leadsContainerRef}
-          style={{
-            maxHeight: '70vh', // Altura máxima para permitir a rolagem
-            overflowY: 'auto', // Habilita a rolagem vertical
-            paddingRight: '15px', // Espaçamento para a barra de rolagem não ficar colada
-          }}
-        >
+        <>
           {leadsAtuais.map((lead) => {
             const containerStyle = {
               display: 'flex',
@@ -669,7 +645,43 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
               </div>
             );
           })}
-        </div>
+          {/* Controles de Paginação */}
+          {totalPaginas > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px', gap: '10px' }}>
+              <button
+                onClick={() => mudarPagina(paginaAtual - 1)}
+                disabled={paginaAtual === 1}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: paginaAtual === 1 ? '#ccc' : '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: paginaAtual === 1 ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Anterior
+              </button>
+              <span style={{ padding: '8px 16px' }}>
+                Página {paginaAtual} de {totalPaginas}
+              </span>
+              <button
+                onClick={() => mudarPagina(paginaAtual + 1)}
+                disabled={paginaAtual === totalPaginas}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: paginaAtual === totalPaginas ? '#ccc' : '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: paginaAtual === totalPaginas ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Próxima
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
