@@ -13,28 +13,27 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
   const getDataParaComparacao = (dataStr) => {
     if (!dataStr) return '';
-    // Tenta parsear como DD/MM/YYYY
-    const parts = dataStr.split('/');
-    if (parts.length === 3) {
-        // Converte para o formato YYYY-MM-DD e adiciona 'T00:00:00' para evitar o problema do fuso horário UTC
-        const formattedDateStr = `${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`;
-        const dateObj = new Date(formattedDateStr);
-        if (!isNaN(dateObj.getTime())) {
-            // Retorna a data no formato YYYY-MM-DD local
-            return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+    // A data pode vir do Sheets como DD/MM/YYYY ou do GAS já formatada como YYYY-MM-DD ou ISO.
+    // Esta função deve ser robusta para ambos.
+    try {
+        const dateObj = new Date(dataStr);
+        if (isNaN(dateObj.getTime())) {
+            // Tenta parsear como DD/MM/YYYY se o formato ISO falhar
+            const parts = dataStr.split('/');
+            if (parts.length === 3) {
+                return `${parts[2]}-${parts[1]}-${parts[0]}`; // Converte DD/MM/YYYY para YYYY-MM-DD
+            }
+            return ''; // Retorna vazio se não conseguir parsear
         }
-    }
-    // Se não for DD/MM/YYYY ou se o formato YYYY-MM-DD já vier do Google Sheets,
-    // apenas retorna a string (supondo que ela já está correta e não precisa de conversão)
-    // ou pode tentar parsear com o 'T00:00:00' também.
-    const dateObj = new Date(dataStr + 'T00:00:00');
-    if (!isNaN(dateObj.getTime())) {
+        // Se for um objeto Date válido, formata para YYYY-MM-DD
         const year = dateObj.getFullYear();
         const month = String(dateObj.getMonth() + 1).padStart(2, '0');
         const day = String(dateObj.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
+    } catch (e) {
+        console.error("Erro ao formatar data para comparação:", dataStr, e);
+        return '';
     }
-    return '';
   };
 
   const [valores, setValores] = useState({});
@@ -354,9 +353,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     <div style={{ padding: '20px', position: 'relative' }}>
       {isLoading && (
         <div className="absolute inset-0 bg-white flex justify-center items-center z-10">
+          <div style={{ position: 'relative', top: '-75vh' }} className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
           <p className="ml-4 text-lg text-gray-700">Carregando LEADS FECHADOS...</p>
         </div>
+      </div>
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
