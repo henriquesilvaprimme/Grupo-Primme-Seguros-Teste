@@ -168,9 +168,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       return dataB.getTime() - dataA.getTime();
     });
 
-    // Lógica de filtragem aprimorada para funcionar de forma independente
-    let leadsFiltrados = fechadosOrdenados;
-
+    // Lógica de filtragem corrigida
+    let leadsFiltrados;
     if (filtroNome) {
       leadsFiltrados = fechadosOrdenados.filter(lead =>
         normalizarTexto(lead.name || '').includes(normalizarTexto(filtroNome))
@@ -180,6 +179,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         const dataLeadMesAno = lead.Data ? getDataParaComparacao(lead.Data).substring(0, 7) : '';
         return dataLeadMesAno === filtroData;
       });
+    } else {
+      leadsFiltrados = fechadosOrdenados;
     }
 
     setFechadosFiltradosInterno(leadsFiltrados);
