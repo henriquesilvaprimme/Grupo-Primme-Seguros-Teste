@@ -354,43 +354,75 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         </div>
       )}
 
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <h1 style={{ margin: 0 }}>Leads Fechados</h1>
+
+        <button title='Clique para atualizar os dados'
+          onClick={handleRefresh}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          ) : (
+            <RefreshCcw size={20} />
+          )}
+        </button>
+      </div>
+
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '15px',
-          gap: '10px',
+          marginBottom: '20px',
           flexWrap: 'wrap',
+          gap: '10px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h1 style={{ margin: 0 }}>Leads</h1>
-
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            flex: '1',
+            justifyContent: 'center',
+            minWidth: '280px',
+          }}
+        >
           <button
-            title='Clique para atualizar os dados'
-            onClick={handleRefresh}
-            disabled={isLoading}
+            onClick={aplicarFiltroNome}
             style={{
-              background: 'none',
+              backgroundColor: '#007bff',
+              color: 'white',
               border: 'none',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              padding: '0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#007bff'
+              borderRadius: '6px',
+              padding: '6px 14px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              height: '36px',
             }}
           >
-            {isLoading ? (
-              <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : (
-              <RefreshCcw size={20} />
-            )}
+            Filtrar
           </button>
+          <input
+            type="text"
+            placeholder="Filtrar por nome"
+            value={nomeInput}
+            onChange={(e) => setNomeInput(e.target.value)}
+            style={{
+              padding: '6px 10px',
+              borderRadius: '6px',
+              border: '1px solid #ccc',
+              width: '220px',
+              maxWidth: '100%',
+              height: '36px',
+              fontSize: '14px',
+            }}
+            title="Filtrar leads pelo nome (contém)"
+          />
         </div>
 
         <div
