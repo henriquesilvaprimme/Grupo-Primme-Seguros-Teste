@@ -1,372 +1,412 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Lead from './components/Lead';
 import { RefreshCcw } from 'lucide-react';
 
-const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec';
-const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?v=alterar_atribuido';
-const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?action=salvarObservacao';
-const ALTERAR_STATUS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?action=salvarStatus';
-
-const LeadsFechados = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, isEditing, setIsEditing, scrollContainerRef }) => {
-  const [selecionados, setSelecionados] = useState({});
+const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdateDetalhes, fetchLeadsFechadosFromSheet, isAdmin }) => {
+  const [fechadosFiltradosInterno, setFechadosFiltradosInterno] = useState([]);
   const [paginaAtual, setPaginaAtual] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
+  const [leadsPorPagina, setLeadsPorPagina] = useState(10);
+  const leadsContainerRef = useRef(null);
 
-  const [observacoes, setObservacoes] = useState({});
-  const [isEditingObservacao, setIsEditingObservacao] = useState({});
+  const getMesAnoAtual = () => {
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    return `${ano}-${mes}`;
+  };
 
-  const [dataInput, setDataInput] = useState('');
-  const [filtroData, setFiltroData] = useState('');
-
-  const [nomeInput, setNomeInput] = useState('');
-  const [filtroNome, setFiltroNome] = useState('');
-
-  const isEditingRef = useRef(isEditing);
-
-  useEffect(() => {
-    isEditingRef.current = isEditing;
-  }, [isEditing]);
-
-  useEffect(() => {
-    const initialObservacoes = {};
-    const initialIsEditingObservacao = {};
-    leads.forEach(lead => {
-      initialObservacoes[lead.id] = lead.observacao || '';
-      initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
-    });
-    setObservacoes(initialObservacoes);
-    setIsEditingObservacao(initialIsEditingObservacao);
-  }, [leads]);
-
-  useEffect(() => {
-    const handleBeforeUnload = (event) => {
-      if (isEditingRef.current) {
-        event.preventDefault();
-        event.returnValue = 'Você tem observações não salvas. Deseja sair e perder as alterações?';
-        return event.returnValue;
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, []);
-
-  const handleRefreshLeads = async () => {
-    setIsLoading(true);
+  const getDataParaComparacao = (dataStr) => {
+    if (!dataStr) return '';
     try {
-      await fetchLeadsFromSheet();
-      const refreshedIsEditingObservacao = {};
-      leads.forEach(lead => {
-        refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
-      });
-      setIsEditingObservacao(refreshedIsEditingObservacao);
-    } catch (error) {
-      console.error('Erro ao buscar leads atualizados:', error);
-    } finally {
-      setIsLoading(false);
+      const dateObj = new Date(dataStr);
+      if (isNaN(dateObj.getTime())) {
+        const parts = dataStr.split('/');
+        if (parts.length === 3) {
+          return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+        return '';
+      }
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } catch (e) {
+      console.error("Erro ao formatar data para comparação:", dataStr, e);
+      return '';
     }
   };
 
-  const leadsPorPagina = 10;
+  const [valores, setValores] = useState({});
+  const [vigencia, setVigencia] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [nomeInput, setNomeInput] = useState('');
+  const [dataInput, setDataInput] = useState(getMesAnoAtual());
+  const [filtroNome, setFiltroNome] = useState('');
+  const [filtroData, setFiltroData] = useState(getMesAnoAtual());
 
-  const normalizarTexto = (texto = '') => {
-    return texto
-      .toString()
-      .toLowerCase()
+  const [premioLiquidoInputDisplay, setPremioLiquidoInputDisplay] = useState({});
+
+
+  const normalizarTexto = (texto) =>
+    texto
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()@\+\?><\[\]\+]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
+      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '')
+      .toLowerCase();
+
+  const aplicarFiltroNome = () => {
+    setFiltroNome(nomeInput.trim());
+    setPaginaAtual(1); // Reseta para a primeira página ao aplicar novo filtro
   };
 
   const aplicarFiltroData = () => {
     setFiltroData(dataInput);
-    setFiltroNome('');
-    setNomeInput('');
-    setPaginaAtual(1);
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    setPaginaAtual(1); // Reseta para a primeira página ao aplicar novo filtro
   };
 
-  const aplicarFiltroNome = () => {
-    const filtroLimpo = nomeInput.trim();
-    setFiltroNome(filtroLimpo);
-    setFiltroData('');
-    setDataInput('');
-    setPaginaAtual(1);
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  const isSameMonthAndYear = (leadDateStr, filtroMesAno) => {
-    if (!filtroMesAno) return true;
-    if (!leadDateStr) return false;
-    const leadData = new Date(leadDateStr);
-    const leadAno = leadData.getFullYear();
-    const leadMes = String(leadData.getMonth() + 1).padStart(2, '0');
-    return filtroMesAno === `${leadAno}-${leadMes}`;
-  };
-
-  const nomeContemFiltro = (leadNome, filtroNome) => {
-    if (!filtroNome) return true;
-    if (!leadNome) return false;
-
-    const nomeNormalizado = normalizarTexto(leadNome);
-    const filtroNormalizado = normalizarTexto(filtroNome);
-
-    return nomeNormalizado.includes(filtroNormalizado);
-  };
-
-  const leadsFechados = leads.filter((lead) => {
-    const isClosedOrLost = lead.status === 'Fechado' || lead.status === 'Perdido';
-    const matchesFilter =
-      (filtroData ? isSameMonthAndYear(lead.createdAt, filtroData) : true) &&
-      (filtroNome ? nomeContemFiltro(lead.name, filtroNome) : true);
-    return isClosedOrLost && matchesFilter;
-  });
-
-  const gerais = [...leadsFechados].sort((a, b) => {
-    const dateA = a.createdAt ? new Date(a.createdAt) : 0;
-    const dateB = b.createdAt ? new Date(b.createdAt) : 0;
-    return dateB - dateA;
-  });
-
-  const totalPaginas = Math.max(1, Math.ceil(gerais.length / leadsPorPagina));
-  const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
-
-  const usuariosAtivos = usuarios.filter((u) => u.status === 'Ativo');
-  const isAdmin = usuarioLogado?.tipo === 'Admin';
-
-  const handleSelect = (leadId, userId) => {
-    setSelecionados((prev) => ({
-      ...prev,
-      [leadId]: Number(userId),
-    }));
-  };
-
-  const handleEnviar = (leadId) => {
-    const userId = selecionados[leadId];
-    if (!userId) {
-      alert('Selecione um usuário antes de enviar.');
-      return;
-    }
-
-    transferirLead(leadId, userId);
-
-    const lead = leads.find((l) => l.id === leadId);
-    const leadAtualizado = { ...lead, usuarioId: userId };
-
-    enviarLeadAtualizado(leadAtualizado);
-  };
-
-  const enviarLeadAtualizado = async (lead) => {
-    try {
-      const response = await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify(lead),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-    } catch (error) {
-      console.error('Erro ao enviar lead:', error);
-    }
-  };
-
-  const handleAlterar = (leadId) => {
-    setSelecionados((prev) => ({
-      ...prev,
-      [leadId]: '',
-    }));
-    transferirLead(leadId, null);
-  };
-
-  const inicio = (paginaCorrigida - 1) * leadsPorPagina;
-  const fim = inicio + leadsPorPagina;
-  const leadsPagina = gerais.slice(inicio, fim);
-
-  const handlePaginaAnterior = () => {
-    setPaginaAtual((prev) => {
-      const novaPagina = Math.max(prev - 1, 1);
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-      return novaPagina;
-    });
-  };
-
-  const handlePaginaProxima = () => {
-    setPaginaAtual((prev) => {
-      const novaPagina = Math.min(prev + 1, totalPaginas);
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-      return novaPagina;
-    });
-  };
-
-  const formatarData = (dataStr) => {
-    if (!dataStr) return '';
-    let data;
-    if (dataStr.includes('/')) {
-      const partes = dataStr.split('/');
-      data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
-    } else if (dataStr.includes('-') && dataStr.length === 10) {
-      const partes = dataStr.split('-');
-      data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
-    } else {
-      data = new Date(dataStr);
-    }
-
-    if (isNaN(data.getTime())) {
-      return '';
-    }
-    return data.toLocaleDateString('pt-BR');
-  };
-
-  const handleObservacaoChange = (leadId, text) => {
-    setObservacoes((prev) => ({
-      ...prev,
-      [leadId]: text,
-    }));
-  };
-
-  const handleSalvarObservacao = async (leadId) => {
-    const observacaoTexto = observacoes[leadId] || '';
-    if (!observacaoTexto.trim()) {
-      alert('Por favor, digite uma observação antes de salvar.');
-      return;
-    }
-
+  const handleRefresh = async () => {
     setIsLoading(true);
     try {
-      await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify({
-          leadId: leadId,
-          observacao: observacaoTexto,
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      setIsEditing(false);
-      setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-
+      await fetchLeadsFechadosFromSheet();
     } catch (error) {
-      console.error('Erro ao salvar observação:', error);
-      alert('Erro ao salvar observação. Por favor, tente novamente.');
+      console.error('Erro ao atualizar leads fechados:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAlterarObservacao = (leadId) => {
-    setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-  };
+  useEffect(() => {
+    handleRefresh();
+  }, []);
 
-  const handleConfirmStatus = async (leadId, novoStatus, phone) => {
-    if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
-      setIsEditing(true);
-    } else {
-      setIsEditing(false);
-    }
+  useEffect(() => {
+    const fechadosAtuais = leads.filter(lead => lead.Status === 'Fechado');
 
-    onUpdateStatus(leadId, novoStatus, phone);
+    setValores(prevValores => {
+      const novosValores = { ...prevValores };
+      fechadosAtuais.forEach(lead => {
+        const rawPremioFromApi = String(lead.PremioLiquido || '');
+        const premioFromApi = parseFloat(rawPremioFromApi.replace('.', '').replace(',', '.'));
+        const premioInCents = isNaN(premioFromApi) || rawPremioFromApi === '' ? null : Math.round(premioFromApi * 100);
 
-    const currentLead = leads.find(l => l.id === leadId);
-    const hasNoObservacao = !currentLead?.observacao || currentLead.observacao.trim() === '';
+        const apiComissao = lead.Comissao ? String(lead.Comissao).replace('.', ',') : '';
+        const apiParcelamento = lead.Parcelamento || '';
+        const apiInsurer = lead.Seguradora || '';
 
-    if ( (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao ) {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-    } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-    } else {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-    }
-
-    try {
-      await fetch(ALTERAR_STATUS_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify({
-          leadId: leadId,
-          status: novoStatus,
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        if (!novosValores[lead.ID] ||
+          (novosValores[lead.ID].PremioLiquido === undefined && premioInCents !== null) ||
+          (novosValores[lead.ID].PremioLiquido !== premioInCents && prevValores[lead.ID]?.PremioLiquido === undefined) ||
+          (novosValores[lead.ID].Comissao === undefined && apiComissao !== '') ||
+          (novosValores[lead.ID].Comissao !== apiComissao && prevValores[lead.ID]?.Comissao === undefined) ||
+          (novosValores[lead.ID].Parcelamento === undefined && apiParcelamento !== '') ||
+          (novosValores[lead.ID].Parcelamento !== apiParcelamento && prevValores[lead.ID]?.Parcelamento === undefined) ||
+          (novosValores[lead.ID].insurer === undefined && apiInsurer !== '') ||
+          (novosValores[lead.ID].insurer !== apiInsurer && prevValores[lead.ID]?.insurer === undefined)
+        ) {
+          novosValores[lead.ID] = {
+            ...novosValores[lead.ID],
+            PremioLiquido: premioInCents,
+            Comissao: apiComissao,
+            Parcelamento: apiParcelamento,
+            insurer: apiInsurer,
+          };
+        }
       });
-    } catch (error) {
-      console.error('Erro ao alterar status:', error);
+      return novosValores;
+    });
+
+    setPremioLiquidoInputDisplay(prevDisplay => {
+      const newDisplay = { ...prevDisplay };
+      fechadosAtuais.forEach(lead => {
+        const currentPremio = String(lead.PremioLiquido || '');
+        if (currentPremio !== '') {
+          const premioFloat = parseFloat(currentPremio.replace(',', '.'));
+          newDisplay[lead.ID] = isNaN(premioFloat) ? '' : premioFloat.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        } else if (prevDisplay[lead.ID] === undefined) {
+          newDisplay[lead.ID] = '';
+        }
+      });
+      return newDisplay;
+    });
+
+
+    setVigencia(prevVigencia => {
+      const novasVigencias = { ...prevVigencia };
+      fechadosAtuais.forEach(lead => {
+        const vigenciaInicioStrApi = String(lead.VigenciaInicial || '');
+        const vigenciaFinalStrApi = String(lead.VigenciaFinal || '');
+
+        if (!novasVigencias[lead.ID] || (novasVigencias[lead.ID].inicio === undefined && vigenciaInicioStrApi !== '') || (novasVigencias[lead.ID].inicio !== vigenciaInicioStrApi && prevVigencia[lead.ID]?.inicio === undefined)) {
+          novasVigencias[lead.ID] = {
+            ...novasVigencias[lead.ID],
+            inicio: vigenciaInicioStrApi,
+          };
+        }
+        if (!novasVigencias[lead.ID] || (novasVigencias[lead.ID].final === undefined && vigenciaFinalStrApi !== '') || (novasVigencias[lead.ID].final !== vigenciaFinalStrApi && prevVigencia[lead.ID]?.final === undefined)) {
+          novasVigencias[lead.ID] = {
+            ...novasVigencias[lead.ID],
+            final: vigenciaFinalStrApi,
+          };
+        }
+      });
+      return novasVigencias;
+    });
+
+    const fechadosOrdenados = [...fechadosAtuais].sort((a, b) => {
+      const dataA = new Date(getDataParaComparacao(a.Data));
+      const dataB = new Date(getDataParaComparacao(b.Data));
+      return dataB.getTime() - dataA.getTime();
+    });
+
+    const leadsFiltrados = fechadosOrdenados.filter(lead => {
+      const nomeMatch = normalizarTexto(lead.name || '').includes(normalizarTexto(filtroNome || ''));
+      const dataLeadMesAno = lead.Data ? getDataParaComparacao(lead.Data).substring(0, 7) : '';
+      const dataMatch = filtroData ? dataLeadMesAno === filtroData : true;
+      return nomeMatch && dataMatch;
+    });
+
+    setFechadosFiltradosInterno(leadsFiltrados);
+
+  }, [leads, filtroNome, filtroData]);
+
+  const formatarMoeda = (valorCentavos) => {
+    if (valorCentavos === null || isNaN(valorCentavos)) return '';
+    return (valorCentavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const handlePremioLiquidoChange = (id, valor) => {
+    let cleanedValue = valor.replace(/[^\d,\.]/g, '');
+
+    const commaParts = cleanedValue.split(',');
+    if (commaParts.length > 2) {
+      cleanedValue = commaParts[0] + ',' + commaParts.slice(1).join('');
+    }
+
+    if (commaParts.length > 1 && commaParts[1].length > 2) {
+      cleanedValue = commaParts[0] + ',' + commaParts[1].slice(0, 2);
+    }
+
+    setPremioLiquidoInputDisplay(prev => ({
+      ...prev,
+      [`${id}`]: cleanedValue,
+    }));
+
+    const valorParaParse = cleanedValue.replace(/\./g, '').replace(',', '.');
+    const valorEmReais = parseFloat(valorParaParse);
+    const valorParaEstado = isNaN(valorEmReais) || cleanedValue === '' ? null : Math.round(valorEmReais * 100);
+
+    setValores(prev => ({
+      ...prev,
+      [`${id}`]: {
+        ...prev[`${id}`],
+        PremioLiquido: valorParaEstado,
+      },
+    }));
+  };
+
+  const handlePremioLiquidoBlur = (id) => {
+    const valorCentavos = valores[`${id}`]?.PremioLiquido;
+    let valorReais = null;
+
+    if (valorCentavos !== null && !isNaN(valorCentavos)) {
+      valorReais = valorCentavos / 100;
+    }
+
+    setPremioLiquidoInputDisplay(prev => ({
+      ...prev,
+      [`${id}`]: valorCentavos !== null && !isNaN(valorCentavos) ? formatarMoeda(valorCentavos) : '',
+    }));
+
+    onUpdateDetalhes(id, 'PremioLiquido', valorReais);
+  };
+
+  const handleComissaoChange = (id, valor) => {
+    let cleanedValue = valor.replace(/[^\d,]/g, '');
+    const parts = cleanedValue.split(',');
+    if (parts.length > 2) {
+      cleanedValue = parts[0] + ',' + parts.slice(1).join('');
+    }
+    if (parts.length > 1 && parts[1].length > 2) {
+      cleanedValue = parts[0] + ',' + parts[1].slice(0, 2);
+    }
+
+    setValores(prev => ({
+      ...prev,
+      [`${id}`]: {
+        ...prev[`${id}`],
+        Comissao: cleanedValue,
+      },
+    }));
+
+    const valorFloat = parseFloat(cleanedValue.replace(',', '.'));
+    onUpdateDetalhes(id, 'Comissao', isNaN(valorFloat) ? '' : valorFloat);
+  };
+
+  const handleParcelamentoChange = (id, valor) => {
+    setValores(prev => ({
+      ...prev,
+      [`${id}`]: {
+        ...prev[`${id}`],
+        Parcelamento: valor,
+      },
+    }));
+    onUpdateDetalhes(id, 'Parcelamento', valor);
+  };
+
+  const handleInsurerChange = (id, valor) => {
+    setValores(prev => ({
+      ...prev,
+      [`${id}`]: {
+        ...prev[`${id}`],
+        insurer: valor,
+      },
+    }));
+  };
+
+  const handleVigenciaInicioChange = (id, dataString) => {
+    let dataFinal = '';
+    if (dataString) {
+      const dataInicioObj = new Date(dataString + 'T00:00:00');
+      if (!isNaN(dataInicioObj.getTime())) {
+        const anoInicio = dataInicioObj.getFullYear();
+        const mesInicio = String(dataInicioObj.getMonth() + 1).padStart(2, '0');
+        const diaInicio = String(dataInicioObj.getDate()).padStart(2, '0');
+
+        const anoFinal = anoInicio + 1;
+        dataFinal = `${anoFinal}-${mesInicio}-${diaInicio}`;
+      }
+    }
+
+    setVigencia(prev => ({
+      ...prev,
+      [`${id}`]: {
+        ...prev[`${id}`],
+        inicio: dataString,
+        final: dataFinal,
+      },
+    }));
+  };
+
+  const inputWrapperStyle = {
+    position: 'relative',
+    width: '100%',
+    marginBottom: '8px',
+  };
+
+  const prefixStyle = {
+    position: 'absolute',
+    left: '10px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    color: '#555',
+    fontWeight: 'bold',
+    pointerEvents: 'none',
+    userSelect: 'none',
+  };
+
+  const inputWithPrefixStyle = {
+    paddingLeft: '30px',
+    paddingRight: '8px',
+    width: '100%',
+    border: '1px solid #ccc',
+    borderRadius: '4px',
+    height: '36px',
+    boxSizing: 'border-box',
+    textAlign: 'right',
+  };
+
+  const inputNoPrefixStyle = {
+    paddingLeft: '8px',
+    paddingRight: '8px',
+    width: '100%',
+    border: '1px solid #ccc',
+    borderRadius: '4px',
+    height: '36px',
+    boxSizing: 'border-box',
+    textAlign: 'left',
+  };
+
+  // Lógica de Paginação
+  const indiceUltimoLead = paginaAtual * leadsPorPagina;
+  const indicePrimeiroLead = indiceUltimoLead - leadsPorPagina;
+  const leadsAtuais = fechadosFiltradosInterno.slice(indicePrimeiroLead, indiceUltimoLead);
+
+  const totalPaginas = Math.ceil(fechadosFiltradosInterno.length / leadsPorPagina);
+
+  const handleScroll = () => {
+    if (leadsContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = leadsContainerRef.current;
+      if (scrollTop + clientHeight >= scrollHeight - 50 && paginaAtual < totalPaginas) {
+        // Carrega a próxima página
+        setPaginaAtual(prevPagina => prevPagina + 1);
+      }
     }
   };
+
+  // O efeito de rolagem (auto-scroll) será ativado quando o leadsAtuais mudar.
+  // Ele vai carregar mais leads, o que vai aumentar o scrollHeight, permitindo
+  // a rolagem automática.
+  useEffect(() => {
+    // Adiciona o listener de scroll para o contêiner
+    const container = leadsContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+    }
+    // Remove o listener de scroll na limpeza
+    return () => {
+      if (container) {
+        container.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [paginaAtual, totalPaginas, leadsAtuais]);
+
 
   return (
-    <div id="leads-container" style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
+    <div style={{ padding: '20px', position: 'relative' }}>
       {isLoading && (
-        <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
-          <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
-          <p className="ml-4 text-lg text-gray-700">Carregando LEADS...</p>
+        <div className="absolute inset-0 bg-white flex justify-center items-center z-10">
+          <div style={{ position: 'relative', top: '-75vh' }} className="flex flex-col items-center">
+            <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
+            <p className="ml-4 text-lg text-gray-700">Carregando LEADS FECHADOS...</p>
+          </div>
         </div>
       )}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <h1 style={{ margin: 0 }}>Leads Fechados</h1>
+
+        <button title='Clique para atualizar os dados'
+          onClick={handleRefresh}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          ) : (
+            <RefreshCcw size={20} />
+          )}
+        </button>
+      </div>
 
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '15px',
-          gap: '10px',
+          marginBottom: '20px',
           flexWrap: 'wrap',
+          gap: '10px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h1 style={{ margin: 0 }}>Leads Fechados</h1>
-
-          <button
-            title='Clique para atualizar os dados'
-            onClick={handleRefreshLeads}
-            disabled={isLoading}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              padding: '0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#007bff'
-            }}
-          >
-            {isLoading ? (
-              <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : (
-              <RefreshCcw size={20} />
-            )}
-          </button>
-        </div>
-
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            flexGrow: 1,
+            flex: '1',
             justifyContent: 'center',
-            minWidth: '300px',
+            minWidth: '280px',
           }}
         >
           <button
@@ -379,6 +419,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateStatus, transferirLead, usuari
               padding: '6px 14px',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
+              height: '36px',
             }}
           >
             Filtrar
@@ -394,6 +435,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateStatus, transferirLead, usuari
               border: '1px solid #ccc',
               width: '220px',
               maxWidth: '100%',
+              height: '36px',
+              fontSize: '14px',
             }}
             title="Filtrar leads pelo nome (contém)"
           />
@@ -404,7 +447,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateStatus, transferirLead, usuari
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            minWidth: '220px',
+            minWidth: '230px',
+            justifyContent: 'flex-end',
           }}
         >
           <button
@@ -416,6 +460,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateStatus, transferirLead, usuari
               borderRadius: '6px',
               padding: '6px 14px',
               cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              height: '36px',
             }}
           >
             Filtrar
@@ -429,223 +475,201 @@ const LeadsFechados = ({ leads, usuarios, onUpdateStatus, transferirLead, usuari
               borderRadius: '6px',
               border: '1px solid #ccc',
               cursor: 'pointer',
+              height: '36px',
+              fontSize: '14px',
             }}
             title="Filtrar leads pelo mês e ano de criação"
           />
         </div>
       </div>
 
-      {isLoading ? (
-        null
-      ) : gerais.length === 0 ? (
-        <p>Não há leads fechados para os filtros aplicados.</p>
+      {fechadosFiltradosInterno.length === 0 ? (
+        <p>Não há leads fechados que correspondam ao filtro aplicado.</p>
       ) : (
-        <>
-          {leadsPagina.map((lead) => {
-            const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
+        <div
+          ref={leadsContainerRef}
+          style={{
+            maxHeight: '70vh', // Altura máxima para permitir a rolagem
+            overflowY: 'auto', // Habilita a rolagem vertical
+            paddingRight: '15px', // Espaçamento para a barra de rolagem não ficar colada
+          }}
+        >
+          {leadsAtuais.map((lead) => {
+            const containerStyle = {
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '15px',
+              marginBottom: '15px',
+              borderRadius: '5px',
+              backgroundColor: lead.Seguradora ? '#e6f4ea' : '#fff',
+              border: lead.Seguradora ? '2px solid #4CAF50' : '1px solid #ddd',
+            };
+
+            const responsavel = usuarios.find((u) => u.nome === lead.Responsavel && isAdmin);
+
+            const isSeguradoraPreenchida = !!lead.Seguradora;
+
+            const isButtonDisabled =
+              !valores[`${lead.ID}`]?.insurer ||
+              valores[`${lead.ID}`]?.PremioLiquido === null ||
+              valores[`${lead.ID}`]?.PremioLiquido === undefined ||
+              !valores[`${lead.ID}`]?.Comissao ||
+              parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')) === 0 ||
+              !valores[`${lead.ID}`]?.Parcelamento ||
+              valores[`${lead.ID}`]?.Parcelamento === '' ||
+              !vigencia[`${lead.ID}`]?.inicio ||
+              !vigencia[`${lead.ID}`]?.final;
 
             return (
-              <div
-                key={lead.id}
-                style={{
-                  border: '1px solid #ccc',
-                  borderRadius: '8px',
-                  padding: '15px',
-                  marginBottom: '15px',
-                  position: 'relative',
-                  display: 'flex',
-                  gap: '1px',
-                  alignItems: 'flex-start',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <div style={{ flex: '1 1 50%', minWidth: '300px' }}>
-                  <Lead
-                    lead={lead}
-                    onUpdateStatus={handleConfirmStatus}
-                    disabledConfirm={!lead.responsavel}
-                  />
-                </div>
+              <div key={lead.ID} style={containerStyle}>
+                <div style={{ flex: 1 }}>
+                  <h3>{lead.name}</h3>
+                  <p><strong>Modelo:</strong> {lead.vehicleModel}</p>
+                  <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
+                  <p><strong>Cidade:</strong> {lead.city}</p>
+                  <p><strong>Telefone:</strong> {lead.phone}</p>
+                  <p><strong>Tipo de Seguro:</strong> {lead.insuranceType}</p>
 
-                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato') && (
-                  <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
-                    <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
-                      Observações:
-                    </label>
-                    <textarea
-                      id={`observacao-${lead.id}`}
-                      value={observacoes[lead.id] || ''}
-                      onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
-                      placeholder="Adicione suas observações aqui..."
-                      rows="3"
-                      disabled={!isEditingObservacao[lead.id]}
-                      style={{
-                        width: '100%',
-                        padding: '10px',
-                        borderRadius: '6px',
-                        border: '1px solid #ccc',
-                        resize: 'vertical',
-                        boxSizing: 'border-box',
-                        backgroundColor: isEditingObservacao[lead.id] ? '#fff' : '#f0f0f0',
-                        cursor: isEditingObservacao[lead.id] ? 'text' : 'not-allowed',
-                      }}
-                    ></textarea>
-                    {isEditingObservacao[lead.id] ? (
-                      <button
-                        onClick={() => handleSalvarObservacao(lead.id)}
-                        style={{
-                          marginTop: '10px',
-                          padding: '8px 16px',
-                          backgroundColor: '#007bff',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        Salvar Observação
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleAlterarObservacao(lead.id)}
-                        style={{
-                          marginTop: '10px',
-                          padding: '8px 16px',
-                          backgroundColor: '#ffc107',
-                          color: '#000',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Alterar Observação
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                <div style={{ width: '100%' }}>
-                  {lead.responsavel && responsavel ? (
-                    <div style={{ marginTop: '10px' }}>
-                      <p style={{ color: '#28a745' }}>
-                        Atribuído a <strong>{responsavel.nome}</strong>
-                      </p>
-                      {isAdmin && (
-                        <button
-                          onClick={() => handleAlterar(lead.id)}
-                          style={{
-                            marginTop: '5px',
-                            padding: '5px 12px',
-                            backgroundColor: '#ffc107',
-                            color: '#000',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Alterar
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <div
-                      style={{
-                        marginTop: '0px',
-                        display: 'flex',
-                        gap: '10px',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <select
-                        value={selecionados[lead.id] || ''}
-                        onChange={(e) => handleSelect(lead.id, e.target.value)}
-                        style={{
-                          padding: '5px',
-                          borderRadius: '4px',
-                          border: '1px solid #ccc',
-                        }}
-                      >
-                        <option value="">Selecione usuário ativo</option>
-                        {usuariosAtivos.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.nome}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={() => handleEnviar(lead.id)}
-                        style={{
-                          padding: '5px 12px',
-                          backgroundColor: '#28a745',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Enviar
-                      </button>
-                    </div>
+                  {responsavel && (
+                    <p style={{ marginTop: '10px', color: '#007bff' }}>
+                      Transferido para <strong>{responsavel.nome}</strong>
+                    </p>
                   )}
                 </div>
 
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: '10px',
-                    right: '15px',
-                    fontSize: '12px',
-                    color: '#888',
-                    fontStyle: 'italic',
-                  }}
-                  title={`Criado em: ${formatarData(lead.createdAt)}`}
-                >
-                  {formatarData(lead.createdAt)}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '250px' }}>
+                  <select
+                    value={valores[`${lead.ID}`]?.insurer || ''}
+                    onChange={(e) => handleInsurerChange(lead.ID, e.target.value)}
+                    disabled={isSeguradoraPreenchida}
+                    style={{
+                      padding: '8px',
+                      border: '2px solid #ccc',
+                      borderRadius: '4px',
+                      width: '100%',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    <option value="">Selecione a seguradora</option>
+                    <option value="Porto Seguro">Porto Seguro</option>
+                    <option value="Azul Seguros">Azul Seguros</option>
+                    <option value="Itau Seguros">Itau Seguros</option>
+                    <option value="Demais Seguradoras">Demais Seguradoras</option>
+                  </select>
+
+                  <div style={inputWrapperStyle}>
+                    <span style={prefixStyle}>R$</span>
+                    <input
+                      type="text"
+                      placeholder="Prêmio Líquido"
+                      value={premioLiquidoInputDisplay[`${lead.ID}`] || ''}
+                      onChange={(e) => handlePremioLiquidoChange(lead.ID, e.target.value)}
+                      onBlur={() => handlePremioLiquidoBlur(lead.ID)}
+                      disabled={isSeguradoraPreenchida}
+                      style={inputWithPrefixStyle}
+                    />
+                  </div>
+
+                  <div style={inputWrapperStyle}>
+                    <span style={prefixStyle}>%</span>
+                    <input
+                      type="text"
+                      placeholder="Comissão (%)"
+                      value={valores[`${lead.ID}`]?.Comissao || ''}
+                      onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
+                      disabled={isSeguradoraPreenchida}
+                      style={inputWithPrefixStyle}
+                    />
+                  </div>
+
+                  <select
+                    value={valores[`${lead.ID}`]?.Parcelamento || ''}
+                    onChange={(e) => handleParcelamentoChange(lead.ID, e.target.value)}
+                    disabled={isSeguradoraPreenchida}
+                    style={{
+                      padding: '8px',
+                      border: '1px solid #ccc',
+                      borderRadius: '4px',
+                      width: '100%',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    <option value="">Parcelamento</option>
+                    {[...Array(12)].map((_, i) => (
+                      <option key={i + 1} value={`${i + 1}x`}>{i + 1}x</option>
+                    ))}
+                  </select>
+
+                  <div style={inputWrapperStyle}>
+                    <label htmlFor={`vigencia-inicio-${lead.ID}`} style={{ fontSize: '0.85em', color: '#555', display: 'block', marginBottom: '4px' }}>Vigência Início:</label>
+                    <input
+                      id={`vigencia-inicio-${lead.ID}`}
+                      type="date"
+                      value={vigencia[`${lead.ID}`]?.inicio || ''}
+                      onChange={(e) => handleVigenciaInicioChange(lead.ID, e.target.value)}
+                      disabled={isSeguradoraPreenchida}
+                      style={{
+                        ...inputNoPrefixStyle,
+                        marginBottom: '8px',
+                      }}
+                    />
+                  </div>
+
+                  <div style={inputWrapperStyle}>
+                    <label htmlFor={`vigencia-final-${lead.ID}`} style={{ fontSize: '0.85em', color: '#555', display: 'block', marginBottom: '4px' }}>Vigência Final:</label>
+                    <input
+                      id={`vigencia-final-${lead.ID}`}
+                      type="date"
+                      value={vigencia[`${lead.ID}`]?.final || ''}
+                      readOnly
+                      disabled={true}
+                      style={{
+                        ...inputNoPrefixStyle,
+                        backgroundColor: '#f0f0f0',
+                        cursor: 'not-allowed',
+                        marginBottom: '8px',
+                      }}
+                    />
+                  </div>
+
+                  {!isSeguradoraPreenchida ? (
+                    <button
+                      onClick={async () => {
+                        await onConfirmInsurer(
+                          lead.ID,
+                          valores[`${lead.ID}`]?.PremioLiquido === null ? null : valores[`${lead.ID}`]?.PremioLiquido / 100,
+                          valores[`${lead.ID}`]?.insurer,
+                          parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')),
+                          valores[`${lead.ID}`]?.Parcelamento,
+                          vigencia[`${lead.ID}`]?.final,
+                          vigencia[`${lead.ID}`]?.inicio
+                        );
+                        await fetchLeadsFechadosFromSheet();
+                      }}
+                      disabled={isButtonDisabled}
+                      style={{
+                        padding: '8px 16px',
+                        backgroundColor: isButtonDisabled ? '#999' : '#007bff',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: isButtonDisabled ? 'default' : 'pointer',
+                        width: '100%',
+                      }}
+                    >
+                      Confirmar Seguradora
+                    </button>
+                  ) : (
+                    <span style={{ marginTop: '8px', color: 'green', fontWeight: 'bold' }}>
+                      Status confirmado
+                    </span>
+                  )}
                 </div>
               </div>
             );
           })}
-
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              gap: '15px',
-              marginTop: '20px',
-            }}
-          >
-            <button
-              onClick={handlePaginaAnterior}
-              disabled={paginaCorrigida <= 1 || isLoading}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '6px',
-                border: '1px solid #ccc',
-                cursor: (paginaCorrigida <= 1 || isLoading) ? 'not-allowed' : 'pointer',
-                backgroundColor: (paginaCorrigida <= 1 || isLoading) ? '#f0f0f0' : '#fff',
-              }}
-            >
-              Anterior
-            </button>
-            <span style={{ alignSelf: 'center' }}>
-              Página {paginaCorrigida} de {totalPaginas}
-            </span>
-            <button
-              onClick={handlePaginaProxima}
-              disabled={paginaCorrigida >= totalPaginas || isLoading}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '6px',
-                border: '1px solid #ccc',
-                cursor: (paginaCorrigida >= totalPaginas || isLoading) ? 'not-allowed' : 'pointer',
-                backgroundColor: (paginaCorrigida >= totalPaginas || isLoading) ? '#f0f0f0' : '#fff',
-              }}
-            >
-              Próxima
-            </button>
-          </div>
-        </>
+        </div>
       )}
     </div>
   );
