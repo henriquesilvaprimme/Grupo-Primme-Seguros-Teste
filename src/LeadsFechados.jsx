@@ -354,12 +354,33 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <h1 style={{ margin: 0 }}>Leads Fechados</h1>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '15px',
+          gap: '10px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <h1 style={{ margin: 0 }}>Leads</h1>
 
-        <button title='Clique para atualizar os dados'
-          onClick={handleRefresh}
-          disabled={isLoading}
+          <button
+            title='Clique para atualizar os dados'
+            onClick={handleRefreshLeads}
+            disabled={isLoading}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              padding: '0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#007bff'
+            }}
         >
           {isLoading ? (
             <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
