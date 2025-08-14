@@ -331,17 +331,14 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
   const totalPaginas = Math.ceil(fechadosFiltradosInterno.length / leadsPorPagina);
 
+  // A rolagem é chamada diretamente aqui, dentro da função de mudança de página.
   const mudarPagina = (numeroDaPagina) => {
     setPaginaAtual(numeroDaPagina);
-  };
-
-  // Efeito para rolar para o topo quando a página muda
-  useEffect(() => {
     window.scrollTo({
       top: 0,
       behavior: 'smooth'
     });
-  }, [paginaAtual]);
+  };
 
   return (
     <div style={{ padding: '20px', position: 'relative' }}>
