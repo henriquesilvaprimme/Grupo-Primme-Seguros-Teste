@@ -13,28 +13,27 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
   const getDataParaComparacao = (dataStr) => {
     if (!dataStr) return '';
-    // Tenta parsear como DD/MM/YYYY
-    const parts = dataStr.split('/');
-    if (parts.length === 3) {
-      // Converte para o formato YYYY-MM-DD e adiciona 'T00:00:00' para evitar o problema do fuso horário UTC
-      const formattedDateStr = `${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`;
-      const dateObj = new Date(formattedDateStr);
-      if (!isNaN(dateObj.getTime())) {
-        // Retorna a data no formato YYYY-MM-DD local
-        return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-      }
+    // A data pode vir do Sheets como DD/MM/YYYY ou do GAS já formatada como YYYY-MM-DD ou ISO.
+    // Esta função deve ser robusta para ambos.
+    try {
+        const dateObj = new Date(dataStr);
+        if (isNaN(dateObj.getTime())) {
+            // Tenta parsear como DD/MM/YYYY se o formato ISO falhar
+            const parts = dataStr.split('/');
+            if (parts.length === 3) {
+                return `${parts[2]}-${parts[1]}-${parts[0]}`; // Converte DD/MM/YYYY para YYYY-MM-DD
+            }
+            return ''; // Retorna vazio se não conseguir parsear
+        }
+        // Se for um objeto Date válido, formata para YYYY-MM-DD
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    } catch (e) {
+        console.error("Erro ao formatar data para comparação:", dataStr, e);
+        return '';
     }
-    // Se não for DD/MM/YYYY ou se o formato YYYY-MM-DD já vier do Google Sheets,
-    // apenas retorna a string (supondo que ela já está correta e não precisa de conversão)
-    // ou pode tentar parsear com o 'T00:00:00' também.
-    const dateObj = new Date(dataStr + 'T00:00:00');
-    if (!isNaN(dateObj.getTime())) {
-      const year = dateObj.getFullYear();
-      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-      const day = String(dateObj.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-    return '';
   };
 
   const [valores, setValores] = useState({});
@@ -99,22 +98,22 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         // Isso garante que a seleção do usuário não seja sobrescrita por uma re-renderização
         // se o valor já estiver definido localmente (a menos que seja o valor inicial da API)
         if (!novosValores[lead.ID] ||
-          (novosValores[lead.ID].PremioLiquido === undefined && premioInCents !== null) ||
-          (novosValores[lead.ID].PremioLiquido !== premioInCents && prevValores[lead.ID]?.PremioLiquido === undefined) ||
-          (novosValores[lead.ID].Comissao === undefined && apiComissao !== '') ||
-          (novosValores[lead.ID].Comissao !== apiComissao && prevValores[lead.ID]?.Comissao === undefined) ||
-          (novosValores[lead.ID].Parcelamento === undefined && apiParcelamento !== '') ||
-          (novosValores[lead.ID].Parcelamento !== apiParcelamento && prevValores[lead.ID]?.Parcelamento === undefined) ||
-          (novosValores[lead.ID].insurer === undefined && apiInsurer !== '') ||
-          (novosValores[lead.ID].insurer !== apiInsurer && prevValores[lead.ID]?.insurer === undefined)
+            (novosValores[lead.ID].PremioLiquido === undefined && premioInCents !== null) ||
+            (novosValores[lead.ID].PremioLiquido !== premioInCents && prevValores[lead.ID]?.PremioLiquido === undefined) ||
+            (novosValores[lead.ID].Comissao === undefined && apiComissao !== '') ||
+            (novosValores[lead.ID].Comissao !== apiComissao && prevValores[lead.ID]?.Comissao === undefined) ||
+            (novosValores[lead.ID].Parcelamento === undefined && apiParcelamento !== '') ||
+            (novosValores[lead.ID].Parcelamento !== apiParcelamento && prevValores[lead.ID]?.Parcelamento === undefined) ||
+            (novosValores[lead.ID].insurer === undefined && apiInsurer !== '') ||
+            (novosValores[lead.ID].insurer !== apiInsurer && prevValores[lead.ID]?.insurer === undefined)
         ) {
-          novosValores[lead.ID] = {
-            ...novosValores[lead.ID], // Mantém quaisquer outros campos que já existam
-            PremioLiquido: premioInCents,
-            Comissao: apiComissao,
-            Parcelamento: apiParcelamento,
-            insurer: apiInsurer,
-          };
+            novosValores[lead.ID] = {
+                ...novosValores[lead.ID], // Mantém quaisquer outros campos que já existam
+                PremioLiquido: premioInCents,
+                Comissao: apiComissao,
+                Parcelamento: apiParcelamento,
+                insurer: apiInsurer,
+            };
         }
       });
       return novosValores;
@@ -122,20 +121,20 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
     // Inicializa premioLiquidoInputDisplay para que o input comece em branco
     setPremioLiquidoInputDisplay(prevDisplay => {
-      const newDisplay = { ...prevDisplay };
-      fechadosAtuais.forEach(lead => {
-        const currentPremio = String(lead.PremioLiquido || '');
-        // Se o valor vindo da API não for vazio, formata para exibir.
-        // Caso contrário, deixa em branco.
-        if (currentPremio !== '') {
-          // Converte para float antes de formatar para string de exibição
-          const premioFloat = parseFloat(currentPremio.replace(',', '.'));
-          newDisplay[lead.ID] = isNaN(premioFloat) ? '' : premioFloat.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        } else if (prevDisplay[lead.ID] === undefined) { // Só limpa se ainda não foi setado
-          newDisplay[lead.ID] = '';
-        }
-      });
-      return newDisplay;
+        const newDisplay = { ...prevDisplay };
+        fechadosAtuais.forEach(lead => {
+            const currentPremio = String(lead.PremioLiquido || '');
+            // Se o valor vindo da API não for vazio, formata para exibir.
+            // Caso contrário, deixa em branco.
+            if (currentPremio !== '') {
+                // Converte para float antes de formatar para string de exibição
+                const premioFloat = parseFloat(currentPremio.replace(',', '.'));
+                newDisplay[lead.ID] = isNaN(premioFloat) ? '' : premioFloat.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            } else if (prevDisplay[lead.ID] === undefined) { // Só limpa se ainda não foi setado
+                newDisplay[lead.ID] = '';
+            }
+        });
+        return newDisplay;
     });
 
 
@@ -205,8 +204,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     
     // Atualiza o estado de display para que o usuário veja o que está digitando
     setPremioLiquidoInputDisplay(prev => ({
-      ...prev,
-      [`${id}`]: cleanedValue,
+        ...prev,
+        [`${id}`]: cleanedValue,
     }));
 
     // Para o parsing interno e envio ao GAS, tratamos a vírgula como separador decimal.
@@ -229,13 +228,13 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     let valorReais = null;
 
     if (valorCentavos !== null && !isNaN(valorCentavos)) {
-      valorReais = valorCentavos / 100;
+        valorReais = valorCentavos / 100;
     }
 
     // Atualiza o display do input para o formato de moeda ao sair do foco
     setPremioLiquidoInputDisplay(prev => ({
-      ...prev,
-      [`${id}`]: valorCentavos !== null && !isNaN(valorCentavos) ? formatarMoeda(valorCentavos) : '',
+        ...prev,
+        [`${id}`]: valorCentavos !== null && !isNaN(valorCentavos) ? formatarMoeda(valorCentavos) : '',
     }));
 
     onUpdateDetalhes(id, 'PremioLiquido', valorReais);
@@ -245,23 +244,23 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     let cleanedValue = valor.replace(/[^\d,]/g, '');
     const parts = cleanedValue.split(',');
     if (parts.length > 2) {
-      cleanedValue = parts[0] + ',' + parts.slice(1).join('');
+        cleanedValue = parts[0] + ',' + parts.slice(1).join('');
     }
     if (parts.length > 1 && parts[1].length > 2) {
-      cleanedValue = parts[0] + ',' + parts[1].slice(0, 2);
+        cleanedValue = parts[0] + ',' + parts[1].slice(0,2);
     }
     
     setValores(prev => ({
-      ...prev,
-      [`${id}`]: {
-        ...prev[`${id}`],
-        Comissao: cleanedValue,
-      },
+        ...prev,
+        [`${id}`]: {
+            ...prev[`${id}`],
+            Comissao: cleanedValue,
+        },
     }));
 
     const valorFloat = parseFloat(cleanedValue.replace(',', '.'));
     onUpdateDetalhes(id, 'Comissao', isNaN(valorFloat) ? '' : valorFloat);
-  };
+};
 
 
   const handleParcelamentoChange = (id, valor) => {
@@ -279,13 +278,13 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     // Apenas atualiza o estado local para que o <select> reflita a mudança IMEDIATAMENTE.
     // A chamada ao GAS (onUpdateInsurer) só ocorre no botão "Confirmar Seguradora".
     setValores(prev => ({
-      ...prev,
-      [`${id}`]: {
-        ...prev[`${id}`],
-        insurer: valor,
-      },
+        ...prev,
+        [`${id}`]: {
+            ...prev[`${id}`],
+            insurer: valor,
+        },
     }));
-  };
+};
 
   const handleVigenciaInicioChange = (id, dataString) => {
     let dataFinal = '';
@@ -353,11 +352,10 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   return (
     <div style={{ padding: '20px', position: 'relative' }}>
       {isLoading && (
-        <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
+        <div className="absolute inset-0 bg-white flex justify-center items-center z-10">
           <div style={{ position: 'relative', top: '-75vh' }} className="flex flex-col items-center">
-            <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
-            <p className="mt-4 text-lg text-gray-700">Carregando LEADS FECHADOS...</p>
-          </div>
+          <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
+          <p className="ml-4 text-lg text-gray-700">Carregando LEADS FECHADOS...</p>
         </div>
       )}
 
@@ -619,17 +617,17 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 {!isSeguradoraPreenchida ? (
                   <button
                     onClick={async () => {
-                      // Ao confirmar, passa todos os valores do estado local para o GAS
-                      await onConfirmInsurer(
-                        lead.ID,
-                        valores[`${lead.ID}`]?.PremioLiquido === null ? null : valores[`${lead.ID}`]?.PremioLiquido / 100, // Envia em reais
-                        valores[`${lead.ID}`]?.insurer, // Seguradora
-                        parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')), // Comissão
-                        valores[`${lead.ID}`]?.Parcelamento, // Parcelamento
-                        vigencia[`${lead.ID}`]?.final,    // Enviando VIGENCIA_FINAL para o parâmetro VIGENCIA_FINAL no GAS
-                        vigencia[`${lead.ID}`]?.inicio    // Enviando VIGENCIA_INICIAL para o parâmetro VIGENCIA_INICIAL no GAS
-                      );
-                      await fetchLeadsFechadosFromSheet(); // Recarrega os dados para refletir as mudanças do Sheets
+                        // Ao confirmar, passa todos os valores do estado local para o GAS
+                        await onConfirmInsurer(
+                            lead.ID,
+                            valores[`${lead.ID}`]?.PremioLiquido === null ? null : valores[`${lead.ID}`]?.PremioLiquido / 100, // Envia em reais
+                            valores[`${lead.ID}`]?.insurer, // Seguradora
+                            parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')), // Comissão
+                            valores[`${lead.ID}`]?.Parcelamento, // Parcelamento
+                            vigencia[`${lead.ID}`]?.final,   // Enviando VIGENCIA_FINAL para o parâmetro VIGENCIA_FINAL no GAS
+                            vigencia[`${lead.ID}`]?.inicio   // Enviando VIGENCIA_INICIAL para o parâmetro VIGENCIA_INICIAL no GAS
+                        );
+                        await fetchLeadsFechadosFromSheet(); // Recarrega os dados para refletir as mudanças do Sheets
                     }}
                     disabled={isButtonDisabled}
                     style={{
