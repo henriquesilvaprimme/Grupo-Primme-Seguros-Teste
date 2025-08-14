@@ -347,7 +347,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
   return (
     <div id="leads-container" style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
       {isLoading && (
-        <div className="fixed inset-0 bg-white flex justify-center items-center z-50">
+        <div className="absolute inset-0 bg-white flex justify-center items-center z-50">
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
           <p className="ml-4 text-lg text-gray-700">Carregando LEADS FECHADOS...</p>
         </div>
