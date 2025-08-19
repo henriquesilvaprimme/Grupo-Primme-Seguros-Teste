@@ -22,6 +22,19 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const isEditingRef = useRef(isEditing);
 
+  // 1. Crie uma referência para o elemento principal do componente
+  const containerRef = useRef(null);
+
+  // 2. Use o useEffect para rolar a tela quando a página mudar
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  }, [paginaAtual]); // A rolagem é acionada quando o estado 'paginaAtual' muda
+
   useEffect(() => {
     isEditingRef.current = isEditing;
   }, [isEditing]);
@@ -52,10 +65,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
-
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [paginaAtual]);
 
   const handleRefreshLeads = async () => {
     setIsLoading(true);
@@ -290,7 +299,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   return (
-    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
+    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }} ref={containerRef}>
       {isLoading && (
         <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
