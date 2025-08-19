@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // Importe 'useRef'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 
 // Importe os componentes do seu projeto
 import Sidebar from './components/Sidebar';
-import Dashboard from './Dashboard';
+import Dashboard from './components/Dashboard';
 import Leads from './Leads';
 import LeadsFechados from './LeadsFechados';
 import LeadsPerdidos from './LeadsPerdidos';
@@ -16,7 +16,7 @@ import CriarLead from './pages/CriarLead';
 // Constante para a URL BASE do Google Apps Script Web App
 // Esta URL NÃO deve conter "?v=..."
 // Use a URL que você copiou da implantação do seu GAS (sem o ?v=...)
-const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec';
+const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 
 // URLs para buscar dados, que ainda usam o ?v=...
 const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads`;
@@ -26,7 +26,7 @@ const GOOGLE_SHEETS_USERS_AUTH_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_usu
 
 function App() {
   const navigate = useNavigate();
-  const mainContentRef = useRef(null);
+  const mainContentRef = useRef(null); // Cria uma referência para o elemento main
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginInput, setLoginInput] = useState('');
@@ -39,6 +39,7 @@ function App() {
   const [leadSelecionado, setLeadSelecionado] = useState(null);
 
   const [usuarios, setUsuarios] = useState([]);
+  // NOVO ESTADO: Adicione um estado para controlar se há uma edição em andamento
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
@@ -72,6 +73,7 @@ function App() {
     }
   };
 
+  // MODIFICAÇÃO: A função agora só roda se não houver edição em andamento
   useEffect(() => {
     if (!isEditing) {
       fetchUsuariosForLogin();
@@ -121,6 +123,7 @@ function App() {
       const data = await response.json();
 
       if (Array.isArray(data)) {
+        // Remove a ordenação aqui. O Apps Script já deve retornar a ordem correta.
         const sortedData = data;
         
         const formattedLeads = sortedData.map((item, index) => ({
@@ -144,6 +147,7 @@ function App() {
           createdAt: item.data || new Date().toISOString(),
           responsavel: item.responsavel || '',
           editado: item.editado || '',
+          // ADIÇÃO DO CAMPO OBSERVACAO AQUI
           observacao: item.observacao || ''
         }));
 
@@ -163,6 +167,7 @@ function App() {
     }
   };
 
+  // MODIFICAÇÃO: A função só será executada se não houver uma edição em andamento.
   useEffect(() => {
     if (!isEditing) {
       fetchLeadsFromSheet();
@@ -182,6 +187,7 @@ function App() {
 
       const formattedData = data.map(item => ({
         ...item,
+        // *** MUDANÇA AQUI PARA GARANTIR CONSISTÊNCIA DE CASE ***
         insuranceType: item.insuranceType || '',
       }));
       setLeadsFechados(formattedData);
@@ -192,6 +198,7 @@ function App() {
     }
   };
 
+  // MODIFICAÇÃO: A função só será executada se não houver uma edição em andamento.
   useEffect(() => {
     if (!isEditing) {
       fetchLeadsFechadosFromSheet();
@@ -282,6 +289,7 @@ function App() {
               tipo: leadParaAdicionar.tipo || "Usuario",
               "Ativo/Inativo": leadParaAdicionar["Ativo/Inativo"] || "Ativo",
               confirmado: true,
+              // ADIÇÃO DO CAMPO OBSERVACAO AQUI
               observacao: leadParaAdicionar.observacao || ''
             };
             return [...prev, novoLeadFechado];
@@ -319,6 +327,7 @@ function App() {
       return;
     }
 
+    // Atualiza o estado local ANTES de enviar para o GAS
     lead.Seguradora = seguradora;
     lead.PremioLiquido = premio;
     lead.Comissao = comissao;
@@ -375,8 +384,8 @@ function App() {
       )
     );
   };
-  
-  // CORREÇÃO: ADICIONADA A CHAMADA DE API DENTRO DA FUNÇÃO
+
+  // CORREÇÃO: ADICIONA A CHAMADA DE API AQUI NOVAMENTE PARA ENVIAR A MUDANÇA
   const transferirLead = (leadId, responsavelId) => {
     const usuario = responsavelId === null
       ? null
@@ -422,7 +431,6 @@ function App() {
       console.error('Erro no bloco try/catch de transferência de lead:', error);
     }
   };
-
 
   const onAbrirLead = (lead) => {
     setLeadSelecionado(lead);
@@ -520,6 +528,7 @@ function App() {
                     : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)
                 }
                 usuarioLogado={usuarioLogado}
+                // PASSE A PROPRIEDADE setIsEditing PARA OS COMPONENTES QUE PODEM SER EDITADOS
                 setIsEditing={setIsEditing}
               />
             }
@@ -534,8 +543,11 @@ function App() {
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 transferirLead={transferirLead}
                 usuarioLogado={usuarioLogado}
+                // PASSA A PROPRIEDADE leadSelecionado PARA Leads
                 leadSelecionado={leadSelecionado}
+                // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE Leads
                 setIsEditing={setIsEditing}
+                // PASSE A REFERÊNCIA PARA O COMPONENTE Leads
                 scrollContainerRef={mainContentRef}
               />
             }
@@ -555,7 +567,9 @@ function App() {
                 onAbrirLead={onAbrirLead}
                 leadSelecionado={leadSelecionado}
                 formatarDataParaExibicao={formatarDataParaExibicao}
+                // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE LeadsFechados
                 setIsEditing={setIsEditing}
+                // ADICIONA A PROPRIEDADE scrollContainerRef AQUI
                 scrollContainerRef={mainContentRef}
               />
             }
@@ -564,12 +578,14 @@ function App() {
             path="/leads-perdidos"
             element={
               <LeadsPerdidos
+                // Filtra os leads para mostrar apenas os "Perdidos"
                 leads={isAdmin ? leads.filter((lead) => lead.status === 'Perdido') : leads.filter((lead) => lead.responsavel === usuarioLogado.nome && lead.status === 'Perdido')}
                 usuarios={usuarios}
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 onAbrirLead={onAbrirLead}
                 isAdmin={isAdmin}
                 leadSelecionado={leadSelecionado}
+                // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE LeadsPerdidos
                 setIsEditing={setIsEditing}
               />
             }
@@ -578,6 +594,7 @@ function App() {
             leads={leads}
             fetchLeadsFromSheet={fetchLeadsFromSheet}
             fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
+            // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE BuscarLead
             setIsEditing={setIsEditing}
           />} />
           <Route
