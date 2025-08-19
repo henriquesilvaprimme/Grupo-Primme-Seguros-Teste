@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'; // Importe 'useRef'
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 
 // Importe os componentes do seu projeto
@@ -13,10 +13,9 @@ import GerenciarUsuarios from './pages/GerenciarUsuarios';
 import Ranking from './pages/Ranking';
 import CriarLead from './pages/CriarLead';
 
-// Constante para a URL BASE do Google Apps Script Web App
-// Esta URL NÃO deve conter "?v=..."
-// Use a URL que você copiou da implantação do seu GAS (sem o ?v=...)
-const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
+// Constantes para os URLs do Google Apps Script
+// URL BASE do Google Apps Script Web App
+const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbzJ_WHn3ssPL8VYbVbVOUa1Zw0xVFLolCnL-rOQ63cHO2st7KHqzZ9CHUwZhiCqVgBu/exec';
 
 // URLs para buscar dados, que ainda usam o ?v=...
 const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads`;
@@ -26,7 +25,6 @@ const GOOGLE_SHEETS_USERS_AUTH_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_usu
 
 function App() {
   const navigate = useNavigate();
-  const mainContentRef = useRef(null); // Cria uma referência para o elemento main
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginInput, setLoginInput] = useState('');
@@ -34,23 +32,25 @@ function App() {
   const [usuarioLogado, setUsuarioLogado] = useState(null);
   const [backgroundLoaded, setBackgroundLoaded] = useState(false);
 
+  // Estado e lógica para leads
   const [leads, setLeads] = useState([]);
   const [leadsFechados, setLeadsFechados] = useState([]);
   const [leadSelecionado, setLeadSelecionado] = useState(null);
 
+  // --- MANTEMOS 'usuarios' APENAS PARA FINS DE AUTENTICAÇÃO AQUI NO App.jsx ---
   const [usuarios, setUsuarios] = useState([]);
-  // NOVO ESTADO: Adicione um estado para controlar se há uma edição em andamento
-  const [isEditing, setIsEditing] = useState(false);
 
+  // Carrega a imagem de fundo
   useEffect(() => {
     const img = new Image();
     img.src = '/background.png';
     img.onload = () => setBackgroundLoaded(true);
   }, []);
 
+  // --- NOVO: Função para buscar USUÁRIOS APENAS PARA O LOGIN ---
   const fetchUsuariosForLogin = async () => {
     try {
-      const response = await fetch(GOOGLE_SHEETS_USERS_AUTH_URL);
+      const response = await fetch(GOOGLE_SHEETS_USERS_AUTH_URL, { mode: 'cors' }); // Pode ser 'cors' aqui para ler os usuários para login
       const data = await response.json();
 
       if (Array.isArray(data)) {
@@ -73,15 +73,15 @@ function App() {
     }
   };
 
-  // MODIFICAÇÃO: A função agora só roda se não houver edição em andamento
+  // Carregar usuários para login ao montar o componente App
   useEffect(() => {
-    if (!isEditing) {
-      fetchUsuariosForLogin();
-      const interval = setInterval(fetchUsuariosForLogin, 60000);
-      return () => clearInterval(interval);
-    }
-  }, [isEditing]);
+    fetchUsuariosForLogin();
+    const interval = setInterval(fetchUsuariosForLogin, 60000); // Atualiza a cada minuto
+    return () => clearInterval(interval);
+  }, []);
 
+
+  // FUNÇÕES RELACIONADAS A LEADS (NÃO MEXEMOS NELAS)
   const formatarDataParaExibicao = (dataString) => {
     if (!dataString) return '';
     try {
@@ -123,9 +123,12 @@ function App() {
       const data = await response.json();
 
       if (Array.isArray(data)) {
-        // Remove a ordenação aqui. O Apps Script já deve retornar a ordem correta.
-        const sortedData = data;
-        
+        const sortedData = data.sort((a, b) => {
+          const dateA = new Date(a.editado);
+          const dateB = new Date(b.editado);
+          return dateB - dateA;
+        });
+
         const formattedLeads = sortedData.map((item, index) => ({
           id: item.id ? Number(item.id) : index + 1,
           name: item.name || item.Name || '',
@@ -143,12 +146,9 @@ function App() {
           comissao: item.comissao || '',
           parcelamento: item.parcelamento || '',
           VigenciaFinal: item.VigenciaFinal || '',
-          VigenciaInicial: item.VigenciaInicial || '',
           createdAt: item.data || new Date().toISOString(),
           responsavel: item.responsavel || '',
-          editado: item.editado || '',
-          // ADIÇÃO DO CAMPO OBSERVACAO AQUI
-          observacao: item.observacao || ''
+          editado: item.editado || ''
         }));
 
         if (!leadSelecionado) {
@@ -167,18 +167,15 @@ function App() {
     }
   };
 
-  // MODIFICAÇÃO: A função só será executada se não houver uma edição em andamento.
   useEffect(() => {
-    if (!isEditing) {
+    fetchLeadsFromSheet();
+
+    const interval = setInterval(() => {
       fetchLeadsFromSheet();
+    }, 60000);
 
-      const interval = setInterval(() => {
-        fetchLeadsFromSheet();
-      }, 60000);
-
-      return () => clearInterval(interval);
-    }
-  }, [leadSelecionado, isEditing]);
+    return () => clearInterval(interval);
+  }, [leadSelecionado]);
 
   const fetchLeadsFechadosFromSheet = async () => {
     try {
@@ -187,8 +184,6 @@ function App() {
 
       const formattedData = data.map(item => ({
         ...item,
-        // *** MUDANÇA AQUI PARA GARANTIR CONSISTÊNCIA DE CASE ***
-        insuranceType: item.insuranceType || '',
       }));
       setLeadsFechados(formattedData);
 
@@ -198,20 +193,17 @@ function App() {
     }
   };
 
-  // MODIFICAÇÃO: A função só será executada se não houver uma edição em andamento.
   useEffect(() => {
-    if (!isEditing) {
+    fetchLeadsFechadosFromSheet();
+
+    const interval = setInterval(() => {
       fetchLeadsFechadosFromSheet();
+    }, 60000);
 
-      const interval = setInterval(() => {
-        fetchLeadsFechadosFromSheet();
-      }, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
-      return () => clearInterval(interval);
-    }
-  }, [isEditing]);
-
-  const [ultimoFechadoId, setUltimoFechadoId] = useState(null);
+  const [ultimoFechadoId, setUltimoFechadoId] = useState(null); // Mantido por ser relacionado a leads
 
   const adicionarUsuario = (usuario) => {
     setUsuarios((prev) => [...prev, { ...usuario, id: prev.length + 1 }]);
@@ -270,7 +262,7 @@ function App() {
               vehicleYearModel: leadParaAdicionar.vehicleYearModel,
               city: leadParaAdicionar.city,
               phone: leadParaAdicionar.phone,
-              insuranceType: leadParaAdicionar.insuranceType || leadParaAdicionar.insuranceType || "",
+              insurer: leadParaAdicionar.insurancetype || leadParaAdicionar.insuranceType || "",
               Data: leadParaAdicionar.createdAt || new Date().toISOString(),
               Responsavel: leadParaAdicionar.responsavel || "",
               Status: "Fechado",
@@ -279,7 +271,6 @@ function App() {
               Comissao: leadParaAdicionar.Comissao || "",
               Parcelamento: leadParaAdicionar.Parcelamento || "",
               VigenciaFinal: leadParaAdicionar.VigenciaFinal || "",
-              VigenciaInicial: leadParaAdicionar.VigenciaInicial || "",
               id: leadParaAdicionar.id || null,
               usuario: leadParaAdicionar.usuario || "",
               nome: leadParaAdicionar.nome || "",
@@ -288,9 +279,7 @@ function App() {
               status: leadParaAdicionar.status || "Ativo",
               tipo: leadParaAdicionar.tipo || "Usuario",
               "Ativo/Inativo": leadParaAdicionar["Ativo/Inativo"] || "Ativo",
-              confirmado: true,
-              // ADIÇÃO DO CAMPO OBSERVACAO AQUI
-              observacao: leadParaAdicionar.observacao || ''
+              confirmado: true
             };
             return [...prev, novoLeadFechado];
           }
@@ -315,11 +304,11 @@ function App() {
     ...lead,
     premioLiquido: "",
     comissao: "",
+    parcelamento: "",
     VigenciaFinal: "",
-    VigenciaInicial: "",
   })
 
-  const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal, vigenciaInicial) => {
+  const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal) => {
     const lead = leadsFechados.find((lead) => lead.ID == id);
 
     if (!lead) {
@@ -327,13 +316,11 @@ function App() {
       return;
     }
 
-    // Atualiza o estado local ANTES de enviar para o GAS
     lead.Seguradora = seguradora;
     lead.PremioLiquido = premio;
     lead.Comissao = comissao;
     lead.Parcelamento = parcelamento;
     lead.VigenciaFinal = vigenciaFinal || '';
-    lead.VigenciaInicial = vigenciaInicial || '';
 
     setLeadsFechados((prev) => {
       const atualizados = prev.map((l) =>
@@ -344,36 +331,25 @@ function App() {
           PremioLiquido: premio,
           Comissao: comissao,
           Parcelamento: parcelamento,
-          VigenciaFinal: vigenciaFinal || '',
-          VigenciaInicial: vigenciaInicial || ''
+          VigenciaFinal: vigenciaFinal || ''
         } : l
       );
       return atualizados;
     });
 
     try {
-      fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
+      fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=alterar_seguradora`, {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify({
-          v: 'alterar_seguradora',
           lead: lead
         }),
         headers: {
           'Content-Type': 'application/json',
         },
-      })
-      .then(response => {
-          console.log('Requisição de dados da seguradora enviada (com no-cors).');
-          setTimeout(() => {
-            fetchLeadsFechadosFromSheet();
-          }, 1000);
-      })
-      .catch(error => {
-        console.error('Erro ao enviar lead (rede ou CORS):', error);
       });
     } catch (error) {
-      console.error('Erro no bloco try/catch de envio do lead:', error);
+      console.error('Erro ao enviar lead:', error);
     }
   };
 
@@ -385,8 +361,14 @@ function App() {
     );
   };
 
-  // CORREÇÃO: ADICIONA A CHAMADA DE API AQUI NOVAMENTE PARA ENVIAR A MUDANÇA
-  const transferirLead = (leadId, responsavelId) => {
+  const transferirLead = async (leadId, responsavelId) => {
+    const lead = leads.find(l => l.id === leadId);
+
+    if (!lead) {
+      console.error("Lead não encontrado para transferência.");
+      return;
+    }
+
     const usuario = responsavelId === null
       ? null
       : usuarios.find((u) => u.id == responsavelId);
@@ -399,14 +381,14 @@ function App() {
     const novoResponsavel = usuario ? usuario.nome : null;
 
     setLeads((prevLeads) =>
-      prevLeads.map((lead) =>
-        lead.id === leadId ? { ...lead, responsavel: novoResponsavel } : lead
+      prevLeads.map((l) =>
+        l.id === leadId ? { ...l, responsavel: novoResponsavel } : l
       )
     );
 
     // Envia a atualização para o Google Apps Script
     try {
-      fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
+      await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify({
@@ -417,18 +399,10 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-      })
-      .then(response => {
-        console.log('Requisição de transferência de lead enviada (com no-cors).');
-        setTimeout(() => {
-          fetchLeadsFromSheet();
-        }, 1000);
-      })
-      .catch(error => {
-        console.error('Erro ao enviar transferência de lead (rede ou CORS):', error);
       });
+      console.log('Requisição de transferência de lead enviada.');
     } catch (error) {
-      console.error('Erro no bloco try/catch de transferência de lead:', error);
+      console.error('Erro ao enviar transferência de lead:', error);
     }
   };
 
@@ -491,6 +465,7 @@ function App() {
           />
           <div className="text-right text-sm mb-4">
             <a href="#" className="text-white underline">
+              Esqueci minha senha
             </a>
           </div>
           <button
@@ -510,7 +485,7 @@ function App() {
     <div style={{ display: 'flex', height: '100vh' }}>
       <Sidebar isAdmin={isAdmin} nomeUsuario={usuarioLogado} />
 
-      <main ref={mainContentRef} style={{ flex: 1, overflow: 'auto' }}>
+      <main style={{ flex: 1, overflow: 'auto' }}>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route
@@ -528,8 +503,6 @@ function App() {
                     : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)
                 }
                 usuarioLogado={usuarioLogado}
-                // PASSE A PROPRIEDADE setIsEditing PARA OS COMPONENTES QUE PODEM SER EDITADOS
-                setIsEditing={setIsEditing}
               />
             }
           />
@@ -538,17 +511,11 @@ function App() {
             element={
               <Leads
                 leads={isAdmin ? leads : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)}
-                usuarios={usuarios}
+                usuarios={usuarios} // Ainda passa 'usuarios' para Leads se ele precisar exibir nomes ou IDs de usuários
                 onUpdateStatus={atualizarStatusLead}
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 transferirLead={transferirLead}
                 usuarioLogado={usuarioLogado}
-                // PASSA A PROPRIEDADE leadSelecionado PARA Leads
-                leadSelecionado={leadSelecionado}
-                // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE Leads
-                setIsEditing={setIsEditing}
-                // PASSE A REFERÊNCIA PARA O COMPONENTE Leads
-                scrollContainerRef={mainContentRef}
               />
             }
           />
@@ -557,7 +524,7 @@ function App() {
             element={
               <LeadsFechados
                 leads={isAdmin ? leadsFechados : leadsFechados.filter((lead) => lead.Responsavel === usuarioLogado.nome)}
-                usuarios={usuarios}
+                usuarios={usuarios} // Ainda passa 'usuarios' para LeadsFechados se ele precisar exibir nomes ou IDs de usuários
                 onUpdateInsurer={atualizarSeguradoraLead}
                 onConfirmInsurer={confirmarSeguradoraLead}
                 onUpdateDetalhes={atualizarDetalhesLeadFechado}
@@ -567,10 +534,6 @@ function App() {
                 onAbrirLead={onAbrirLead}
                 leadSelecionado={leadSelecionado}
                 formatarDataParaExibicao={formatarDataParaExibicao}
-                // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE LeadsFechados
-                setIsEditing={setIsEditing}
-                // ADICIONA A PROPRIEDADE scrollContainerRef AQUI
-                scrollContainerRef={mainContentRef}
               />
             }
           />
@@ -578,15 +541,12 @@ function App() {
             path="/leads-perdidos"
             element={
               <LeadsPerdidos
-                // Filtra os leads para mostrar apenas os "Perdidos"
-                leads={isAdmin ? leads.filter((lead) => lead.status === 'Perdido') : leads.filter((lead) => lead.responsavel === usuarioLogado.nome && lead.status === 'Perdido')}
-                usuarios={usuarios}
+                leads={isAdmin ? leads : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)}
+                usuarios={usuarios} // Ainda passa 'usuarios' para LeadsPerdidos
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 onAbrirLead={onAbrirLead}
                 isAdmin={isAdmin}
                 leadSelecionado={leadSelecionado}
-                // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE LeadsPerdidos
-                setIsEditing={setIsEditing}
               />
             }
           />
@@ -594,8 +554,6 @@ function App() {
             leads={leads}
             fetchLeadsFromSheet={fetchLeadsFromSheet}
             fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
-            // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE BuscarLead
-            setIsEditing={setIsEditing}
           />} />
           <Route
             path="/criar-lead"
@@ -611,7 +569,7 @@ function App() {
             </>
           )}
           <Route path="/ranking" element={<Ranking
-            usuarios={usuarios}
+            usuarios={usuarios} // 'usuarios' ainda é necessário para o Ranking
             fetchLeadsFromSheet={fetchLeadsFromSheet}
             fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
             leads={leads} />} />
@@ -622,6 +580,7 @@ function App() {
   );
 }
 
+// Mantendo a função formatarDataParaDDMMYYYY se outros componentes a usarem.
 const formatarDataParaDDMMYYYY = (dataString) => {
   if (!dataString) return '';
 
