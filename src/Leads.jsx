@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import Lead from './components/Lead';
 import { RefreshCcw } from 'lucide-react';
 
-const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
-const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
-const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
+const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec';
+const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?v=alterar_atribuido';
+const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?action=salvarObservacao';
 
-const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, isEditing, setIsEditing }) => {
+const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, isEditing, setIsEditing, scrollContainerRef }) => {
   const [selecionados, setSelecionados] = useState({});
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -53,10 +53,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     };
   }, []);
 
-  // NOVO useEffect para rolagem. Ele será acionado toda vez que a página mudar.
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [paginaAtual]);
+  // Removido o useEffect anterior para evitar conflitos
 
   const handleRefreshLeads = async () => {
     setIsLoading(true);
@@ -92,6 +89,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroNome('');
     setNomeInput('');
     setPaginaAtual(1);
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const aplicarFiltroNome = () => {
@@ -100,6 +100,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroData('');
     setDataInput('');
     setPaginaAtual(1);
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const isSameMonthAndYear = (leadDateStr, filtroMesAno) => {
@@ -180,7 +183,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
-      // A chamada para `fetchLeadsFromSheet()` foi removida aqui para permitir que `App.jsx` gerencie o refresh.
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
     }
@@ -198,29 +200,43 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const fim = inicio + leadsPorPagina;
   const leadsPagina = gerais.slice(inicio, fim);
 
+  // --- Funções de Paginação Modificadas ---
   const handlePaginaAnterior = () => {
-    setPaginaAtual((prev) => Math.max(prev - 1, 1));
+    setPaginaAtual((prev) => {
+      const novaPagina = Math.max(prev - 1, 1);
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' }); // Rola para o topo
+      }
+      return novaPagina;
+    });
   };
 
   const handlePaginaProxima = () => {
-    setPaginaAtual((prev) => Math.min(prev + 1, totalPaginas));
+    setPaginaAtual((prev) => {
+      const novaPagina = Math.min(prev + 1, totalPaginas);
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' }); // Rola para o topo
+      }
+      return novaPagina;
+    });
   };
+  // --- Fim das Funções de Paginação Modificadas ---
 
   const formatarData = (dataStr) => {
     if (!dataStr) return '';
     let data;
     if (dataStr.includes('/')) {
-        const partes = dataStr.split('/');
-        data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+      const partes = dataStr.split('/');
+      data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
     } else if (dataStr.includes('-') && dataStr.length === 10) {
-        const partes = dataStr.split('-');
-        data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+      const partes = dataStr.split('-');
+      data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
     } else {
-        data = new Date(dataStr);
+      data = new Date(dataStr);
     }
 
     if (isNaN(data.getTime())) {
-        return '';
+      return '';
     }
     return data.toLocaleDateString('pt-BR');
   };
@@ -256,7 +272,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       setIsEditing(false);
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
 
-      // A chamada para `fetchLeadsFromSheet()` foi removida aqui para permitir que `App.jsx` gerencie o refresh.
     } catch (error) {
       console.error('Erro ao salvar observação:', error);
       alert('Erro ao salvar observação. Por favor, tente novamente.');
@@ -291,7 +306,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   return (
-    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
+    <div id="leads-container" style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
       {isLoading && (
         <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
@@ -501,7 +516,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                         Alterar Observação
                       </button>
                     )}
-                  </div>
+                </div>
                 )}
 
                 <div style={{ width: '100%' }}>
@@ -526,7 +541,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                           Alterar
                         </button>
                       )}
-                  </div>
+                </div>
                   ) : (
                     <div
                       style={{
