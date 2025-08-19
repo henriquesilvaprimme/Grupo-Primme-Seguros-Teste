@@ -53,6 +53,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     };
   }, []);
 
+  // NOVO useEffect para rolagem. Ele será acionado toda vez que a página mudar.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [paginaAtual]);
+
   const handleRefreshLeads = async () => {
     setIsLoading(true);
     try {
@@ -195,12 +200,10 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const handlePaginaAnterior = () => {
     setPaginaAtual((prev) => Math.max(prev - 1, 1));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handlePaginaProxima = () => {
     setPaginaAtual((prev) => Math.min(prev + 1, totalPaginas));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const formatarData = (dataStr) => {
