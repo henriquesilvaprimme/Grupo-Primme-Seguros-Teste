@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import Lead from './components/Lead';
 import { RefreshCcw } from 'lucide-react';
 
-const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec';
-const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?action=salvarObservacao';
+const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
+const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
 
-const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, isEditing, setIsEditing, scrollContainerRef }) => {
+const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, isEditing, setIsEditing }) => {
     const [selecionados, setSelecionados] = useState({});
     const [paginaAtual, setPaginaAtual] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
@@ -22,124 +22,118 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const isEditingRef = useRef(isEditing);
 
     useEffect(() => {
-      isEditingRef.current = isEditing;
+        isEditingRef.current = isEditing;
     }, [isEditing]);
 
     useEffect(() => {
-      const initialObservacoes = {};
-      const initialIsEditingObservacao = {};
-      leads.forEach(lead => {
-        initialObservacoes[lead.id] = lead.observacao || '';
-        initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
-      });
-      setObservacoes(initialObservacoes);
-      setIsEditingObservacao(initialIsEditingObservacao);
+        const initialObservacoes = {};
+        const initialIsEditingObservacao = {};
+        leads.forEach(lead => {
+            initialObservacoes[lead.id] = lead.observacao || '';
+            initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
+        });
+        setObservacoes(initialObservacoes);
+        setIsEditingObservacao(initialIsEditingObservacao);
     }, [leads]);
 
     useEffect(() => {
-      const handleBeforeUnload = (event) => {
-        if (isEditingRef.current) {
-          event.preventDefault();
-          event.returnValue = 'Você tem observações não salvas. Deseja sair e perder as alterações?';
-          return event.returnValue;
-        }
-      };
+        const handleBeforeUnload = (event) => {
+            if (isEditingRef.current) {
+                event.preventDefault();
+                event.returnValue = 'Você tem observações não salvas. Deseja sair e perder as alterações?';
+                return event.returnValue;
+            }
+        };
 
-      window.addEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('beforeunload', handleBeforeUnload);
 
-      return () => {
-        window.removeEventListener('beforeunload', handleBeforeUnload);
-      };
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
     }, []);
 
     const handleRefreshLeads = async () => {
-      setIsLoading(true);
-      try {
-        await fetchLeadsFromSheet();
-        const refreshedIsEditingObservacao = {};
-        leads.forEach(lead => {
-          refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
-        });
-        setIsEditingObservacao(refreshedIsEditingObservacao);
-      } catch (error) {
-        console.error('Erro ao buscar leads atualizados:', error);
-      } finally {
-        setIsLoading(false);
-      }
+        setIsLoading(true);
+        try {
+            await fetchLeadsFromSheet();
+            const refreshedIsEditingObservacao = {};
+            leads.forEach(lead => {
+                refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
+            });
+            setIsEditingObservacao(refreshedIsEditingObservacao);
+        } catch (error) {
+            console.error('Erro ao buscar leads atualizados:', error);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const leadsPorPagina = 10;
 
     const normalizarTexto = (texto = '') => {
-      return texto
-        .toString()
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()@\+\?><\[\]\+]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
+        return texto
+            .toString()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()@\+\?><\[\]\+]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
     };
 
     const aplicarFiltroData = () => {
-      setFiltroData(dataInput);
-      setFiltroNome('');
-      setNomeInput('');
-      setPaginaAtual(1);
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+        setFiltroData(dataInput);
+        setFiltroNome('');
+        setNomeInput('');
+        setPaginaAtual(1);
     };
 
     const aplicarFiltroNome = () => {
-      const filtroLimpo = nomeInput.trim();
-      setFiltroNome(filtroLimpo);
-      setFiltroData('');
-      setDataInput('');
-      setPaginaAtual(1);
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+        const filtroLimpo = nomeInput.trim();
+        setFiltroNome(filtroLimpo);
+        setFiltroData('');
+        setDataInput('');
+        setPaginaAtual(1);
     };
 
     const isSameMonthAndYear = (leadDateStr, filtroMesAno) => {
-      if (!filtroMesAno) return true;
-      if (!leadDateStr) return false;
-      const leadData = new Date(leadDateStr);
-      const leadAno = leadData.getFullYear();
-      const leadMes = String(leadData.getMonth() + 1).padStart(2, '0');
-      return filtroMesAno === `${leadAno}-${leadMes}`;
+        if (!filtroMesAno) return true;
+        if (!leadDateStr) return false;
+        const leadData = new Date(leadDateStr);
+        const leadAno = leadData.getFullYear();
+        const leadMes = String(leadData.getMonth() + 1).padStart(2, '0');
+        return filtroMesAno === `${leadAno}-${leadMes}`;
     };
 
     const nomeContemFiltro = (leadNome, filtroNome) => {
-      if (!filtroNome) return true;
-      if (!leadNome) return false;
+        if (!filtroNome) return true;
+        if (!leadNome) return false;
 
-      const nomeNormalizado = normalizarTexto(leadNome);
-      const filtroNormalizado = normalizarTexto(filtroNome);
+        const nomeNormalizado = normalizarTexto(leadNome);
+        const filtroNormalizado = normalizarTexto(filtroNome);
 
-      return nomeNormalizado.includes(filtroNormalizado);
+        return nomeNormalizado.includes(filtroNormalizado);
     };
 
     const leadsFiltrados = leads.filter((lead) => {
-      if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
+        if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
 
-      if (filtroData) {
-        const leadMesAno = lead.createdAt ? lead.createdAt.substring(0, 7) : '';
-        return leadMesAno === filtroData;
-      }
+        if (filtroData) {
+            const leadMesAno = lead.createdAt ? lead.createdAt.substring(0, 7) : '';
+            return leadMesAno === filtroData;
+        }
 
-      if (filtroNome) {
-        return nomeContemFiltro(lead.name, filtroNome);
-      }
+        if (filtroNome) {
+            return nomeContemFiltro(lead.name, filtroNome);
+        }
 
-      return true;
+        return true;
     });
 
     const gerais = [...leadsFiltrados].sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt) : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt) : 0;
-      return dateB - dateA;
+        const dateA = a.createdAt ? new Date(a.createdAt) : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt) : 0;
+        return dateB - dateA;
     });
 
     const totalPaginas = Math.max(1, Math.ceil(gerais.length / leadsPorPagina));
@@ -149,58 +143,57 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const isAdmin = usuarioLogado?.tipo === 'Admin';
 
     const handleSelect = (leadId, userId) => {
-      setSelecionados((prev) => ({
-        ...prev,
-        [leadId]: Number(userId),
-      }));
+        setSelecionados((prev) => ({
+            ...prev,
+            [leadId]: Number(userId),
+        }));
     };
 
     const handleEnviar = (leadId) => {
-      const userId = selecionados[leadId];
-      if (!userId) {
-        alert('Selecione um usuário antes de enviar.');
-        return;
-      }
+        const userId = selecionados[leadId];
+        if (!userId) {
+            alert('Selecione um usuário antes de enviar.');
+            return;
+        }
 
-      transferirLead(leadId, userId);
+        transferirLead(leadId, userId);
 
-      const lead = leads.find((l) => l.id === leadId);
-      const leadAtualizado = { ...lead, usuarioId: userId };
+        const lead = leads.find((l) => l.id === leadId);
+        const leadAtualizado = { ...lead, usuarioId: userId };
 
-      enviarLeadAtualizado(leadAtualizado);
+        enviarLeadAtualizado(leadAtualizado);
     };
 
-    // FUNÇÃO ENVIAR LEAD ATUALIZADO CORRIGIDA
     const enviarLeadAtualizado = async (lead) => {
-      try {
-        const response = await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          body: JSON.stringify({
-            v: 'alterar_atribuido',
-            lead: lead
-          }),
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        console.log('Lead atualizado enviado (com no-cors).');
-        // O `no-cors` não permite ler a resposta,
-        // mas você pode fazer um re-fetch para atualizar a lista
-        setTimeout(() => {
-          fetchLeadsFromSheet();
-        }, 1000);
-      } catch (error) {
-        console.error('Erro ao enviar lead (rede ou CORS):', error);
-      }
+        try {
+            const response = await fetch(GOOGLE_SHEETS_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({
+                    v: 'alterar_atribuido',
+                    lead: lead
+                }),
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+            console.log('Lead atualizado enviado (com no-cors).');
+            // O `no-cors` não permite ler a resposta,
+            // mas você pode fazer um re-fetch para atualizar a lista
+            setTimeout(() => {
+                fetchLeadsFromSheet();
+            }, 1000);
+        } catch (error) {
+            console.error('Erro ao enviar lead (rede ou CORS):', error);
+        }
     };
 
     const handleAlterar = (leadId) => {
-      setSelecionados((prev) => ({
-        ...prev,
-        [leadId]: '',
-      }));
-      transferirLead(leadId, null);
+        setSelecionados((prev) => ({
+            ...prev,
+            [leadId]: '',
+        }));
+        transferirLead(leadId, null);
     };
 
     const inicio = (paginaCorrigida - 1) * leadsPorPagina;
@@ -208,445 +201,437 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const leadsPagina = gerais.slice(inicio, fim);
 
     const handlePaginaAnterior = () => {
-      setPaginaAtual((prev) => {
-        const novaPagina = Math.max(prev - 1, 1);
-        if (scrollContainerRef.current) {
-          scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-        return novaPagina;
-      });
+        setPaginaAtual((prev) => Math.max(prev - 1, 1));
     };
 
     const handlePaginaProxima = () => {
-      setPaginaAtual((prev) => {
-        const novaPagina = Math.min(prev + 1, totalPaginas);
-        if (scrollContainerRef.current) {
-          scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-        return novaPagina;
-      });
+        setPaginaAtual((prev) => Math.min(prev + 1, totalPaginas));
     };
 
     const formatarData = (dataStr) => {
-      if (!dataStr) return '';
-      let data;
-      if (dataStr.includes('/')) {
-        const partes = dataStr.split('/');
-        data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
-      } else if (dataStr.includes('-') && dataStr.length === 10) {
-        const partes = dataStr.split('-');
-        data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
-      } else {
-        data = new Date(dataStr);
-      }
+        if (!dataStr) return '';
+        let data;
+        if (dataStr.includes('/')) {
+            const partes = dataStr.split('/');
+            data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+        } else if (dataStr.includes('-') && dataStr.length === 10) {
+            const partes = dataStr.split('-');
+            data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+        } else {
+            data = new Date(dataStr);
+        }
 
-      if (isNaN(data.getTime())) {
-        return '';
-      }
-      return data.toLocaleDateString('pt-BR');
+        if (isNaN(data.getTime())) {
+            return '';
+        }
+        return data.toLocaleDateString('pt-BR');
     };
 
     const handleObservacaoChange = (leadId, text) => {
-      setObservacoes((prev) => ({
-        ...prev,
-        [leadId]: text,
-      }));
+        setObservacoes((prev) => ({
+            ...prev,
+            [leadId]: text,
+        }));
     };
 
     const handleSalvarObservacao = async (leadId) => {
-      const observacaoTexto = observacoes[leadId] || '';
-      if (!observacaoTexto.trim()) {
-        alert('Por favor, digite uma observação antes de salvar.');
-        return;
-      }
+        const observacaoTexto = observacoes[leadId] || '';
+        if (!observacaoTexto.trim()) {
+            alert('Por favor, digite uma observação antes de salvar.');
+            return;
+        }
 
-      setIsLoading(true);
-      try {
-        await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          body: JSON.stringify({
-            leadId: leadId,
-            observacao: observacaoTexto,
-          }),
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+        setIsLoading(true);
+        try {
+            await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({
+                    leadId: leadId,
+                    observacao: observacaoTexto,
+                }),
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
 
-        setIsEditing(false);
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+            setIsEditing(false);
+            setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
 
-      } catch (error) {
-        console.error('Erro ao salvar observação:', error);
-        alert('Erro ao salvar observação. Por favor, tente novamente.');
-      } finally {
-        setIsLoading(false);
-      }
+            setTimeout(() => {
+                fetchLeadsFromSheet();
+            }, 1000);
+        } catch (error) {
+            console.error('Erro ao salvar observação:', error);
+            alert('Erro ao salvar observação. Por favor, tente novamente.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleAlterarObservacao = (leadId) => {
-      setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
     };
 
     const handleConfirmStatus = (leadId, novoStatus, phone) => {
-      if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
-        setIsEditing(true);
-      } else {
-        setIsEditing(false);
-      }
+        if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
+            setIsEditing(true);
+        } else {
+            setIsEditing(false);
+        }
 
-      onUpdateStatus(leadId, novoStatus, phone);
+        onUpdateStatus(leadId, novoStatus, phone);
 
-      const currentLead = leads.find(l => l.id === leadId);
-      const hasNoObservacao = !currentLead?.observacao || currentLead.observacao.trim() === '';
+        const currentLead = leads.find(l => l.id === leadId);
+        const hasNoObservacao = !currentLead?.observacao || currentLead.observacao.trim() === '';
 
-      if ( (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao ) {
-          setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-      } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
-          setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-      } else {
-          setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-      }
+        if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao) {
+            setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+        } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
+            setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+        } else {
+            setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+        }
     };
 
     return (
-      <div id="leads-container" style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
-        {isLoading && (
-          <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
-            <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
-            <p className="ml-4 text-lg text-gray-700">Carregando LEADS...</p>
-          </div>
-        )}
+        <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
+            {isLoading && (
+                <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
+                    <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
+                    <p className="ml-4 text-lg text-gray-700">Carregando LEADS...</p>
+                </div>
+            )}
 
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '15px',
-            gap: '10px',
-            flexWrap: 'wrap',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <h1 style={{ margin: 0 }}>Leads</h1>
-
-            <button
-              title='Clique para atualizar os dados'
-              onClick={handleRefreshLeads}
-              disabled={isLoading}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                padding: '0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#007bff'
-              }}
-            >
-              {isLoading ? (
-                <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <RefreshCcw size={20} />
-              )}
-            </button>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              flexGrow: 1,
-              justifyContent: 'center',
-              minWidth: '300px',
-            }}
-          >
-            <button
-              onClick={aplicarFiltroNome}
-              style={{
-                backgroundColor: '#007bff',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                padding: '6px 14px',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Filtrar
-            </button>
-            <input
-              type="text"
-              placeholder="Filtrar por nome"
-              value={nomeInput}
-              onChange={(e) => setNomeInput(e.target.value)}
-              style={{
-                padding: '6px 10px',
-                borderRadius: '6px',
-                border: '1px solid #ccc',
-                width: '220px',
-                maxWidth: '100%',
-              }}
-              title="Filtrar leads pelo nome (contém)"
-            />
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              minWidth: '220px',
-            }}
-          >
-            <button
-              onClick={aplicarFiltroData}
-              style={{
-                backgroundColor: '#007bff',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                padding: '6px 14px',
-                cursor: 'pointer',
-              }}
-            >
-              Filtrar
-            </button>
-            <input
-              type="month"
-              value={dataInput}
-              onChange={(e) => setDataInput(e.target.value)}
-              style={{
-                padding: '6px 10px',
-                borderRadius: '6px',
-                border: '1px solid #ccc',
-                cursor: 'pointer',
-              }}
-              title="Filtrar leads pelo mês e ano de criação"
-            />
-          </div>
-        </div>
-
-        {isLoading ? (
-          null
-        ) : gerais.length === 0 ? (
-          <p>Não há leads pendentes para os filtros aplicados.</p>
-        ) : (
-          <>
-            {leadsPagina.map((lead) => {
-              const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
-
-              return (
-                <div
-                  key={lead.id}
-                  style={{
-                    border: '1px solid #ccc',
-                    borderRadius: '8px',
-                    padding: '15px',
-                    marginBottom: '15px',
-                    position: 'relative',
+            <div
+                style={{
                     display: 'flex',
-                    gap: '1px',
-                    alignItems: 'flex-start',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '15px',
+                    gap: '10px',
                     flexWrap: 'wrap',
-                  }}
-                >
-                  <div style={{ flex: '1 1 50%', minWidth: '300px' }}>
-                    <Lead
-                      lead={lead}
-                      onUpdateStatus={handleConfirmStatus}
-                      disabledConfirm={!lead.responsavel}
-                    />
-                  </div>
+                }}
+            >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <h1 style={{ margin: 0 }}>Leads</h1>
 
-                  {(lead.status === 'Em Contato' || lead.status === 'Sem Contato') && (
-                    <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
-                      <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
-                        Observações:
-                      </label>
-                      <textarea
-                        id={`observacao-${lead.id}`}
-                        value={observacoes[lead.id] || ''}
-                        onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
-                        placeholder="Adicione suas observações aqui..."
-                        rows="3"
-                        disabled={!isEditingObservacao[lead.id]}
+                    <button
+                        title='Clique para atualizar os dados'
+                        onClick={handleRefreshLeads}
+                        disabled={isLoading}
                         style={{
-                          width: '100%',
-                          padding: '10px',
-                          borderRadius: '6px',
-                          border: '1px solid #ccc',
-                          resize: 'vertical',
-                          boxSizing: 'border-box',
-                          backgroundColor: isEditingObservacao[lead.id] ? '#fff' : '#f0f0f0',
-                          cursor: isEditingObservacao[lead.id] ? 'text' : 'not-allowed',
+                            background: 'none',
+                            border: 'none',
+                            cursor: isLoading ? 'not-allowed' : 'pointer',
+                            padding: '0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#007bff'
                         }}
-                      ></textarea>
-                      {isEditingObservacao[lead.id] ? (
-                        <button
-                          onClick={() => handleSalvarObservacao(lead.id)}
-                          style={{
-                            marginTop: '10px',
-                            padding: '8px 16px',
+                    >
+                        {isLoading ? (
+                            <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        ) : (
+                            <RefreshCcw size={20} />
+                        )}
+                    </button>
+                </div>
+
+                <div
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        flexGrow: 1,
+                        justifyContent: 'center',
+                        minWidth: '300px',
+                    }}
+                >
+                    <button
+                        onClick={aplicarFiltroNome}
+                        style={{
                             backgroundColor: '#007bff',
                             color: 'white',
                             border: 'none',
-                            borderRadius: '4px',
+                            borderRadius: '6px',
+                            padding: '6px 14px',
                             cursor: 'pointer',
-                            fontWeight: 'bold',
-                          }}
-                        >
-                          Salvar Observação
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleAlterarObservacao(lead.id)}
-                          style={{
-                            marginTop: '10px',
-                            padding: '8px 16px',
-                            backgroundColor: '#ffc107',
-                            color: '#000',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Alterar Observação
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  <div style={{ width: '100%' }}>
-                    {lead.responsavel && responsavel ? (
-                      <div style={{ marginTop: '10px' }}>
-                        <p style={{ color: '#28a745' }}>
-                          Transferido para <strong>{responsavel.nome}</strong>
-                        </p>
-                        {isAdmin && (
-                          <button
-                            onClick={() => handleAlterar(lead.id)}
-                            style={{
-                              marginTop: '5px',
-                              padding: '5px 12px',
-                              backgroundColor: '#ffc107',
-                              color: '#000',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Alterar
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <div
-                        style={{
-                          marginTop: '0px',
-                          display: 'flex',
-                          gap: '10px',
-                          alignItems: 'center',
+                            whiteSpace: 'nowrap',
                         }}
-                      >
-                        <select
-                          value={selecionados[lead.id] || ''}
-                          onChange={(e) => handleSelect(lead.id, e.target.value)}
-                          style={{
-                            padding: '5px',
-                            borderRadius: '4px',
+                    >
+                        Filtrar
+                    </button>
+                    <input
+                        type="text"
+                        placeholder="Filtrar por nome"
+                        value={nomeInput}
+                        onChange={(e) => setNomeInput(e.target.value)}
+                        style={{
+                            padding: '6px 10px',
+                            borderRadius: '6px',
                             border: '1px solid #ccc',
-                          }}
-                        >
-                          <option value="">Selecione usuário ativo</option>
-                          {usuariosAtivos.map((u) => (
-                            <option key={u.id} value={u.id}>
-                              {u.nome}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => handleEnviar(lead.id)}
-                          style={{
-                            padding: '5px 12px',
-                            backgroundColor: '#28a745',
+                            width: '220px',
+                            maxWidth: '100%',
+                        }}
+                        title="Filtrar leads pelo nome (contém)"
+                    />
+                </div>
+
+                <div
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        minWidth: '220px',
+                    }}
+                >
+                    <button
+                        onClick={aplicarFiltroData}
+                        style={{
+                            backgroundColor: '#007bff',
                             color: 'white',
                             border: 'none',
-                            borderRadius: '4px',
+                            borderRadius: '6px',
+                            padding: '6px 14px',
                             cursor: 'pointer',
-                          }}
-                        >
-                          Enviar
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: '10px',
-                      right: '15px',
-                      fontSize: '12px',
-                      color: '#888',
-                      fontStyle: 'italic',
-                    }}
-                    title={`Criado em: ${formatarData(lead.createdAt)}`}
-                  >
-                    {formatarData(lead.createdAt)}
-                  </div>
+                        }}
+                    >
+                        Filtrar
+                    </button>
+                    <input
+                        type="month"
+                        value={dataInput}
+                        onChange={(e) => setDataInput(e.target.value)}
+                        style={{
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            border: '1px solid #ccc',
+                            cursor: 'pointer',
+                        }}
+                        title="Filtrar leads pelo mês e ano de criação"
+                    />
                 </div>
-              );
-            })}
-
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'center',
-                gap: '15px',
-                marginTop: '20px',
-              }}
-            >
-              <button
-                onClick={handlePaginaAnterior}
-                disabled={paginaCorrigida <= 1 || isLoading}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  border: '1px solid #ccc',
-                  cursor: (paginaCorrigida <= 1 || isLoading) ? 'not-allowed' : 'pointer',
-                  backgroundColor: (paginaCorrigida <= 1 || isLoading) ? '#f0f0f0' : '#fff',
-                }}
-              >
-                Anterior
-              </button>
-              <span style={{ alignSelf: 'center' }}>
-                Página {paginaCorrigida} de {totalPaginas}
-              </span>
-              <button
-                onClick={handlePaginaProxima}
-                disabled={paginaCorrigida >= totalPaginas || isLoading}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  border: '1px solid #ccc',
-                  cursor: (paginaCorrigida >= totalPaginas || isLoading) ? 'not-allowed' : 'pointer',
-                  backgroundColor: (paginaCorrigida >= totalPaginas || isLoading) ? '#f0f0f0' : '#fff',
-                }}
-              >
-                Próxima
-              </button>
             </div>
-          </>
-        )}
-      </div>
+
+            {isLoading ? (
+                null
+            ) : gerais.length === 0 ? (
+                <p>Não há leads pendentes para os filtros aplicados.</p>
+            ) : (
+                <>
+                    {leadsPagina.map((lead) => {
+                        const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
+
+                        return (
+                            <div
+                                key={lead.id}
+                                style={{
+                                    border: '1px solid #ccc',
+                                    borderRadius: '8px',
+                                    padding: '15px',
+                                    marginBottom: '15px',
+                                    position: 'relative',
+                                    display: 'flex',
+                                    gap: '1px',
+                                    alignItems: 'flex-start',
+                                    flexWrap: 'wrap',
+                                }}
+                            >
+                                <div style={{ flex: '1 1 50%', minWidth: '300px' }}>
+                                    <Lead
+                                        lead={lead}
+                                        onUpdateStatus={handleConfirmStatus}
+                                        disabledConfirm={!lead.responsavel}
+                                    />
+                                </div>
+
+                                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato') && (
+                                    <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
+                                        <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
+                                            Observações:
+                                        </label>
+                                        <textarea
+                                            id={`observacao-${lead.id}`}
+                                            value={observacoes[lead.id] || ''}
+                                            onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
+                                            placeholder="Adicione suas observações aqui..."
+                                            rows="3"
+                                            disabled={!isEditingObservacao[lead.id]}
+                                            style={{
+                                                width: '100%',
+                                                padding: '10px',
+                                                borderRadius: '6px',
+                                                border: '1px solid #ccc',
+                                                resize: 'vertical',
+                                                boxSizing: 'border-box',
+                                                backgroundColor: isEditingObservacao[lead.id] ? '#fff' : '#f0f0f0',
+                                                cursor: isEditingObservacao[lead.id] ? 'text' : 'not-allowed',
+                                            }}
+                                        ></textarea>
+                                        {isEditingObservacao[lead.id] ? (
+                                            <button
+                                                onClick={() => handleSalvarObservacao(lead.id)}
+                                                style={{
+                                                    marginTop: '10px',
+                                                    padding: '8px 16px',
+                                                    backgroundColor: '#007bff',
+                                                    color: 'white',
+                                                    border: 'none',
+                                                    borderRadius: '4px',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 'bold',
+                                                }}
+                                            >
+                                                Salvar Observação
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => handleAlterarObservacao(lead.id)}
+                                                style={{
+                                                    marginTop: '10px',
+                                                    padding: '8px 16px',
+                                                    backgroundColor: '#ffc107',
+                                                    color: '#000',
+                                                    border: 'none',
+                                                    borderRadius: '4px',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 'bold',
+                                                }}
+                                            >
+                                                Alterar Observação
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div style={{ width: '100%' }}>
+                                    {lead.responsavel && responsavel ? (
+                                        <div style={{ marginTop: '10px' }}>
+                                            <p style={{ color: '#28a745' }}>
+                                                Transferido para <strong>{responsavel.nome}</strong>
+                                            </p>
+                                            {isAdmin && (
+                                                <button
+                                                    onClick={() => handleAlterar(lead.id)}
+                                                    style={{
+                                                        marginTop: '5px',
+                                                        padding: '5px 12px',
+                                                        backgroundColor: '#ffc107',
+                                                        color: '#000',
+                                                        border: 'none',
+                                                        borderRadius: '4px',
+                                                        cursor: 'pointer',
+                                                    }}
+                                                >
+                                                    Alterar
+                                                </button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div
+                                            style={{
+                                                marginTop: '0px',
+                                                display: 'flex',
+                                                gap: '10px',
+                                                alignItems: 'center',
+                                            }}
+                                        >
+                                            <select
+                                                value={selecionados[lead.id] || ''}
+                                                onChange={(e) => handleSelect(lead.id, e.target.value)}
+                                                style={{
+                                                    padding: '5px',
+                                                    borderRadius: '4px',
+                                                    border: '1px solid #ccc',
+                                                }}
+                                            >
+                                                <option value="">Selecione usuário ativo</option>
+                                                {usuariosAtivos.map((u) => (
+                                                    <option key={u.id} value={u.id}>
+                                                        {u.nome}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                onClick={() => handleEnviar(lead.id)}
+                                                style={{
+                                                    padding: '5px 12px',
+                                                    backgroundColor: '#28a745',
+                                                    color: 'white',
+                                                    border: 'none',
+                                                    borderRadius: '4px',
+                                                    cursor: 'pointer',
+                                                }}
+                                            >
+                                                Enviar
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div
+                                    style={{
+                                        position: 'absolute',
+                                        bottom: '10px',
+                                        right: '15px',
+                                        fontSize: '12px',
+                                        color: '#888',
+                                        fontStyle: 'italic',
+                                    }}
+                                    title={`Criado em: ${formatarData(lead.createdAt)}`}
+                                >
+                                    {formatarData(lead.createdAt)}
+                                </div>
+                            </div>
+                        );
+                    })}
+
+                    <div
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            gap: '15px',
+                            marginTop: '20px',
+                        }}
+                    >
+                        <button
+                            onClick={handlePaginaAnterior}
+                            disabled={paginaCorrigida <= 1 || isLoading}
+                            style={{
+                                padding: '6px 14px',
+                                borderRadius: '6px',
+                                border: '1px solid #ccc',
+                                cursor: (paginaCorrigida <= 1 || isLoading) ? 'not-allowed' : 'pointer',
+                                backgroundColor: (paginaCorrigida <= 1 || isLoading) ? '#f0f0f0' : '#fff',
+                            }}
+                        >
+                            Anterior
+                        </button>
+                        <span style={{ alignSelf: 'center' }}>
+                            Página {paginaCorrigida} de {totalPaginas}
+                        </span>
+                        <button
+                            onClick={handlePaginaProxima}
+                            disabled={paginaCorrigida >= totalPaginas || isLoading}
+                            style={{
+                                padding: '6px 14px',
+                                borderRadius: '6px',
+                                border: '1px solid #ccc',
+                                cursor: (paginaCorrigida >= totalPaginas || isLoading) ? 'not-allowed' : 'pointer',
+                                backgroundColor: (paginaCorrigida >= totalPaginas || isLoading) ? '#f0f0f0' : '#fff',
+                            }}
+                        >
+                            Próxima
+                        </button>
+                    </div>
+                </>
+            )}
+        </div>
     );
 };
 
