@@ -183,20 +183,6 @@ function App() {
     }
   }, [leadSelecionado, isEditing]);
 
-  // NOVO useEffect PARA A AUTOROLAGEM
-  useEffect(() => {
-    // Rola a página para o topo quando a contagem de leads aumenta
-    if (leads.length > leadsCount && mainContentRef.current) {
-      mainContentRef.current.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-      });
-    }
-    // Atualiza a contagem de leads para a próxima comparação
-    setLeadsCount(leads.length);
-  }, [leads]);
-
-
   const fetchLeadsFechadosFromSheet = async () => {
     try {
       const response = await fetch(GOOGLE_SHEETS_LEADS_FECHADOS)
