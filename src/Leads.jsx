@@ -3,7 +3,6 @@ import Lead from './components/Lead';
 import { RefreshCcw } from 'lucide-react';
 
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec';
-const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?v=alterar_atribuido';
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?action=salvarObservacao';
 
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, isEditing, setIsEditing, scrollContainerRef }) => {
@@ -52,8 +51,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
-
-  // Removido o useEffect anterior para evitar conflitos
 
   const handleRefreshLeads = async () => {
     setIsLoading(true);
@@ -175,16 +172,24 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const enviarLeadAtualizado = async (lead) => {
     try {
-      const response = await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
+      const response = await fetch(GOOGLE_SHEETS_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
-        body: JSON.stringify(lead),
+        body: JSON.stringify({
+          v: 'alterar_atribuido',
+          lead: lead
+        }),
         headers: {
           'Content-Type': 'application/json',
         },
       });
+      console.log('Requisição de atribuição enviada (com no-cors).');
+      // Opcional: buscar leads atualizados para refletir a mudança
+      setTimeout(() => {
+        fetchLeadsFromSheet();
+      }, 1000);
     } catch (error) {
-      console.error('Erro ao enviar lead:', error);
+      console.error('Erro ao enviar lead para atribuição:', error);
     }
   };
 
@@ -200,12 +205,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const fim = inicio + leadsPorPagina;
   const leadsPagina = gerais.slice(inicio, fim);
 
-  // --- Funções de Paginação Modificadas ---
   const handlePaginaAnterior = () => {
     setPaginaAtual((prev) => {
       const novaPagina = Math.max(prev - 1, 1);
       if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' }); // Rola para o topo
+        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
       }
       return novaPagina;
     });
@@ -215,12 +219,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setPaginaAtual((prev) => {
       const novaPagina = Math.min(prev + 1, totalPaginas);
       if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' }); // Rola para o topo
+        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
       }
       return novaPagina;
     });
   };
-  // --- Fim das Funções de Paginação Modificadas ---
 
   const formatarData = (dataStr) => {
     if (!dataStr) return '';
