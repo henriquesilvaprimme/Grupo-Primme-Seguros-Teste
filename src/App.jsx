@@ -563,6 +563,8 @@ function App() {
                 leadSelecionado={leadSelecionado}
                 // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE LeadsPerdidos
                 setIsEditing={setIsEditing}
+                // Adicione a prop scrollContainerRef aqui
+                scrollContainerRef={mainContentRef}
               />
             }
           />
