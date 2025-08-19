@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // Importe 'useRef'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 
 // Importe os componentes do seu projeto
@@ -384,28 +384,27 @@ function App() {
       )
     );
   };
-  
-  // FUNÇÃO transferirLead CORRIGIDA
+
   const transferirLead = (leadId, responsavelId) => {
     if (responsavelId === null) {
-        setLeads((prev) =>
-            prev.map((lead) =>
-                lead.id === leadId ? { ...lead, responsavel: null } : lead
-            )
-        );
-        return;
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.id === leadId ? { ...lead, responsavel: null } : lead
+        )
+      );
+      return;
     }
 
     let usuario = usuarios.find((u) => u.id == responsavelId);
 
     if (!usuario) {
-        return;
+      return;
     }
 
     setLeads((prev) =>
-        prev.map((lead) =>
-            lead.id === leadId ? { ...lead, responsavel: usuario.nome } : lead
-        )
+      prev.map((lead) =>
+        lead.id === leadId ? { ...lead, responsavel: usuario.nome } : lead
+      )
     );
   };
 
@@ -564,8 +563,6 @@ function App() {
                 leadSelecionado={leadSelecionado}
                 // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE LeadsPerdidos
                 setIsEditing={setIsEditing}
-                // Adicione a prop scrollContainerRef aqui
-                scrollContainerRef={mainContentRef}
               />
             }
           />
