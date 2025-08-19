@@ -22,9 +22,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const isEditingRef = useRef(isEditing);
 
-  // Crie uma referência para o container de leads para poder rolar
-  const leadsContainerRef = useRef(null);
-
   useEffect(() => {
     isEditingRef.current = isEditing;
   }, [isEditing]);
@@ -56,6 +53,10 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     };
   }, []);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [paginaAtual]);
+
   const handleRefreshLeads = async () => {
     setIsLoading(true);
     try {
@@ -85,15 +86,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       .trim();
   };
 
-  // Funções de filtro com rolagem
   const aplicarFiltroData = () => {
     setFiltroData(dataInput);
     setFiltroNome('');
     setNomeInput('');
     setPaginaAtual(1);
-    if (leadsContainerRef.current) {
-      leadsContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
   };
 
   const aplicarFiltroNome = () => {
@@ -102,9 +99,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroData('');
     setDataInput('');
     setPaginaAtual(1);
-    if (leadsContainerRef.current) {
-      leadsContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
   };
 
   const isSameMonthAndYear = (leadDateStr, filtroMesAno) => {
@@ -185,6 +179,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
+      // A chamada para `fetchLeadsFromSheet()` foi removida aqui para permitir que `App.jsx` gerencie o refresh.
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
     }
@@ -202,25 +197,12 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const fim = inicio + leadsPorPagina;
   const leadsPagina = gerais.slice(inicio, fim);
 
-  // Funções de paginação com rolagem
   const handlePaginaAnterior = () => {
-    setPaginaAtual((prev) => {
-      const novaPagina = Math.max(prev - 1, 1);
-      if (leadsContainerRef.current) {
-        leadsContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-      return novaPagina;
-    });
+    setPaginaAtual((prev) => Math.max(prev - 1, 1));
   };
 
   const handlePaginaProxima = () => {
-    setPaginaAtual((prev) => {
-      const novaPagina = Math.min(prev + 1, totalPaginas);
-      if (leadsContainerRef.current) {
-        leadsContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-      return novaPagina;
-    });
+    setPaginaAtual((prev) => Math.min(prev + 1, totalPaginas));
   };
 
   const formatarData = (dataStr) => {
@@ -230,14 +212,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         const partes = dataStr.split('/');
         data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
     } else if (dataStr.includes('-') && dataStr.length === 10) {
-      const partes = dataStr.split('-');
-      data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+        const partes = dataStr.split('-');
+        data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
     } else {
-      data = new Date(dataStr);
+        data = new Date(dataStr);
     }
 
     if (isNaN(data.getTime())) {
-      return '';
+        return '';
     }
     return data.toLocaleDateString('pt-BR');
   };
@@ -273,6 +255,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       setIsEditing(false);
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
 
+      // A chamada para `fetchLeadsFromSheet()` foi removida aqui para permitir que `App.jsx` gerencie o refresh.
     } catch (error) {
       console.error('Erro ao salvar observação:', error);
       alert('Erro ao salvar observação. Por favor, tente novamente.');
@@ -307,7 +290,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   return (
-    <div ref={leadsContainerRef} style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
+    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
       {isLoading && (
         <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
