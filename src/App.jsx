@@ -48,6 +48,7 @@ function App() {
     img.onload = () => setBackgroundLoaded(true);
   }, []);
 
+  // NOVO useEffect para rolagem. Ele será acionado toda vez que a página mudar.
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [location.pathname]);
@@ -128,7 +129,7 @@ function App() {
 
       if (Array.isArray(data)) {
         // Remove a ordenação aqui. O Apps Script já deve retornar a ordem correta.
-        const sortedData = data;  
+        const sortedData = data;
         
         const formattedLeads = sortedData.map((item, index) => ({
           id: item.id ? Number(item.id) : index + 1,
