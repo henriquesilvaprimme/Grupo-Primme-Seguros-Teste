@@ -195,10 +195,12 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const handlePaginaAnterior = () => {
     setPaginaAtual((prev) => Math.max(prev - 1, 1));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handlePaginaProxima = () => {
     setPaginaAtual((prev) => Math.min(prev + 1, totalPaginas));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const formatarData = (dataStr) => {
