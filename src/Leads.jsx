@@ -19,6 +19,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const [nomeInput, setNomeInput] = useState('');
   const [filtroNome, setFiltroNome] = useState('');
+  
+  const [filtroStatus, setFiltroStatus] = useState('');
 
   const isEditingRef = useRef(isEditing);
 
@@ -99,6 +101,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroData(dataInput);
     setFiltroNome('');
     setNomeInput('');
+    setFiltroStatus('');
     setPaginaAtual(1);
   };
 
@@ -107,6 +110,16 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroNome(filtroLimpo);
     setFiltroData('');
     setDataInput('');
+    setFiltroStatus('');
+    setPaginaAtual(1);
+  };
+
+  const aplicarFiltroStatus = (status) => {
+    setFiltroStatus(status);
+    setFiltroData('');
+    setDataInput('');
+    setFiltroNome('');
+    setNomeInput('');
     setPaginaAtual(1);
   };
 
@@ -130,6 +143,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   const leadsFiltrados = leads.filter((lead) => {
+    // Aplica o filtro de status se houver
+    if (filtroStatus && lead.status !== filtroStatus) {
+      return false;
+    }
+
     if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
 
     if (filtroData) {
@@ -140,7 +158,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     if (filtroNome) {
       return nomeContemFiltro(lead.name, filtroNome);
     }
-
     return true;
   });
 
@@ -345,6 +362,55 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             )}
           </button>
         </div>
+        
+        {/* Novos botões de filtro de status */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => aplicarFiltroStatus('Em Contato')}
+            style={{
+              backgroundColor: filtroStatus === 'Em Contato' ? '#ff8c00' : '#ffa500',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '6px 14px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Em Contato
+          </button>
+          <button
+            onClick={() => aplicarFiltroStatus('Sem Contato')}
+            style={{
+              backgroundColor: filtroStatus === 'Sem Contato' ? '#808080' : '#a9a9a9',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '6px 14px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Sem Contato
+          </button>
+          {filtroStatus && (
+            <button
+              onClick={() => aplicarFiltroStatus('')}
+              style={{
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '6px 14px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Remover Filtro
+            </button>
+          )}
+        </div>
+        {/* Fim dos novos botões */}
 
         <div
           style={{
