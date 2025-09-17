@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
-// import { Phone } from 'lucide-react'; <-- REMOVIDO: Ícone de telefone para o botão do WhatsApp não é mais necessário
 
-const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
+const Lead = ({ lead, onUpdateStatus, disabledConfirm, agendamento, onAgendamentoChange, onConfirmAgendamento }) => {
   const [status, setStatus] = useState(lead.status || '');
-  // `isStatusConfirmed` para controlar o bloqueio da seleção e exibição do botão "Alterar"
   const [isStatusConfirmed, setIsStatusConfirmed] = useState(
-    lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido'
+    lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status === 'Agendado'
   );
+  const [showAgendamento, setShowAgendamento] = useState(false);
 
-  // Define a cor do card conforme o status
   const cardColor = (() => {
     switch (status) {
       case 'Fechado':
@@ -19,6 +17,8 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
         return '#fff3cd'; // laranja claro
       case 'Sem Contato':
         return '#e2e3e5'; // cinza claro
+      case 'Agendado':
+        return '#cce5ff'; // azul claro para agendamento
       case 'Selecione o status':
       case '':
       default:
@@ -26,12 +26,15 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
     }
   })();
 
-  // Sincroniza o estado `isStatusConfirmed` quando o `lead.status` muda (ex: após um refresh de leads)
   useEffect(() => {
     setIsStatusConfirmed(
-      lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido'
+      lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status === 'Agendado'
     );
-    setStatus(lead.status || ''); // Garante que o status exibido esteja sempre atualizado com o lead
+    setStatus(lead.status || '');
+    // Esconde o agendamento se o status não for "Agendado"
+    if (lead.status !== 'Agendado') {
+      setShowAgendamento(false);
+    }
   }, [lead.status]);
 
   const handleConfirm = () => {
@@ -40,19 +43,29 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       return;
     }
 
-    enviarLeadAtualizado(lead.id, status, lead.phone);
+    if (status === 'Agendado') {
+      // Se for agendamento, apenas mostra o calendário, não confirma ainda
+      setShowAgendamento(true);
+      return;
+    }
 
-    // Após a confirmação, bloqueia a caixa de seleção e define o status como confirmado
+    enviarLeadAtualizado(lead.id, status, lead.phone);
     setIsStatusConfirmed(true);
 
     if (onUpdateStatus) {
-      onUpdateStatus(lead.id, status, lead.phone); // chama o callback pra informar a atualização
+      onUpdateStatus(lead.id, status, lead.phone);
     }
   };
 
   const handleAlterar = () => {
-    // Permite a edição do status novamente
     setIsStatusConfirmed(false);
+    setShowAgendamento(false); // Esconde o campo de agendamento ao alterar
+  };
+
+  const handleConfirmAgendamento = () => {
+    onConfirmAgendamento(); // Chama a função passada via props para salvar no banco
+    setIsStatusConfirmed(true);
+    setShowAgendamento(false); // Esconde o campo de agendamento
   };
 
   const enviarLeadAtualizado = async (leadId, status, phone) => {
@@ -96,8 +109,13 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
           value={status}
           onChange={(e) => {
             setStatus(e.target.value);
+            // Se o status for Agendado, mostra o campo de agendamento
+            if (e.target.value === 'Agendado') {
+              setShowAgendamento(true);
+            } else {
+              setShowAgendamento(false);
+            }
           }}
-          // O select é desabilitado se o status já foi confirmado
           disabled={isStatusConfirmed}
           style={{
             marginRight: '10px',
@@ -105,20 +123,18 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
             border: '2px solid #ccc',
             borderRadius: '4px',
             minWidth: '160px',
-            // Estilo para indicar que está desabilitado
             backgroundColor: isStatusConfirmed ? '#e9ecef' : '#fff',
             cursor: isStatusConfirmed ? 'not-allowed' : 'pointer'
           }}
         >
           <option value="">Selecione o status</option>
-          {/* REMOVIDO: <option value="Novo">Novo</option> */}
           <option value="Em Contato">Em Contato</option>
           <option value="Fechado">Fechado</option>
           <option value="Perdido">Perdido</option>
           <option value="Sem Contato">Sem Contato</option>
+          <option value="Agendado">Agendado</option>
         </select>
 
-        {/* Lógica condicional para exibir Confirmar ou Alterar */}
         {!isStatusConfirmed ? (
           <button
             onClick={handleConfirm}
@@ -139,8 +155,8 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
             onClick={handleAlterar}
             style={{
               padding: '8px 16px',
-              backgroundColor: '#ffc107', // Cor amarela
-              color: '#212529', // Texto escuro para contraste
+              backgroundColor: '#ffc107',
+              color: '#212529',
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer'
@@ -151,29 +167,32 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
         )}
       </div>
 
-      {/* REMOVIDO: Botão do WhatsApp */}
-      {/*
-      <div style={{ marginTop: '10px' }}>
-        <a
-          href={`https://wa.me/${lead.phone}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            backgroundColor: '#25D366',
-            color: 'white',
-            padding: '8px 12px',
-            borderRadius: '5px',
-            textDecoration: 'none',
-            fontSize: '0.9em',
-          }}
-        >
-          <Phone size={16} /> Enviar WhatsApp
-        </a>
-      </div>
-      */}
+      {showAgendamento && (
+        <div style={{ marginTop: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' }}>Data do Agendamento:</label>
+          <input
+            type="date"
+            value={agendamento}
+            onChange={(e) => onAgendamentoChange(e.target.value)}
+            style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+          />
+          <button
+            onClick={onConfirmAgendamento}
+            disabled={!agendamento}
+            style={{
+              marginLeft: '10px',
+              padding: '8px 16px',
+              backgroundColor: !agendamento ? '#aaa' : '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: !agendamento ? 'not-allowed' : 'pointer'
+            }}
+          >
+            Confirmar Agendamento
+          </button>
+        </div>
+      )}
     </div>
   );
 };
