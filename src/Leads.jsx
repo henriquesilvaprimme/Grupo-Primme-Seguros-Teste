@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Lead from './components/Lead';
 import { RefreshCcw } from 'lucide-react';
 
+// Nova URL para o script do GAS que salva a data de agendamento
+const SALVAR_AGENDAMENTO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarAgendamento';
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
@@ -16,10 +18,13 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const [dataInput, setDataInput] = useState('');
   const [filtroData, setFiltroData] = useState('');
-
+  
+  // Novo estado para a data de agendamento por lead
+  const [agendamentos, setAgendamentos] = useState({});
+  
   const [nomeInput, setNomeInput] = useState('');
   const [filtroNome, setFiltroNome] = useState('');
-  
+   
   const [filtroStatus, setFiltroStatus] = useState('');
 
   const isEditingRef = useRef(isEditing);
@@ -44,12 +49,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   useEffect(() => {
     const initialObservacoes = {};
     const initialIsEditingObservacao = {};
+    const initialAgendamentos = {}; // Inicializa o estado de agendamentos
     leads.forEach(lead => {
       initialObservacoes[lead.id] = lead.observacao || '';
       initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
+      initialAgendamentos[lead.id] = lead.agendado || ''; // Popula o estado com a data do Sheets
     });
     setObservacoes(initialObservacoes);
     setIsEditingObservacao(initialIsEditingObservacao);
+    setAgendamentos(initialAgendamentos); // Define o estado de agendamentos
   }, [leads]);
 
   useEffect(() => {
@@ -73,10 +81,13 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     try {
       await fetchLeadsFromSheet();
       const refreshedIsEditingObservacao = {};
+      const refreshedAgendamentos = {};
       leads.forEach(lead => {
         refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
+        refreshedAgendamentos[lead.id] = lead.agendado || '';
       });
       setIsEditingObservacao(refreshedIsEditingObservacao);
+      setAgendamentos(refreshedAgendamentos);
     } catch (error) {
       console.error('Erro ao buscar leads atualizados:', error);
     } finally {
@@ -161,7 +172,27 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     return true;
   });
 
+  // Função para checar se a data de agendamento é hoje
+  const isAgendadoParaHoje = (dataAgendamento) => {
+    if (!dataAgendamento) return false;
+    const hoje = new Date();
+    const [dia, mes, ano] = dataAgendamento.split('/').map(Number);
+    const agendado = new Date(ano, mes - 1, dia);
+
+    return hoje.getDate() === agendado.getDate() &&
+           hoje.getMonth() === agendado.getMonth() &&
+           hoje.getFullYear() === agendado.getFullYear();
+  };
+
   const gerais = [...leadsFiltrados].sort((a, b) => {
+    // Nova lógica de ordenação: leads agendados para hoje vêm primeiro
+    const aAgendadoParaHoje = isAgendadoParaHoje(a.agendado);
+    const bAgendadoParaHoje = isAgendadoParaHoje(b.agendado);
+    
+    if (aAgendadoParaHoje && !bAgendadoParaHoje) return -1;
+    if (!aAgendadoParaHoje && bAgendadoParaHoje) return 1;
+
+    // Se as datas de agendamento não são hoje, ordena por data de criação
     const dateA = a.createdAt ? new Date(a.createdAt) : 0;
     const dateB = b.createdAt ? new Date(b.createdAt) : 0;
     return dateB - dateA;
@@ -312,6 +343,43 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     } else {
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+    }
+  };
+  
+  // Nova função para salvar o agendamento
+  const handleSalvarAgendamento = async (leadId, dataAgendamento) => {
+    if (!dataAgendamento) {
+        alert('Por favor, selecione uma data para agendar.');
+        return;
+    }
+    
+    // Formata a data para dd/mm/yyyy
+    const [ano, mes, dia] = dataAgendamento.split('-');
+    const dataFormatada = `${dia}/${mes}/${ano}`;
+
+    setIsLoading(true);
+    try {
+        await fetch(SALVAR_AGENDAMENTO_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({
+                leadId: leadId,
+                agendado: dataFormatada,
+            }),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        
+        // Atualiza o estado local do agendamento
+        setAgendamentos(prev => ({ ...prev, [leadId]: dataFormatada }));
+        alert('Agendamento salvo com sucesso!');
+        await fetchLeadsFromSheet(); // Recarrega os leads para aplicar a nova ordenação
+    } catch (error) {
+        console.error('Erro ao salvar agendamento:', error);
+        alert('Erro ao salvar agendamento. Por favor, tente novamente.');
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -496,12 +564,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         <>
           {leadsPagina.map((lead) => {
             const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
+            // Verifica se o lead está agendado para hoje para aplicar a cor azul
+            const agendadoParaHoje = isAgendadoParaHoje(lead.agendado);
 
             return (
               <div
                 key={lead.id}
                 style={{
-                  border: '1px solid #ccc',
+                  border: agendadoParaHoje ? '2px solid #007bff' : '1px solid #ccc',
+                  backgroundColor: agendadoParaHoje ? '#e6f2ff' : '#fff', // Cor de fundo azul claro
                   borderRadius: '8px',
                   padding: '15px',
                   marginBottom: '15px',
@@ -576,6 +647,44 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                         Alterar Observação
                       </button>
                     )}
+                    
+                    {/* Nova seção de agendamento */}
+                    <div style={{ marginTop: '15px' }}>
+                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
+                            Agendar Contato:
+                        </label>
+                        <input
+                            type="date"
+                            value={agendamentos[lead.id] ? new Date(agendamentos[lead.id].split('/').reverse().join('-')).toISOString().substring(0, 10) : ''}
+                            onChange={(e) => setAgendamentos(prev => ({ ...prev, [lead.id]: e.target.value }))}
+                            style={{
+                                padding: '8px',
+                                borderRadius: '6px',
+                                border: '1px solid #ccc',
+                            }}
+                        />
+                        <button
+                            onClick={() => handleSalvarAgendamento(lead.id, agendamentos[lead.id])}
+                            style={{
+                                marginTop: '10px',
+                                padding: '8px 16px',
+                                backgroundColor: '#28a745',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold',
+                                marginLeft: '10px'
+                            }}
+                        >
+                            Agendar
+                        </button>
+                        {lead.agendado && (
+                            <p style={{ marginTop: '5px', fontSize: '12px', color: '#666' }}>
+                                Contato agendado para: <strong>{lead.agendado}</strong>
+                            </p>
+                        )}
+                    </div>
                   </div>
                 )}
 
