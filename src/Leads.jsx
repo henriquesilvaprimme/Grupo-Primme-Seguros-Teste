@@ -6,7 +6,8 @@ const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vuj
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
 // ⚠️ ATENÇÃO: VOCÊ PRECISARÁ CRIAR ESTE SCRIPT NO GAS para salvar observações.
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
-
+// NOVO: Adicione este URL para salvar o agendamento.
+const SALVAR_AGENDAMENTO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarAgendamento';
 
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
   const [selecionados, setSelecionados] = useState({}); // { [leadId]: userId }
@@ -16,6 +17,10 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   // NOVO: Estados para Observações e controle de edição
   const [observacoes, setObservacoes] = useState({}); // { [leadId]: 'texto da observação' }
   const [isEditingObservacao, setIsEditingObservacao] = useState({}); // { [leadId]: true/false }
+
+  // NOVO: Estados para o agendamento
+  const [agendamento, setAgendamento] = useState({}); // { [leadId]: 'YYYY-MM-DD' }
+  const [statusTemp, setStatusTemp] = useState({}); // Estado temporário para o status
 
   // Estados para filtro por data (mes e ano) - INICIAM LIMPOS
   const [dataInput, setDataInput] = useState('');
@@ -29,16 +34,18 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   useEffect(() => {
     const initialObservacoes = {};
     const initialIsEditingObservacao = {};
+    const initialAgendamento = {};
     leads.forEach(lead => {
       initialObservacoes[lead.id] = lead.observacao || ''; // Carrega a observação existente
       // Se a observação já existe, isEditingObservacao é false (para mostrar o botão Alterar)
       // Caso contrário, é true (para permitir a digitação e mostrar o botão Salvar)
       initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
+      initialAgendamento[lead.id] = lead.agendamento || ''; // Carrega a data de agendamento existente
     });
     setObservacoes(initialObservacoes);
     setIsEditingObservacao(initialIsEditingObservacao);
+    setAgendamento(initialAgendamento);
   }, [leads]);
-
 
   // Função para buscar leads atualizados do Google Sheets, agora controlando o isLoading
   const handleRefreshLeads = async () => {
@@ -47,11 +54,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       await fetchLeadsFromSheet();
       // NOVO: Reinicia o estado de edição da observação após um refresh
       const refreshedIsEditingObservacao = {};
+      const refreshedAgendamento = {};
       leads.forEach(lead => {
         // Após o refresh, reavalia se a observação já existe para definir o estado de edição
         refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
+        refreshedAgendamento[lead.id] = lead.agendamento || '';
       });
       setIsEditingObservacao(refreshedIsEditingObservacao);
+      setAgendamento(refreshedAgendamento);
     } catch (error) {
       console.error('Erro ao buscar leads atualizados:', error);
     } finally {
@@ -194,22 +204,22 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     if (!dataStr) return '';
     let data;
     if (dataStr.includes('/')) {
-        // Formato DD/MM/AAAA
-        const partes = dataStr.split('/');
-        // Constrói a data explicitamente como local
-        data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+      // Formato DD/MM/AAAA
+      const partes = dataStr.split('/');
+      // Constrói a data explicitamente como local
+      data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
     } else if (dataStr.includes('-') && dataStr.length === 10) {
       // Formato YYYY-MM-DD
       const partes = dataStr.split('-');
       // Constrói a data explicitamente como local
       data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
     } else {
-        // Fallback para outros formatos ou strings de data já completas
-        data = new Date(dataStr);
+      // Fallback para outros formatos ou strings de data já completas
+      data = new Date(dataStr);
     }
 
     if (isNaN(data.getTime())) {
-        return '';
+      return '';
     }
     return data.toLocaleDateString('pt-BR');
   };
@@ -262,6 +272,45 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
   };
 
+  // NOVO: Função para o agendamento
+  const handleAgendamentoChange = (leadId, date) => {
+    setAgendamento(prev => ({ ...prev, [leadId]: date }));
+  };
+
+  const handleConfirmAgendamento = async (leadId) => {
+    const dataAgendada = agendamento[leadId];
+    if (!dataAgendada) {
+      alert('Por favor, selecione uma data para o agendamento.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Envia a data de agendamento para o Google Apps Script
+      await fetch(SALVAR_AGENDAMENTO_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({
+          leadId: leadId,
+          dataAgendada: dataAgendada,
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      // Atualiza o status do lead para "Agendado" e re-busca os leads
+      onUpdateStatus(leadId, 'Agendado');
+      fetchLeadsFromSheet();
+
+    } catch (error) {
+      console.error('Erro ao salvar agendamento:', error);
+      alert('Erro ao salvar agendamento. Por favor, tente novamente.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Importante: A função onUpdateStatus que você passa para o Lead.jsx
   // precisará ser aprimorada para que, após a confirmação,
   // ela possa "desbloquear" a observação (setar isEditingObservacao como true para o lead)
@@ -272,17 +321,16 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const currentLead = leads.find(l => l.id === leadId);
     const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
 
-    if ( (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao ) {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-    } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
-        // Se já tinha observação e o status é Em Contato/Sem Contato, mantém bloqueado para Alterar
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+    if ( (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus === 'Agendado') && hasNoObservacao ) {
+      setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+    } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus === 'Agendado') {
+      // Se já tinha observação e o status é Em Contato/Sem Contato, mantém bloqueado para Alterar
+      setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     } else {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false })); // Desabilita para outros status
+      setIsEditingObservacao(prev => ({ ...prev, [leadId]: false })); // Desabilita para outros status
     }
     fetchLeadsFromSheet(); // Recarrega os leads para refletir a mudança de status
   };
-
 
   return (
     <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
@@ -311,14 +359,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             onClick={handleRefreshLeads}
             disabled={isLoading}
             style={{
-                background: 'none',
-                border: 'none',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                padding: '0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#007bff'
+              background: 'none',
+              border: 'none',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              padding: '0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#007bff'
             }}
           >
             {isLoading ? (
@@ -437,10 +485,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     lead={lead}
                     onUpdateStatus={handleConfirmStatus} // Usando a nova função wrapper
                     disabledConfirm={!lead.responsavel}
+                    // Passa a data de agendamento e o manipulador de alteração
+                    agendamento={agendamento[lead.id]}
+                    onAgendamentoChange={(date) => handleAgendamentoChange(lead.id, date)}
+                    onConfirmAgendamento={() => handleConfirmAgendamento(lead.id)}
                   />
                 </div>
 
-                {/* NOVO: Campo de Observações - Aparece apenas para status "Em Contato" ou "Sem Contato" */}
+                {/* NOVO: Campo de Observações - Aparece apenas para status "Em Contato", "Sem Contato" ou "Agendado" */}
                 {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Agendado') && (
                   <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
