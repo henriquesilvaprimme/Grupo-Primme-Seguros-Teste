@@ -1,93 +1,58 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Lead from './components/Lead';
 import { RefreshCcw } from 'lucide-react';
 
-// Nova URL para o script do GAS que salva a data de agendamento
-const SALVAR_AGENDAMENTO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarAgendamento';
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
+// NOVO: Script para salvar a data agendada
+const SALVAR_AGENDAMENTO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarAgendamento';
 
-const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, isEditing, setIsEditing }) => {
+
+const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
   const [selecionados, setSelecionados] = useState({});
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-
   const [observacoes, setObservacoes] = useState({});
   const [isEditingObservacao, setIsEditingObservacao] = useState({});
-
   const [dataInput, setDataInput] = useState('');
   const [filtroData, setFiltroData] = useState('');
-  
-  // Novo estado para a data de agendamento por lead
-  const [agendamentos, setAgendamentos] = useState({});
-  
   const [nomeInput, setNomeInput] = useState('');
   const [filtroNome, setFiltroNome] = useState('');
-   
-  const [filtroStatus, setFiltroStatus] = useState('');
+  
+  // NOVO: Estado para armazenar a data agendada para cada lead
+  const [datasAgendadas, setDatasAgendadas] = useState({});
 
-  const isEditingRef = useRef(isEditing);
-
-  // 1. Crie uma referência para o elemento principal do componente
-  const containerRef = useRef(null);
-
-  // 2. Use o useEffect para rolar a tela quando a página mudar
-  useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-      });
-    }
-  }, [paginaAtual]); // A rolagem é acionada quando o estado 'paginaAtual' muda
-
-  useEffect(() => {
-    isEditingRef.current = isEditing;
-  }, [isEditing]);
 
   useEffect(() => {
     const initialObservacoes = {};
     const initialIsEditingObservacao = {};
-    const initialAgendamentos = {}; // Inicializa o estado de agendamentos
+    const initialDatasAgendadas = {}; // NOVO: Inicializa o estado de datas agendadas
+    
     leads.forEach(lead => {
       initialObservacoes[lead.id] = lead.observacao || '';
       initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
-      initialAgendamentos[lead.id] = lead.agendado || ''; // Popula o estado com a data do Sheets
+      initialDatasAgendadas[lead.id] = lead.agendado || ''; // Carrega a data agendada existente
     });
+
     setObservacoes(initialObservacoes);
     setIsEditingObservacao(initialIsEditingObservacao);
-    setAgendamentos(initialAgendamentos); // Define o estado de agendamentos
+    setDatasAgendadas(initialDatasAgendadas); // NOVO: Atualiza o estado
   }, [leads]);
 
-  useEffect(() => {
-    const handleBeforeUnload = (event) => {
-      if (isEditingRef.current) {
-        event.preventDefault();
-        event.returnValue = 'Você tem observações não salvas. Deseja sair e perder as alterações?';
-        return event.returnValue;
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, []);
 
   const handleRefreshLeads = async () => {
     setIsLoading(true);
     try {
       await fetchLeadsFromSheet();
       const refreshedIsEditingObservacao = {};
-      const refreshedAgendamentos = {};
+      const refreshedDatasAgendadas = {}; // NOVO: Re-inicializa a data agendada após o refresh
       leads.forEach(lead => {
         refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
-        refreshedAgendamentos[lead.id] = lead.agendado || '';
+        refreshedDatasAgendadas[lead.id] = lead.agendado || ''; // Carrega a data agendada existente
       });
       setIsEditingObservacao(refreshedIsEditingObservacao);
-      setAgendamentos(refreshedAgendamentos);
+      setDatasAgendadas(refreshedDatasAgendadas);
     } catch (error) {
       console.error('Erro ao buscar leads atualizados:', error);
     } finally {
@@ -112,7 +77,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroData(dataInput);
     setFiltroNome('');
     setNomeInput('');
-    setFiltroStatus('');
     setPaginaAtual(1);
   };
 
@@ -121,19 +85,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroNome(filtroLimpo);
     setFiltroData('');
     setDataInput('');
-    setFiltroStatus('');
     setPaginaAtual(1);
   };
-
-  const aplicarFiltroStatus = (status) => {
-    setFiltroStatus(status);
-    setFiltroData('');
-    setDataInput('');
-    setFiltroNome('');
-    setNomeInput('');
-    setPaginaAtual(1);
-  };
-
+  
   const isSameMonthAndYear = (leadDateStr, filtroMesAno) => {
     if (!filtroMesAno) return true;
     if (!leadDateStr) return false;
@@ -153,50 +107,41 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     return nomeNormalizado.includes(filtroNormalizado);
   };
 
-  const leadsFiltrados = leads.filter((lead) => {
-    // Aplica o filtro de status se houver
-    if (filtroStatus && lead.status !== filtroStatus) {
-      return false;
-    }
+  const gerais = leads
+    .filter((lead) => {
+      // Exclui Fechado e Perdido, mas inclui os agendados que já passaram da data.
+      if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
 
-    if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
+      // Se a data de agendamento já passou, o lead é incluído no topo
+      if (lead.agendado) {
+        const dataAgendada = new Date(lead.agendado);
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0); // Zera o horário para comparar apenas a data
+        if (dataAgendada <= hoje) {
+          return true;
+        }
+      }
 
-    if (filtroData) {
-      const leadMesAno = lead.createdAt ? lead.createdAt.substring(0, 7) : '';
-      return leadMesAno === filtroData;
-    }
+      // Aplica os filtros de data e nome para leads não agendados ou com agendamento futuro
+      if (filtroData) {
+        const leadMesAno = lead.createdAt ? lead.createdAt.substring(0, 7) : '';
+        return leadMesAno === filtroData;
+      }
 
-    if (filtroNome) {
-      return nomeContemFiltro(lead.name, filtroNome);
-    }
-    return true;
-  });
+      if (filtroNome) {
+        return nomeContemFiltro(lead.name, filtroNome);
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const isAOverdue = a.agendado && new Date(a.agendado) <= new Date(new Date().setHours(0, 0, 0, 0));
+      const isBOverdue = b.agendado && new Date(b.agendado) <= new Date(new Date().setHours(0, 0, 0, 0));
 
-  // Função para checar se a data de agendamento é hoje
-  const isAgendadoParaHoje = (dataAgendamento) => {
-    if (!dataAgendamento) return false;
-    const hoje = new Date();
-    const [dia, mes, ano] = dataAgendamento.split('/').map(Number);
-    const agendado = new Date(ano, mes - 1, dia);
+      if (isAOverdue && !isBOverdue) return -1;
+      if (!isAOverdue && isBOverdue) return 1;
+      return 0;
+    });
 
-    return hoje.getDate() === agendado.getDate() &&
-           hoje.getMonth() === agendado.getMonth() &&
-           hoje.getFullYear() === agendado.getFullYear();
-  };
-
-  const gerais = [...leadsFiltrados].sort((a, b) => {
-    // Nova lógica de ordenação: leads agendados para hoje vêm primeiro
-    const aAgendadoParaHoje = isAgendadoParaHoje(a.agendado);
-    const bAgendadoParaHoje = isAgendadoParaHoje(b.agendado);
-    
-    if (aAgendadoParaHoje && !bAgendadoParaHoje) return -1;
-    if (!aAgendadoParaHoje && bAgendadoParaHoje) return 1;
-
-    // Se as datas de agendamento não são hoje, ordena por data de criação
-    const dateA = a.createdAt ? new Date(a.createdAt) : 0;
-    const dateB = b.createdAt ? new Date(b.createdAt) : 0;
-    return dateB - dateA;
-  });
 
   const totalPaginas = Math.max(1, Math.ceil(gerais.length / leadsPorPagina));
   const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
@@ -217,18 +162,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       alert('Selecione um usuário antes de enviar.');
       return;
     }
-
     transferirLead(leadId, userId);
-
     const lead = leads.find((l) => l.id === leadId);
     const leadAtualizado = { ...lead, usuarioId: userId };
-
     enviarLeadAtualizado(leadAtualizado);
   };
 
   const enviarLeadAtualizado = async (lead) => {
     try {
-      const response = await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
+      await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify(lead),
@@ -236,7 +178,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
-      // A chamada para `fetchLeadsFromSheet()` foi removida aqui para permitir que `App.jsx` gerencie o refresh.
+      fetchLeadsFromSheet();
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
     }
@@ -261,22 +203,22 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const handlePaginaProxima = () => {
     setPaginaAtual((prev) => Math.min(prev + 1, totalPaginas));
   };
-
+  
   const formatarData = (dataStr) => {
     if (!dataStr) return '';
     let data;
     if (dataStr.includes('/')) {
-        const partes = dataStr.split('/');
-        data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+      const partes = dataStr.split('/');
+      data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
     } else if (dataStr.includes('-') && dataStr.length === 10) {
-        const partes = dataStr.split('-');
-        data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+      const partes = dataStr.split('-');
+      data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
     } else {
-        data = new Date(dataStr);
+      data = new Date(dataStr);
     }
 
     if (isNaN(data.getTime())) {
-        return '';
+      return '';
     }
     return data.toLocaleDateString('pt-BR');
   };
@@ -294,7 +236,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       alert('Por favor, digite uma observação antes de salvar.');
       return;
     }
-
     setIsLoading(true);
     try {
       await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
@@ -308,11 +249,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
-
-      setIsEditing(false);
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-
-      // A chamada para `fetchLeadsFromSheet()` foi removida aqui para permitir que `App.jsx` gerencie o refresh.
+      fetchLeadsFromSheet();
     } catch (error) {
       console.error('Erro ao salvar observação:', error);
       alert('Erro ao salvar observação. Por favor, tente novamente.');
@@ -325,17 +263,47 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
   };
 
-  const handleConfirmStatus = (leadId, novoStatus, phone) => {
-    if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
-      setIsEditing(true);
+  const handleConfirmStatus = async (leadId, novoStatus, phone) => {
+    // onUpdateStatus(leadId, novoStatus, phone);
+    
+    // Novo: Lógica para Agendamento
+    if (novoStatus === 'Agendamento') {
+      const dataAgendada = datasAgendadas[leadId];
+      if (!dataAgendada) {
+        alert('Por favor, selecione uma data para o agendamento.');
+        // Mantém o estado como 'Em Contato' se a data não for selecionada
+        const currentLead = leads.find(l => l.id === leadId);
+        onUpdateStatus(leadId, currentLead.status, phone);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        await fetch(SALVAR_AGENDAMENTO_SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          body: JSON.stringify({
+            leadId: leadId,
+            status: novoStatus,
+            agendado: dataAgendada,
+          }),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        alert('Agendamento salvo com sucesso!');
+      } catch (error) {
+        console.error('Erro ao salvar agendamento:', error);
+        alert('Erro ao salvar agendamento. Por favor, tente novamente.');
+      } finally {
+        setIsLoading(false);
+        fetchLeadsFromSheet(); // Recarrega os leads para refletir a mudança
+      }
     } else {
-      setIsEditing(false);
+      onUpdateStatus(leadId, novoStatus, phone);
     }
-
-    onUpdateStatus(leadId, novoStatus, phone);
-
+    
     const currentLead = leads.find(l => l.id === leadId);
-    const hasNoObservacao = !currentLead?.observacao || currentLead.observacao.trim() === '';
+    const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
 
     if ( (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao ) {
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
@@ -344,47 +312,12 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     } else {
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     }
+    fetchLeadsFromSheet();
   };
-  
-  // Nova função para salvar o agendamento
-  const handleSalvarAgendamento = async (leadId, dataAgendamento) => {
-    if (!dataAgendamento) {
-        alert('Por favor, selecione uma data para agendar.');
-        return;
-    }
-    
-    // Formata a data para dd/mm/yyyy
-    const [ano, mes, dia] = dataAgendamento.split('-');
-    const dataFormatada = `${dia}/${mes}/${ano}`;
 
-    setIsLoading(true);
-    try {
-        await fetch(SALVAR_AGENDAMENTO_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            body: JSON.stringify({
-                leadId: leadId,
-                agendado: dataFormatada,
-            }),
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-        
-        // Atualiza o estado local do agendamento
-        setAgendamentos(prev => ({ ...prev, [leadId]: dataFormatada }));
-        alert('Agendamento salvo com sucesso!');
-        await fetchLeadsFromSheet(); // Recarrega os leads para aplicar a nova ordenação
-    } catch (error) {
-        console.error('Erro ao salvar agendamento:', error);
-        alert('Erro ao salvar agendamento. Por favor, tente novamente.');
-    } finally {
-        setIsLoading(false);
-    }
-  };
 
   return (
-    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }} ref={containerRef}>
+    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
       {isLoading && (
         <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
@@ -404,20 +337,19 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <h1 style={{ margin: 0 }}>Leads</h1>
-
           <button
             title='Clique para atualizar os dados'
             onClick={handleRefreshLeads}
             disabled={isLoading}
             style={{
-              background: 'none',
-              border: 'none',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              padding: '0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#007bff'
+                background: 'none',
+                border: 'none',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                padding: '0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#007bff'
             }}
           >
             {isLoading ? (
@@ -430,55 +362,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             )}
           </button>
         </div>
-        
-        {/* Novos botões de filtro de status */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => aplicarFiltroStatus('Em Contato')}
-            style={{
-              backgroundColor: filtroStatus === 'Em Contato' ? '#ff8c00' : '#ffa500',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '6px 14px',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Em Contato
-          </button>
-          <button
-            onClick={() => aplicarFiltroStatus('Sem Contato')}
-            style={{
-              backgroundColor: filtroStatus === 'Sem Contato' ? '#808080' : '#a9a9a9',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '6px 14px',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Sem Contato
-          </button>
-          {filtroStatus && (
-            <button
-              onClick={() => aplicarFiltroStatus('')}
-              style={{
-                backgroundColor: '#dc3545',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                padding: '6px 14px',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Remover Filtro
-            </button>
-          )}
-        </div>
-        {/* Fim dos novos botões */}
 
         <div
           style={{
@@ -564,23 +447,25 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         <>
           {leadsPagina.map((lead) => {
             const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
-            // Verifica se o lead está agendado para hoje para aplicar a cor azul
-            const agendadoParaHoje = isAgendadoParaHoje(lead.agendado);
-
+            
+            // NOVO: Verifica se o lead agendado está com a data passada
+            const isAgendamentoVencido = lead.agendado && new Date(lead.agendado) <= new Date(new Date().setHours(0, 0, 0, 0));
+            const cardColor = isAgendamentoVencido ? '#add8e6' : 'white';
+            
             return (
               <div
                 key={lead.id}
                 style={{
-                  border: agendadoParaHoje ? '2px solid #007bff' : '1px solid #ccc',
-                  backgroundColor: agendadoParaHoje ? '#e6f2ff' : '#fff', // Cor de fundo azul claro
+                  border: '1px solid #ccc',
                   borderRadius: '8px',
                   padding: '15px',
                   marginBottom: '15px',
                   position: 'relative',
                   display: 'flex',
-                  gap: '1px',
+                  gap: '20px',
                   alignItems: 'flex-start',
                   flexWrap: 'wrap',
+                  backgroundColor: cardColor, // Aplica a cor do card
                 }}
               >
                 <div style={{ flex: '1 1 50%', minWidth: '300px' }}>
@@ -588,10 +473,13 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     lead={lead}
                     onUpdateStatus={handleConfirmStatus}
                     disabledConfirm={!lead.responsavel}
+                    datasAgendadas={datasAgendadas}
+                    setDatasAgendadas={setDatasAgendadas}
                   />
                 </div>
 
-                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato') && (
+                {/* Campo de Observações - aparece para status "Em Contato", "Sem Contato" e "Agendamento" */}
+                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Agendamento') && (
                   <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
                       Observações:
@@ -647,47 +535,18 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                         Alterar Observação
                       </button>
                     )}
-                    
-                    {/* Nova seção de agendamento */}
-                    <div style={{ marginTop: '15px' }}>
-                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
-                            Agendar Contato:
-                        </label>
-                        <input
-                            type="date"
-                            value={agendamentos[lead.id] ? new Date(agendamentos[lead.id].split('/').reverse().join('-')).toISOString().substring(0, 10) : ''}
-                            onChange={(e) => setAgendamentos(prev => ({ ...prev, [lead.id]: e.target.value }))}
-                            style={{
-                                padding: '8px',
-                                borderRadius: '6px',
-                                border: '1px solid #ccc',
-                            }}
-                        />
-                        <button
-                            onClick={() => handleSalvarAgendamento(lead.id, agendamentos[lead.id])}
-                            style={{
-                                marginTop: '10px',
-                                padding: '8px 16px',
-                                backgroundColor: '#28a745',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontWeight: 'bold',
-                                marginLeft: '10px'
-                            }}
-                        >
-                            Agendar
-                        </button>
-                        {lead.agendado && (
-                            <p style={{ marginTop: '5px', fontSize: '12px', color: '#666' }}>
-                                Contato agendado para: <strong>{lead.agendado}</strong>
-                            </p>
-                        )}
-                    </div>
                   </div>
                 )}
-
+                
+                {/* NOVO: Exibe a data de agendamento se existir */}
+                {lead.agendado && (
+                  <div style={{ width: '100%', marginTop: '10px', borderTop: '1px solid #eee', paddingTop: '10px' }}>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 'bold' }}>
+                      Agendado para: <span style={{ color: '#007bff' }}>{formatarData(lead.agendado)}</span>
+                    </p>
+                  </div>
+                )}
+                
                 <div style={{ width: '100%' }}>
                   {lead.responsavel && responsavel ? (
                     <div style={{ marginTop: '10px' }}>
@@ -714,7 +573,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   ) : (
                     <div
                       style={{
-                        marginTop: '0px',
+                        marginTop: '10px',
                         display: 'flex',
                         gap: '10px',
                         alignItems: 'center',
