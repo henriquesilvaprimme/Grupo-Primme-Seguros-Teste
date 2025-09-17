@@ -298,13 +298,11 @@ function App() {
         },
       });
 
-      // NOVO: Recarrega os leads para que a nova data apareça
+      // Recarrega os leads para que a nova data apareça
       await fetchLeadsFromSheet();
-      alert('Agendamento confirmado com sucesso!');
       
     } catch (error) {
       console.error('Erro ao confirmar agendamento:', error);
-      alert('Erro ao confirmar agendamento.');
     }
   };
 
