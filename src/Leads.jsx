@@ -241,11 +241,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   const handleConfirmarAgendamento = async (leadId, data) => {
-    // 1. Atualiza o estado local para renderizar a data no card imediatamente
-    setAgendamento(prev => ({ ...prev, [leadId]: data }));
-    
-    // 2. Chama a função principal para salvar no Google Sheets
-    await onConfirmAgendamento(leadId, data);
+    setIsLoading(true);
+    try {
+      await onConfirmAgendamento(leadId, data);
+    } catch (error) {
+      console.error('Erro ao confirmar agendamento:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -395,8 +398,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   flexWrap: 'wrap',
                 }}
               >
-                {/* Verifica se o estado local ou a prop tem agendamento para exibir o balão */}
-                {(agendamento[lead.id] || lead.agendamento) && (
+                {/* A data agora só aparece se a prop lead.agendamento tiver um valor */}
+                {lead.agendamento && (
                   <div style={{
                     position: 'absolute',
                     top: '10px',
@@ -409,7 +412,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     borderRadius: '5px',
                     border: '1px solid #cce5ff'
                   }}>
-                    Agendado para: {formatarDataParaExibicao(agendamento[lead.id] || lead.agendamento)}
+                    Agendado para: {formatarDataParaExibicao(lead.agendamento)}
                   </div>
                 )}
                 
