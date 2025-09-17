@@ -179,7 +179,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     return data.toLocaleDateString('pt-BR');
   };
 
-  // NOVA FUNÇÃO DE FORMATAÇÃO PARA EXIBIÇÃO NO CARD
   const formatarDataParaExibicao = (dataString) => {
     if (!dataString) return '';
     try {
@@ -239,6 +238,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const handleAgendamentoChange = (leadId, date) => {
     setAgendamento(prev => ({ ...prev, [leadId]: date }));
+  };
+
+  const handleConfirmarAgendamento = async (leadId, data) => {
+    // 1. Atualiza o estado local para renderizar a data no card imediatamente
+    setAgendamento(prev => ({ ...prev, [leadId]: data }));
+    
+    // 2. Chama a função principal para salvar no Google Sheets
+    await onConfirmAgendamento(leadId, data);
   };
 
   return (
@@ -388,7 +395,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   flexWrap: 'wrap',
                 }}
               >
-                {lead.agendamento && (
+                {/* Verifica se o estado local ou a prop tem agendamento para exibir o balão */}
+                {(agendamento[lead.id] || lead.agendamento) && (
                   <div style={{
                     position: 'absolute',
                     top: '10px',
@@ -401,7 +409,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     borderRadius: '5px',
                     border: '1px solid #cce5ff'
                   }}>
-                    Agendado para: {formatarDataParaExibicao(lead.agendamento)}
+                    Agendado para: {formatarDataParaExibicao(agendamento[lead.id] || lead.agendamento)}
                   </div>
                 )}
                 
@@ -412,7 +420,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     disabledConfirm={!lead.responsavel}
                     agendamento={agendamento[lead.id]}
                     onAgendamentoChange={(date) => handleAgendamentoChange(lead.id, date)}
-                    onConfirmAgendamento={(data) => onConfirmAgendamento(lead.id, data)}
+                    onConfirmAgendamento={(data) => handleConfirmarAgendamento(lead.id, data)}
                   />
                 </div>
 
