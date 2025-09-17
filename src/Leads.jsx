@@ -483,7 +483,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                 <div style={{ flex: '1 1 50%', minWidth: '300px' }}>
                   <Lead
                     lead={lead}
-                    onUpdateStatus={handleConfirmStatus} // Usando a nova função wrapper
+                    onUpdateStatus={onUpdateStatus} // CORREÇÃO AQUI: Passa a função original onUpdateStatus
                     disabledConfirm={!lead.responsavel}
                     // Passa a data de agendamento e o manipulador de alteração
                     agendamento={agendamento[lead.id]}
