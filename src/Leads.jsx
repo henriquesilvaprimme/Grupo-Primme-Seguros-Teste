@@ -5,9 +5,8 @@ import { RefreshCcw } from 'lucide-react';
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
-const SALVAR_AGENDAMENTO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarAgendamento';
 
-const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
+const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, onConfirmAgendamento }) => {
   const [selecionados, setSelecionados] = useState({});
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -224,36 +223,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setAgendamento(prev => ({ ...prev, [leadId]: date }));
   };
 
-  const handleConfirmAgendamento = async (leadId) => {
-    const dataAgendada = agendamento[leadId];
-    if (!dataAgendada) {
-      alert('Por favor, selecione uma data para o agendamento.');
-      return;
-    }
-    setIsLoading(true);
-    try {
-      await fetch(SALVAR_AGENDAMENTO_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify({
-          leadId: leadId,
-          dataAgendada: dataAgendada,
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      // NOVO: Atualiza o status para Agendado e recarrega os leads
-      onUpdateStatus(leadId, 'Agendado');
-      fetchLeadsFromSheet();
-    } catch (error) {
-      console.error('Erro ao salvar agendamento:', error);
-      alert('Erro ao salvar agendamento. Por favor, tente novamente.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
       {isLoading && (
@@ -401,6 +370,23 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   flexWrap: 'wrap',
                 }}
               >
+                {lead.agendamento && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '10px',
+                    right: '15px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    color: '#007bff',
+                    backgroundColor: '#e6f3ff',
+                    padding: '5px 10px',
+                    borderRadius: '5px',
+                    border: '1px solid #cce5ff'
+                  }}>
+                    Agendado para: {new Date(lead.agendamento).toLocaleDateString()}
+                  </div>
+                )}
+                
                 <div style={{ flex: '1 1 50%', minWidth: '300px' }}>
                   <Lead
                     lead={lead}
@@ -408,7 +394,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     disabledConfirm={!lead.responsavel}
                     agendamento={agendamento[lead.id]}
                     onAgendamentoChange={(date) => handleAgendamentoChange(lead.id, date)}
-                    onConfirmAgendamento={() => handleConfirmAgendamento(lead.id)}
+                    onConfirmAgendamento={(data) => onConfirmAgendamento(lead.id, data)}
                   />
                 </div>
 
@@ -536,7 +522,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   )}
                 </div>
 
-                {/* Data no canto inferior direito */}
                 <div
                   style={{
                     position: 'absolute',
