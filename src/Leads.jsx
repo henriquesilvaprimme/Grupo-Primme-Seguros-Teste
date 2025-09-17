@@ -179,6 +179,24 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     return data.toLocaleDateString('pt-BR');
   };
 
+  // NOVA FUNÇÃO DE FORMATAÇÃO PARA EXIBIÇÃO NO CARD
+  const formatarDataParaExibicao = (dataString) => {
+    if (!dataString) return '';
+    try {
+      const dateObj = new Date(dataString + 'T00:00:00');
+      if (isNaN(dateObj.getTime())) {
+        return dataString;
+      }
+      const dia = String(dateObj.getDate()).padStart(2, '0');
+      const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const ano = dateObj.getFullYear();
+      return `${dia}/${mes}/${ano}`;
+    } catch (error) {
+      console.error('Erro ao formatar data para exibição:', error);
+      return dataString;
+    }
+  };
+
   const handleObservacaoChange = (leadId, text) => {
     setObservacoes((prev) => ({
       ...prev,
@@ -383,7 +401,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     borderRadius: '5px',
                     border: '1px solid #cce5ff'
                   }}>
-                    Agendado para: {new Date(lead.agendamento).toLocaleDateString()}
+                    Agendado para: {formatarDataParaExibicao(lead.agendamento)}
                   </div>
                 )}
                 
