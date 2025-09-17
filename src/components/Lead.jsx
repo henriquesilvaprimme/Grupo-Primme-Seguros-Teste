@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// import { Phone } from 'lucide-react'; // Ícone de telefone para o botão do WhatsApp
+// import { Phone } from 'lucide-react';
 
 const Lead = ({ lead, onUpdateStatus, disabledConfirm, agendamento, onAgendamentoChange, onConfirmAgendamento }) => {
   const [status, setStatus] = useState(lead.status || '');
@@ -8,7 +8,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, agendamento, onAgendament
   );
   const [showAgendamento, setShowAgendamento] = useState(false);
 
-  // Define a cor do card conforme o status
   const cardColor = (() => {
     switch (status) {
       case 'Fechado':
@@ -34,7 +33,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, agendamento, onAgendament
     );
     setStatus(lead.status || '');
     if (lead.status === 'Agendado' && lead.agendamento) {
-      setShowAgendamento(true);
+      setShowAgendamento(false);
     }
   }, [lead.status, lead.agendamento]);
 
@@ -59,9 +58,11 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, agendamento, onAgendament
   };
 
   const handleConfirmAgendamentoClick = () => {
-    onConfirmAgendamento(lead.id);
-    setIsStatusConfirmed(true); // Bloqueia o status após agendar
-    setShowAgendamento(false); // Esconde o campo de data após agendar
+    if (agendamento) {
+      onConfirmAgendamento(agendamento);
+    } else {
+      alert('Selecione uma data para agendar.');
+    }
   };
 
   return (
@@ -81,11 +82,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, agendamento, onAgendament
       <p><strong>Telefone:</strong> {lead.phone}</p>
       <p><strong>Tipo de Seguro:</strong> {lead.insuranceType}</p>
       
-      {/* NOVO: Exibe a data de agendamento em uma nova linha */}
-      {lead.status === 'Agendado' && lead.agendamento && (
-        <p><strong>Agendamento:</strong> {new Date(lead.agendamento).toLocaleDateString()}</p>
-      )}
-
       <div style={{ marginTop: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
         <select
           value={status}
