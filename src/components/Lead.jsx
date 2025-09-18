@@ -1,173 +1,126 @@
 import React, { useState, useEffect } from 'react';
-// import { Phone } from 'lucide-react';
+import { Mail, Phone, Calendar, MapPin, Loader, CheckCircle, XCircle } from 'lucide-react';
 
-const Lead = ({ lead, onUpdateStatus, disabledConfirm, agendamento, onAgendamentoChange, onConfirmAgendamento }) => {
-  const [status, setStatus] = useState(lead.status || '');
-  const [isStatusConfirmed, setIsStatusConfirmed] = useState(
-    lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status === 'Agendado'
-  );
-  const [showAgendamento, setShowAgendamento] = useState(false);
-
-  const cardColor = (() => {
-    switch (status) {
-      case 'Fechado':
-        return '#d4edda';
-      case 'Perdido':
-        return '#f8d7da';
-      case 'Em Contato':
-        return '#fff3cd';
-      case 'Sem Contato':
-        return '#e2e3e5';
-      case 'Agendado':
-        return '#cce5ff';
-      case 'Selecione o status':
-      case '':
-      default:
-        return '#ffffff';
-    }
-  })();
+const Lead = ({ lead, onUpdateStatus, disabledConfirm, agendamento, onAgendamentoChange, onConfirmAgendamento, onAlterarAgendamento }) => {
+  const [statusTemp, setStatusTemp] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
-    setIsStatusConfirmed(
-      lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status === 'Agendado'
-    );
-    setStatus(lead.status || '');
-    if (lead.status === 'Agendado' && lead.agendamento) {
-      setShowAgendamento(false);
-    }
-  }, [lead.status, lead.agendamento]);
+    setStatusTemp(lead.status);
+  }, [lead.status]);
 
-  const handleConfirm = () => {
-    if (!status || status === 'Selecione o status') {
-      alert('Selecione um status antes de confirmar!');
-      return;
+  const handleStatusChange = (e) => {
+    const newStatus = e.target.value;
+    setStatusTemp(newStatus);
+    if (newStatus !== 'Agendado') {
+      onUpdateStatus(lead.id, newStatus);
     }
+  };
 
-    if (status === 'Agendado') {
-      setShowAgendamento(true);
-      return;
+  const handleConfirm = async () => {
+    if (statusTemp === 'Agendado') {
+      await onConfirmAgendamento(lead.id, agendamento);
+    } else {
+      await onUpdateStatus(lead.id, statusTemp);
     }
-
-    onUpdateStatus(lead.id, status, lead.phone);
-    setIsStatusConfirmed(true);
   };
 
   const handleAlterar = () => {
-    setIsStatusConfirmed(false);
-    setShowAgendamento(false);
+    onAlterarAgendamento(lead.id);
   };
 
-  const handleConfirmAgendamentoClick = () => {
-    if (agendamento) {
-      onConfirmAgendamento(agendamento);
-    } else {
-      alert('Selecione uma data para agendar.');
-    }
-  };
+  const isAgendadoAndConfirmed = lead.status === 'Agendado' && lead.agendamento;
 
   return (
-    <div
-      style={{
-        border: '1px solid #ddd',
-        padding: '15px',
-        marginBottom: '15px',
-        borderRadius: '5px',
-        backgroundColor: cardColor
-      }}
-    >
-      <p><strong>Nome:</strong> {lead.name}</p>
-      <p><strong>Modelo do veículo:</strong> {lead.vehicleModel}</p>
-      <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
-      <p><strong>Cidade:</strong> {lead.city}</p>
-      <p><strong>Telefone:</strong> {lead.phone}</p>
-      <p><strong>Tipo de Seguro:</strong> {lead.insuranceType}</p>
-      
-      <div style={{ marginTop: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <select
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
-            if (e.target.value !== 'Agendado') {
-              setShowAgendamento(false);
-            }
-          }}
-          disabled={isStatusConfirmed}
-          style={{
-            marginRight: '10px',
-            padding: '8px',
-            border: '2px solid #ccc',
-            borderRadius: '4px',
-            minWidth: '160px',
-            backgroundColor: isStatusConfirmed ? '#e9ecef' : '#fff',
-            cursor: isStatusConfirmed ? 'not-allowed' : 'pointer'
-          }}
-        >
-          <option value="">Selecione o status</option>
-          <option value="Em Contato">Em Contato</option>
-          <option value="Fechado">Fechado</option>
-          <option value="Perdido">Perdido</option>
-          <option value="Sem Contato">Sem Contato</option>
-          <option value="Agendado">Agendado</option>
-        </select>
-
-        {!isStatusConfirmed ? (
-          <button
-            onClick={handleConfirm}
-            disabled={disabledConfirm || !status || status === '' || status === 'Selecione o status'}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <h3 style={{ margin: 0 }}>{lead.name}</h3>
+        {lead.responsavel && (
+          <span
             style={{
-              padding: '8px 16px',
-              backgroundColor: (disabledConfirm || !status || status === '' || status === 'Selecione o status') ? '#aaa' : '#007bff',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: (disabledConfirm || !status || status === '' || status === 'Selecione o status') ? 'not-allowed' : 'pointer'
+              fontSize: '12px',
+              backgroundColor: '#e9e9e9',
+              padding: '4px 8px',
+              borderRadius: '12px',
+              color: '#555',
             }}
           >
-            Confirmar
-          </button>
-        ) : (
+            {lead.responsavel}
+          </span>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Mail size={16} /> {lead.email}
+        </p>
+        <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Phone size={16} /> {lead.phone}
+        </p>
+        {lead.status === 'Agendado' && (
+          <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Calendar size={16} />
+            <input 
+              type="date" 
+              value={agendamento || lead.agendamento || ''} 
+              onChange={(e) => onAgendamentoChange(e.target.value)} 
+              disabled={isAgendadoAndConfirmed}
+              style={{ padding: '4px', borderRadius: '4px', border: '1px solid #ccc' }} 
+            />
+          </p>
+        )}
+        {lead.localizacao && (
+          <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <MapPin size={16} /> {lead.localizacao}
+          </p>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <select value={statusTemp} onChange={handleStatusChange} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }}>
+          <option value="Em Contato">Em Contato</option>
+          <option value="Sem Contato">Sem Contato</option>
+          <option value="Agendado">Agendado</option>
+          <option value="Fechado">Fechado</option>
+          <option value="Perdido">Perdido</option>
+        </select>
+        
+        {isAgendadoAndConfirmed ? (
           <button
             onClick={handleAlterar}
+            disabled={isUpdating}
             style={{
               padding: '8px 16px',
               backgroundColor: '#ffc107',
-              color: '#212529',
+              color: '#000',
               border: 'none',
               borderRadius: '4px',
-              cursor: 'pointer'
+              cursor: isUpdating ? 'not-allowed' : 'pointer',
+              fontWeight: 'bold',
             }}
           >
             Alterar
           </button>
-        )}
-      </div>
-
-      {showAgendamento && status === 'Agendado' && (
-        <div style={{ marginTop: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Data do Agendamento:</label>
-          <input
-            type="date"
-            value={agendamento}
-            onChange={(e) => onAgendamentoChange(e.target.value)}
-            style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
-          />
+        ) : (
           <button
-            onClick={handleConfirmAgendamentoClick}
-            disabled={!agendamento}
+            onClick={handleConfirm}
+            disabled={disabledConfirm || isUpdating}
             style={{
-              marginLeft: '10px',
               padding: '8px 16px',
-              backgroundColor: !agendamento ? '#aaa' : '#28a745',
+              backgroundColor: '#007bff',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
-              cursor: !agendamento ? 'not-allowed' : 'pointer'
+              cursor: (disabledConfirm || isUpdating) ? 'not-allowed' : 'pointer',
+              fontWeight: 'bold',
+              opacity: (disabledConfirm || isUpdating) ? 0.6 : 1,
             }}
           >
-            Confirmar Agendamento
+            {isUpdating ? <Loader className="animate-spin" size={18} /> : 'Confirmar'}
           </button>
-        </div>
-      )}
+        )}
+        
+      </div>
     </div>
   );
 };
