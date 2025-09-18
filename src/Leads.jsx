@@ -3,9 +3,8 @@ import Lead from './components/Lead';
 import { RefreshCcw, Bell } from 'lucide-react';
 
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
-const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?v=alterar_atribuido';
-const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?action=salvarObservacao';
-const ALTERAR_STATUS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?v=alterar_status';
+const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
+const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
 
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
   const [selecionados, setSelecionados] = useState({});
@@ -96,7 +95,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroStatus(null);
     setPaginaAtual(1);
   };
-
+  
   const aplicarFiltroStatus = (status) => {
     setFiltroStatus(status);
     setFiltroNome('');
@@ -246,10 +245,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     }
 
     setIsLoading(true);
-
-    const currentLead = leads.find(l => l.id === leadId);
-    let novoStatus = currentLead.status;
-
     try {
       await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
         method: 'POST',
@@ -257,7 +252,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         body: JSON.stringify({
           leadId: leadId,
           observacao: observacaoTexto,
-          status: novoStatus
         }),
         headers: {
           'Content-Type': 'application/json',
@@ -277,30 +271,19 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
   };
 
-  const handleConfirmStatus = async (leadId, novoStatus, phone) => {
-    setIsLoading(true);
-    try {
-        await fetch(ALTERAR_STATUS_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            body: JSON.stringify({
-                lead: leadId,
-                status: novoStatus,
-                phone: phone
-            }),
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-        onUpdateStatus(leadId, novoStatus, phone);
+  const handleConfirmStatus = (leadId, novoStatus, phone) => {
+    onUpdateStatus(leadId, novoStatus, phone);
+    const currentLead = leads.find(l => l.id === leadId);
+    const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
+
+    if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao) {
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-        fetchLeadsFromSheet();
-    } catch (error) {
-        console.error('Erro ao enviar lead:', error);
-        alert('Erro ao atualizar o status. Por favor, tente novamente.');
-    } finally {
-        setIsLoading(false);
+    } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+    } else {
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     }
+    fetchLeadsFromSheet();
   };
 
   return (
@@ -329,14 +312,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             onClick={handleRefreshLeads}
             disabled={isLoading}
             style={{
-              background: 'none',
-              border: 'none',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              padding: '0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#007bff'
+                background: 'none',
+                border: 'none',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                padding: '0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#007bff'
             }}
           >
             {isLoading ? (
@@ -387,6 +370,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           />
         </div>
 
+        {/* --- NOVO: CONTEINER ISOLADO PARA O SINO E A BOLHA --- */}
         {hasScheduledToday && (
           <div
             style={{
@@ -408,7 +392,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                 style={{
                   position: 'absolute',
                   top: '-5px',
-                  right: '-5px',
+                  right: '-5px', // 👈 Ajustado para -5px
                   backgroundColor: 'red',
                   color: 'white',
                   borderRadius: '50%',
@@ -573,8 +557,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   />
                 </div>
 
-                {/* ATUALIZADO: Inclui 'Agendado' na condição */}
-                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado')) && (
+                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato') && (
                   <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
                       Observações:
