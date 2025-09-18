@@ -7,8 +7,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
   const [isStatusConfirmed, setIsStatusConfirmed] = useState(
     lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado')
   );
-  // const [showCalendar, setShowCalendar] = useState(false); <-- REMOVIDO: Não usaremos mais o calendário
-  const [scheduledDate, setScheduledDate] = useState('');
 
   // Define a cor do card conforme o status
   const cardColor = (() => {
@@ -42,40 +40,14 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       alert('Selecione um status antes de confirmar!');
       return;
     }
-
-    let newStatus = status;
-
-    // Se o status for "Agendar", exibe o popup e formata a data
-    if (status === 'Agendar') {
-        const agendamento = prompt("Por favor, insira a data do agendamento (DD/MM/YYYY):");
-        if (!agendamento) {
-            // Se o usuário cancelar, não faz nada
-            return;
-        }
-
-        const [dia, mes, ano] = agendamento.split('/');
-        if (!dia || !mes || !ano || ano.length !== 4) {
-            alert("Formato de data inválido. Use DD/MM/YYYY.");
-            return;
-        }
-        
-        const dataFormatada = `${dia}/${mes}/${ano}`;
-        newStatus = `Agendado - ${dataFormatada}`;
-    }
-
-
-    enviarLeadAtualizado(lead.id, newStatus, lead.phone);
-
-    // Após a confirmação, bloqueia a caixa de seleção e define o status como confirmado
+    
+    // Atualiza o status e chama o callback
+    onUpdateStatus(lead.id, status, lead.phone);
     setIsStatusConfirmed(true);
-
-    if (onUpdateStatus) {
-      onUpdateStatus(lead.id, newStatus, lead.phone); // chama o callback pra informar a atualização
-    }
   };
-
+  
   const handleAlterar = () => {
-    // Permite a edição do status novamente e esconde o calendário
+    // Permite a edição do status novamente
     setIsStatusConfirmed(false);
   };
 
