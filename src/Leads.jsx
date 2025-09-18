@@ -33,18 +33,18 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   useEffect(() => {
     const today = new Date();
-    const todayFormatted = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    const todayFormatted = today.toLocaleDateString('pt-BR');
 
     const todayAppointments = leads.filter(lead => {
-      if (!lead.status.startsWith('Agendado')) return false;
-      const statusDateStr = lead.status.split(' - ')[1];
-      if (!statusDateStr) return false;
+        if (!lead.status.startsWith('Agendado')) return false;
+        const statusDateStr = lead.status.split(' - ')[1];
+        if (!statusDateStr) return false;
 
-      const [dia, mes, ano] = statusDateStr.split('/');
-      const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
-      const statusDateFormatted = statusDate.getFullYear() + '-' + String(statusDate.getMonth() + 1).padStart(2, '0') + '-' + String(statusDate.getDate()).padStart(2, '0');
+        const [dia, mes, ano] = statusDateStr.split('/');
+        const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
+        const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
 
-      return statusDateFormatted === todayFormatted;
+        return statusDateFormatted === todayFormatted;
     });
 
     setHasScheduledToday(todayAppointments.length > 0);
@@ -95,7 +95,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroStatus(null);
     setPaginaAtual(1);
   };
-
+  
   const aplicarFiltroStatus = (status) => {
     setFiltroStatus(status);
     setFiltroNome('');
@@ -128,12 +128,12 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     if (filtroStatus) {
       if (filtroStatus === 'Agendado') {
         const today = new Date();
-        const todayFormatted = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+        const todayFormatted = today.toLocaleDateString('pt-BR');
         const statusDateStr = lead.status.split(' - ')[1];
         if (!statusDateStr) return false;
         const [dia, mes, ano] = statusDateStr.split('/');
         const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
-        const statusDateFormatted = statusDate.getFullYear() + '-' + String(statusDate.getMonth() + 1).padStart(2, '0') + '-' + String(statusDate.getDate()).padStart(2, '0');
+        const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
         return lead.status.startsWith('Agendado') && statusDateFormatted === todayFormatted;
       }
       return lead.status === filtroStatus;
@@ -215,17 +215,17 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     if (!dataStr) return '';
     let data;
     if (dataStr.includes('/')) {
-      const partes = dataStr.split('/');
-      data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+        const partes = dataStr.split('/');
+        data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
     } else if (dataStr.includes('-') && dataStr.length === 10) {
-      const partes = dataStr.split('-');
-      data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+        const partes = dataStr.split('-');
+        data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
     } else {
-      data = new Date(dataStr);
+        data = new Date(dataStr);
     }
 
     if (isNaN(data.getTime())) {
-      return '';
+        return '';
     }
     return data.toLocaleDateString('pt-BR');
   };
@@ -246,27 +246,17 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
     setIsLoading(true);
     try {
-      const payload = {
-        action: 'salvarObservacao',
-        leadId: leadId,
-        observacao: observacaoTexto,
-      };
-
-      const response = await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
+      await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
         method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({
+          leadId: leadId,
+          observacao: observacaoTexto,
+        }),
         headers: {
-          'Content-Type': 'text/plain;charset=utf-8',
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
       });
-
-      if (response.ok && response.status !== 204) {
-        const result = await response.json();
-        console.log('Resposta do Google Sheets:', result);
-      } else {
-        console.warn('Resposta sem conteúdo ou não-JSON. Supondo sucesso.');
-      }
-      
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
       fetchLeadsFromSheet();
     } catch (error) {
@@ -286,12 +276,12 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const currentLead = leads.find(l => l.id === leadId);
     const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
 
-    if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) && hasNoObservacao) {
-      setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-    } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) {
-      setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+    if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao) {
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+    } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     } else {
-      setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     }
     fetchLeadsFromSheet();
   };
@@ -322,14 +312,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             onClick={handleRefreshLeads}
             disabled={isLoading}
             style={{
-              background: 'none',
-              border: 'none',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              padding: '0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#007bff'
+                background: 'none',
+                border: 'none',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                padding: '0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#007bff'
             }}
           >
             {isLoading ? (
@@ -380,6 +370,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           />
         </div>
 
+        {/* --- NOVO: CONTEINER ISOLADO PARA O SINO E A BOLHA --- */}
         {hasScheduledToday && (
           <div
             style={{
@@ -401,7 +392,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                 style={{
                   position: 'absolute',
                   top: '-5px',
-                  right: '-5px',
+                  right: '-5px', // 👈 Ajustado para -5px
                   backgroundColor: 'red',
                   color: 'white',
                   borderRadius: '50%',
@@ -542,7 +533,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         <>
           {leadsPagina.map((lead) => {
             const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
-            const isAgendado = lead.status.startsWith('Agendado');
 
             return (
               <div
@@ -567,7 +557,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   />
                 </div>
 
-                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || isAgendado) && (
+                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato') && (
                   <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
                       Observações:
