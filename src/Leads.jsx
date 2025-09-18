@@ -43,17 +43,25 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         isEditingRef.current = isEditing;
     }, [isEditing]);
 
+    // Função para formatar a data para o formato YYYY-MM-DD
+    const formatarDataParaInput = (dataStr) => {
+        if (!dataStr) return '';
+        const [dia, mes, ano] = dataStr.split('/');
+        // Converte para o formato YYYY-MM-DD
+        return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+    };
+
     useEffect(() => {
         const initialObservacoes = {};
         const initialIsEditingObservacao = {};
         const initialIsStatusLocked = {};
-        const initialAgendamentos = {}; 
+        const initialAgendamentos = {};
 
         leads.forEach(lead => {
             initialObservacoes[lead.id] = lead.observacao || '';
             initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
             initialIsStatusLocked[lead.id] = ['Em Contato', 'Sem Contato', 'Fechado', 'Perdido'].includes(lead.status) || lead.status.startsWith('Agendado');
-            initialAgendamentos[lead.id] = lead.agendamento || ''; // AQUI ESTÁ A MUDANÇA
+            initialAgendamentos[lead.id] = formatarDataParaInput(lead.agendamento); // <-- LINHA CORRIGIDA
         });
 
         setObservacoes(initialObservacoes);
@@ -723,50 +731,48 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                                                 </button>
                                             )}
                                         </div>
-                                    ) : isAdmin && !lead.responsavel ? (
-                                        <div
-                                            style={{
-                                                marginTop: '10px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '10px',
-                                            }}
-                                        >
-                                            <select
-                                                value={selecionados[lead.id] || ''}
-                                                onChange={(e) => handleSelect(lead.id, e.target.value)}
-                                                style={{
-                                                    padding: '5px',
-                                                    borderRadius: '4px',
-                                                    border: '1px solid #ccc',
-                                                }}
-                                            >
-                                                <option value="" disabled>
-                                                    Transferir para...
-                                                </option>
-                                                {usuariosAtivos.map((u) => (
-                                                    <option key={u.id} value={u.id}>
-                                                        {u.nome}
+                                    ) : (
+                                        isAdmin && (
+                                            <div style={{ marginTop: '10px' }}>
+                                                <label htmlFor={`selecionar-${lead.id}`} style={{ marginRight: '8px', color: '#555' }}>
+                                                    Atribuir a:
+                                                </label>
+                                                <select
+                                                    id={`selecionar-${lead.id}`}
+                                                    onChange={(e) => handleSelect(lead.id, e.target.value)}
+                                                    value={selecionados[lead.id] || ''}
+                                                    style={{
+                                                        padding: '5px',
+                                                        borderRadius: '4px',
+                                                        border: '1px solid #ccc',
+                                                        marginRight: '8px',
+                                                    }}
+                                                >
+                                                    <option value="" disabled>
+                                                        Selecione um usuário
                                                     </option>
-                                                ))}
-                                            </select>
-                                            <button
-                                                onClick={() => handleEnviar(lead.id)}
-                                                disabled={!selecionados[lead.id]}
-                                                style={{
-                                                    padding: '5px 10px',
-                                                    backgroundColor: '#28a745',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    borderRadius: '4px',
-                                                    cursor: 'pointer',
-                                                    opacity: selecionados[lead.id] ? 1 : 0.5,
-                                                }}
-                                            >
-                                                Enviar
-                                            </button>
-                                        </div>
-                                    ) : null}
+                                                    {usuariosAtivos.map((u) => (
+                                                        <option key={u.id} value={u.id}>
+                                                            {u.nome}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <button
+                                                    onClick={() => handleEnviar(lead.id)}
+                                                    style={{
+                                                        padding: '5px 10px',
+                                                        backgroundColor: '#28a745',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        borderRadius: '4px',
+                                                        cursor: 'pointer',
+                                                    }}
+                                                >
+                                                    Enviar
+                                                </button>
+                                            </div>
+                                        )
+                                    )}
                                 </div>
                             </div>
                         );
@@ -775,17 +781,17 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                         <button
                             onClick={handlePaginaAnterior}
                             disabled={paginaCorrigida === 1}
-                            style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ccc' }}
+                            style={{ padding: '8px 16px', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
                         >
                             Anterior
                         </button>
-                        <span>
+                        <span style={{ padding: '8px 16px' }}>
                             Página {paginaCorrigida} de {totalPaginas}
                         </span>
                         <button
                             onClick={handlePaginaProxima}
                             disabled={paginaCorrigida === totalPaginas}
-                            style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ccc' }}
+                            style={{ padding: '8px 16px', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
                         >
                             Próxima
                         </button>
