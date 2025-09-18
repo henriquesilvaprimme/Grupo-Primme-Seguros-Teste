@@ -15,7 +15,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const [observacoes, setObservacoes] = useState({});
     const [isEditingObservacao, setIsEditingObservacao] = useState({});
     const [isStatusLocked, setIsStatusLocked] = useState({});
-    const [agendamentos, setAgendamentos] = useState({}); // Novo estado para as datas
+    const [agendamentos, setAgendamentos] = useState({});
 
     const [dataInput, setDataInput] = useState('');
     const [filtroData, setFiltroData] = useState('');
@@ -53,15 +53,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             initialObservacoes[lead.id] = lead.observacao || '';
             initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
             initialIsStatusLocked[lead.id] = ['Em Contato', 'Sem Contato', 'Fechado', 'Perdido'].includes(lead.status) || lead.status.startsWith('Agendado');
-            // MODIFICAÇÃO: Captura a data de agendamento se o status já for Agendado
-            if (lead.status.startsWith('Agendado - ')) {
-                const dateStr = lead.status.split(' - ')[1];
-                const [dia, mes, ano] = dateStr.split('/');
-                initialAgendamentos[lead.id] = `${ano}-${mes}-${dia}`;
-            } else {
-                initialAgendamentos[lead.id] = '';
-            }
+            initialAgendamentos[lead.id] = lead.agendamento || ''; // AQUI ESTÁ A MUDANÇA
         });
+
         setObservacoes(initialObservacoes);
         setIsEditingObservacao(initialIsEditingObservacao);
         setIsStatusLocked(initialIsStatusLocked);
@@ -309,7 +303,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         const observacaoTexto = observacoes[leadId] || '';
         const agendamentoData = agendamentos[leadId] || '';
 
-        // MODIFICAÇÃO: Verifica se a data de agendamento está preenchida
         if (!agendamentoData && !observacaoTexto.trim()) {
             alert('Por favor, adicione uma observação ou selecione uma data de agendamento antes de salvar.');
             return;
@@ -319,7 +312,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         try {
             const lead = leads.find(l => l.id === leadId);
 
-            // MODIFICAÇÃO: Cria o novo status se houver data de agendamento
             let novoStatus = lead.status;
             if (agendamentoData) {
                 const [ano, mes, dia] = agendamentoData.split('-');
@@ -330,8 +322,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             const payload = {
                 leadId: leadId,
                 observacao: observacaoTexto,
-                agendamento: agendamentoData, // Envia a data completa
-                novoStatus: novoStatus // Adiciona o novo status
+                agendamento: agendamentoData,
+                novoStatus: novoStatus
             };
 
             await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
@@ -345,7 +337,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             setIsEditing(false);
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
 
-            // MODIFICAÇÃO: Atualiza o status localmente para refletir a mudança imediatamente
             onUpdateStatus(leadId, novoStatus);
             fetchLeadsFromSheet();
         } catch (error) {
@@ -720,82 +711,81 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                                                     onClick={() => handleAlterar(lead.id)}
                                                     style={{
                                                         marginTop: '5px',
-                                                        padding: '5px 12px',
-                                                        backgroundColor: '#ffc107',
-                                                        color: '#000',
+                                                        padding: '5px 10px',
+                                                        backgroundColor: '#dc3545',
+                                                        color: 'white',
                                                         border: 'none',
                                                         borderRadius: '4px',
                                                         cursor: 'pointer',
                                                     }}
                                                 >
-                                                    Alterar
+                                                    Alterar Atribuição
                                                 </button>
                                             )}
                                         </div>
-                                    ) : isAdmin && (
-                                        <div style={{ marginTop: '10px' }}>
+                                    ) : isAdmin && !lead.responsavel ? (
+                                        <div
+                                            style={{
+                                                marginTop: '10px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '10px',
+                                            }}
+                                        >
                                             <select
-                                                onChange={(e) => handleSelect(lead.id, e.target.value)}
                                                 value={selecionados[lead.id] || ''}
+                                                onChange={(e) => handleSelect(lead.id, e.target.value)}
                                                 style={{
-                                                    padding: '8px',
+                                                    padding: '5px',
                                                     borderRadius: '4px',
                                                     border: '1px solid #ccc',
-                                                    marginRight: '10px'
                                                 }}
                                             >
-                                                <option value="">Atribuir a...</option>
-                                                {usuariosAtivos.map(usuario => (
-                                                    <option key={usuario.id} value={usuario.id}>{usuario.nome}</option>
+                                                <option value="" disabled>
+                                                    Transferir para...
+                                                </option>
+                                                {usuariosAtivos.map((u) => (
+                                                    <option key={u.id} value={u.id}>
+                                                        {u.nome}
+                                                    </option>
                                                 ))}
                                             </select>
                                             <button
                                                 onClick={() => handleEnviar(lead.id)}
                                                 disabled={!selecionados[lead.id]}
                                                 style={{
-                                                    padding: '8px 16px',
-                                                    backgroundColor: selecionados[lead.id] ? '#28a745' : '#ccc',
+                                                    padding: '5px 10px',
+                                                    backgroundColor: '#28a745',
                                                     color: 'white',
                                                     border: 'none',
                                                     borderRadius: '4px',
-                                                    cursor: selecionados[lead.id] ? 'pointer' : 'not-allowed',
+                                                    cursor: 'pointer',
+                                                    opacity: selecionados[lead.id] ? 1 : 0.5,
                                                 }}
                                             >
                                                 Enviar
                                             </button>
                                         </div>
-                                    )}
+                                    ) : null}
                                 </div>
                             </div>
                         );
                     })}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px', gap: '10px' }}>
                         <button
                             onClick={handlePaginaAnterior}
                             disabled={paginaCorrigida === 1}
-                            style={{
-                                padding: '10px 20px',
-                                backgroundColor: paginaCorrigida === 1 ? '#ccc' : '#007bff',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: paginaCorrigida === 1 ? 'not-allowed' : 'pointer'
-                            }}
+                            style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ccc' }}
                         >
                             Anterior
                         </button>
-                        <span>Página {paginaCorrigida} de {totalPaginas}</span>
+                        <span>
+                            Página {paginaCorrigida} de {totalPaginas}
+                        </span>
                         <button
                             onClick={handlePaginaProxima}
                             disabled={paginaCorrigida === totalPaginas}
-                            style={{
-                                padding: '10px 20px',
-                                backgroundColor: paginaCorrigida === totalPaginas ? '#ccc' : '#007bff',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: paginaCorrigida === totalPaginas ? 'not-allowed' : 'pointer'
-                            }}
+                            style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ccc' }}
                         >
                             Próxima
                         </button>
