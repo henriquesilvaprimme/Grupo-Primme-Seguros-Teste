@@ -5,26 +5,25 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
   const [status, setStatus] = useState(lead.status || '');
   // `isStatusConfirmed` para controlar o bloqueio da seleção e exibição do botão "Alterar"
   const [isStatusConfirmed, setIsStatusConfirmed] = useState(
-    lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status === 'Agendado'
+    lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado')
   );
   const [showCalendar, setShowCalendar] = useState(false);
   const [scheduledDate, setScheduledDate] = useState('');
 
   // Define a cor do card conforme o status
   const cardColor = (() => {
-    switch (status) {
-      case 'Fechado':
+    switch (true) {
+      case status.startsWith('Fechado'):
         return '#d4edda'; // verde claro
-      case 'Perdido':
+      case status.startsWith('Perdido'):
         return '#f8d7da'; // vermelho claro
-      case 'Em Contato':
+      case status.startsWith('Em Contato'):
         return '#fff3cd'; // laranja claro
-      case 'Sem Contato':
+      case status.startsWith('Sem Contato'):
         return '#e2e3e5'; // cinza claro
-      case 'Agendado':
+      case status.startsWith('Agendado'):
         return '#cce5ff'; // azul claro
-      case 'Selecione o status':
-      case '':
+      case status === 'Selecione o status' || status === '':
       default:
         return '#ffffff'; // branco
     }
@@ -33,7 +32,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
   // Sincroniza o estado `isStatusConfirmed` quando o `lead.status` muda (ex: após um refresh de leads)
   useEffect(() => {
     setIsStatusConfirmed(
-      lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status === 'Agendado'
+      lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado')
     );
     setStatus(lead.status || ''); // Garante que o status exibido esteja sempre atualizado com o lead
   }, [lead.status]);
@@ -103,9 +102,29 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
         padding: '15px',
         marginBottom: '15px',
         borderRadius: '5px',
-        backgroundColor: cardColor
+        backgroundColor: cardColor,
+        position: 'relative'
       }}
     >
+      {/* Exibe o status atual no canto superior direito se o status estiver confirmado */}
+      {isStatusConfirmed && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            padding: '5px 10px',
+            borderRadius: '5px',
+            backgroundColor: '#007bff',
+            color: 'white',
+            fontWeight: 'bold',
+            fontSize: '14px',
+          }}
+        >
+          {status}
+        </div>
+      )}
+
       <p><strong>Nome:</strong> {lead.name}</p>
       <p><strong>Modelo do veículo:</strong> {lead.vehicleModel}</p>
       <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
