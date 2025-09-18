@@ -26,7 +26,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const initialIsEditingObservacao = {};
     leads.forEach(lead => {
       initialObservacoes[lead.id] = lead.observacao || '';
-      initialIsEditingObservacao[lead.id] = false; // Defina como falso para começar não-editável
+      initialIsEditingObservacao[lead.id] = false;
     });
     setObservacoes(initialObservacoes);
     setIsEditingObservacao(initialIsEditingObservacao);
@@ -568,7 +568,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                       onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
                       placeholder="Adicione suas observações aqui..."
                       rows="3"
-                      disabled={!isEditingObservacao[lead.id] && lead.status !== 'Agendar' && lead.status !== 'Em Contato' && lead.status !== 'Sem Contato'}
+                      disabled={!isEditingObservacao[lead.id]}
                       style={{
                         width: '100%',
                         padding: '10px',
