@@ -276,24 +276,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const currentLead = leads.find(l => l.id === leadId);
     const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
 
-    if (novoStatus === 'Agendar') {
-      const dataSelecionada = agendamentoData[leadId];
-      if (!dataSelecionada) {
-        alert('Por favor, selecione uma data para o agendamento.');
-        return;
-      }
-      const statusComData = `Agendado - ${dataSelecionada.split('-').reverse().join('/')}`;
-      onUpdateStatus(leadId, statusComData, phone);
-      if (hasNoObservacao) {
+    onUpdateStatus(leadId, novoStatus, phone);
+    if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus === 'Agendar') && hasNoObservacao) {
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-      }
     } else {
-      onUpdateStatus(leadId, novoStatus, phone);
-      if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao) {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-      } else {
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-      }
     }
     fetchLeadsFromSheet();
   };
@@ -571,41 +558,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     onUpdateStatus={handleConfirmStatus}
                     disabledConfirm={!lead.responsavel}
                   />
-                  {lead.status === 'Agendar' && (
-                    <div style={{ marginTop: '10px' }}>
-                      <label htmlFor={`agendamento-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
-                        Agendar para:
-                      </label>
-                      <input
-                        id={`agendamento-${lead.id}`}
-                        type="date"
-                        value={agendamentoData[lead.id] || ''}
-                        onChange={(e) => handleAgendamentoChange(lead.id, e.target.value)}
-                        style={{
-                          padding: '8px',
-                          borderRadius: '6px',
-                          border: '1px solid #ccc',
-                          boxSizing: 'border-box',
-                          width: '100%',
-                        }}
-                      />
-                      <button
-                        onClick={() => handleConfirmStatus(lead.id, 'Agendar', lead.phone)}
-                        style={{
-                          marginTop: '10px',
-                          padding: '8px 16px',
-                          backgroundColor: '#3498db',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        Confirmar Agendamento
-                      </button>
-                    </div>
-                  )}
                 </div>
 
                 {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado')) && (
