@@ -1,52 +1,80 @@
-import React, { useState, useEffect } from 'react';
-import Lead from './components/Lead'; // Certifique-se de que este caminho está correto
-import { RefreshCcw, Bell } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import Lead from './components/Lead';
+import { RefreshCcw } from 'lucide-react';
 
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
-const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao'; // Certifique-se de que a URL está correta. O seu script anterior usava 'v=salvarObservacao'
+const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
 
-const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
+const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, isEditing, setIsEditing }) => {
   const [selecionados, setSelecionados] = useState({});
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  // Removido: estados de observacoes e edicao de observacao.
+
+  const [observacoes, setObservacoes] = useState({});
+  const [isEditingObservacao, setIsEditingObservacao] = useState({});
+
   const [dataInput, setDataInput] = useState('');
   const [filtroData, setFiltroData] = useState('');
+
   const [nomeInput, setNomeInput] = useState('');
   const [filtroNome, setFiltroNome] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState(null);
-  const [showNotification, setShowNotification] = useState(false);
-  const [hasScheduledToday, setHasScheduledToday] = useState(false);
+
+  const isEditingRef = useRef(isEditing);
+
+  // 1. Crie uma referência para o elemento principal do componente
+  const containerRef = useRef(null);
+
+  // 2. Use o useEffect para rolar a tela quando a página mudar
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  }, [paginaAtual]); // A rolagem é acionada quando o estado 'paginaAtual' muda
 
   useEffect(() => {
-    // Removido: lógica de inicialização de observações, pois agora está no componente Lead
-  }, [leads]);
+    isEditingRef.current = isEditing;
+  }, [isEditing]);
 
   useEffect(() => {
-    const today = new Date();
-    const todayFormatted = today.toLocaleDateString('pt-BR');
-
-    const todayAppointments = leads.filter(lead => {
-      if (!lead.status.startsWith('Agendado')) return false;
-      const statusDateStr = lead.status.split(' - ')[1];
-      if (!statusDateStr) return false;
-
-      const [dia, mes, ano] = statusDateStr.split('/');
-      const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
-      const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
-
-      return statusDateFormatted === todayFormatted;
+    const initialObservacoes = {};
+    const initialIsEditingObservacao = {};
+    leads.forEach(lead => {
+      initialObservacoes[lead.id] = lead.observacao || '';
+      initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
     });
-
-    setHasScheduledToday(todayAppointments.length > 0);
+    setObservacoes(initialObservacoes);
+    setIsEditingObservacao(initialIsEditingObservacao);
   }, [leads]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      if (isEditingRef.current) {
+        event.preventDefault();
+        event.returnValue = 'Você tem observações não salvas. Deseja sair e perder as alterações?';
+        return event.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
 
   const handleRefreshLeads = async () => {
     setIsLoading(true);
     try {
       await fetchLeadsFromSheet();
-      // Removido: lógica de inicialização de observações, pois agora está no componente Lead
+      const refreshedIsEditingObservacao = {};
+      leads.forEach(lead => {
+        refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
+      });
+      setIsEditingObservacao(refreshedIsEditingObservacao);
     } catch (error) {
       console.error('Erro ao buscar leads atualizados:', error);
     } finally {
@@ -71,7 +99,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroData(dataInput);
     setFiltroNome('');
     setNomeInput('');
-    setFiltroStatus(null);
     setPaginaAtual(1);
   };
 
@@ -80,43 +107,30 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroNome(filtroLimpo);
     setFiltroData('');
     setDataInput('');
-    setFiltroStatus(null);
     setPaginaAtual(1);
   };
-  
-  const aplicarFiltroStatus = (status) => {
-    setFiltroStatus(status);
-    setFiltroNome('');
-    setNomeInput('');
-    setFiltroData('');
-    setDataInput('');
-    setPaginaAtual(1);
+
+  const isSameMonthAndYear = (leadDateStr, filtroMesAno) => {
+    if (!filtroMesAno) return true;
+    if (!leadDateStr) return false;
+    const leadData = new Date(leadDateStr);
+    const leadAno = leadData.getFullYear();
+    const leadMes = String(leadData.getMonth() + 1).padStart(2, '0');
+    return filtroMesAno === `${leadAno}-${leadMes}`;
   };
 
   const nomeContemFiltro = (leadNome, filtroNome) => {
     if (!filtroNome) return true;
     if (!leadNome) return false;
+
     const nomeNormalizado = normalizarTexto(leadNome);
     const filtroNormalizado = normalizarTexto(filtroNome);
+
     return nomeNormalizado.includes(filtroNormalizado);
   };
 
-  const gerais = leads.filter((lead) => {
+  const leadsFiltrados = leads.filter((lead) => {
     if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
-
-    if (filtroStatus) {
-      if (filtroStatus === 'Agendado') {
-        const today = new Date();
-        const todayFormatted = today.toLocaleDateString('pt-BR');
-        const statusDateStr = lead.status.split(' - ')[1];
-        if (!statusDateStr) return false;
-        const [dia, mes, ano] = statusDateStr.split('/');
-        const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
-        const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
-        return lead.status.startsWith('Agendado') && statusDateFormatted === todayFormatted;
-      }
-      return lead.status === filtroStatus;
-    }
 
     if (filtroData) {
       const leadMesAno = lead.createdAt ? lead.createdAt.substring(0, 7) : '';
@@ -130,8 +144,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     return true;
   });
 
+  const gerais = [...leadsFiltrados].sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt) : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt) : 0;
+    return dateB - dateA;
+  });
+
   const totalPaginas = Math.max(1, Math.ceil(gerais.length / leadsPorPagina));
   const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
+
   const usuariosAtivos = usuarios.filter((u) => u.status === 'Ativo');
   const isAdmin = usuarioLogado?.tipo === 'Admin';
 
@@ -148,16 +169,18 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       alert('Selecione um usuário antes de enviar.');
       return;
     }
+
     transferirLead(leadId, userId);
+
     const lead = leads.find((l) => l.id === leadId);
     const leadAtualizado = { ...lead, usuarioId: userId };
+
     enviarLeadAtualizado(leadAtualizado);
   };
 
   const enviarLeadAtualizado = async (lead) => {
-    setIsLoading(true);
     try {
-      await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
+      const response = await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify(lead),
@@ -165,12 +188,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
-      fetchLeadsFromSheet(); // Chama a função para buscar os leads atualizados
+      // A chamada para `fetchLeadsFromSheet()` foi removida aqui para permitir que `App.jsx` gerencie o refresh.
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
-      alert('Erro ao enviar lead. Por favor, tente novamente.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -213,9 +233,20 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     return data.toLocaleDateString('pt-BR');
   };
 
-  // Apenas chame a função para buscar os leads novamente no sucesso da requisição
-  // para que a prop 'leads' seja atualizada.
-  const handleSalvarObservacao = async (leadId, observacaoTexto) => {
+  const handleObservacaoChange = (leadId, text) => {
+    setObservacoes((prev) => ({
+      ...prev,
+      [leadId]: text,
+    }));
+  };
+
+  const handleSalvarObservacao = async (leadId) => {
+    const observacaoTexto = observacoes[leadId] || '';
+    if (!observacaoTexto.trim()) {
+      alert('Por favor, digite uma observação antes de salvar.');
+      return;
+    }
+
     setIsLoading(true);
     try {
       await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
@@ -229,7 +260,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
-      await fetchLeadsFromSheet(); // REQUERIDO: AQUI É O PONTO CRÍTICO
+
+      setIsEditing(false);
+      setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+
+      // A chamada para `fetchLeadsFromSheet()` foi removida aqui para permitir que `App.jsx` gerencie o refresh.
     } catch (error) {
       console.error('Erro ao salvar observação:', error);
       alert('Erro ao salvar observação. Por favor, tente novamente.');
@@ -238,33 +273,34 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     }
   };
 
-  // Apenas chame a função para buscar os leads novamente no sucesso da requisição
-  const handleConfirmStatus = async (leadId, novoStatus, phone) => {
-    setIsLoading(true);
-    try {
-      await fetch('https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_status', {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify({
-          lead: leadId,
-          status: novoStatus,
-          phone: phone
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      await fetchLeadsFromSheet(); // REQUERIDO: AQUI É O PONTO CRÍTICO
-    } catch (error) {
-      console.error('Erro ao confirmar status:', error);
-    } finally {
-      setIsLoading(false);
+  const handleAlterarObservacao = (leadId) => {
+    setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+  };
+
+  const handleConfirmStatus = (leadId, novoStatus, phone) => {
+    const statusObservacao = ['Em Contato', 'Sem Contato', 'Agendar'];
+    if (statusObservacao.includes(novoStatus)) {
+      setIsEditing(true);
+    } else {
+      setIsEditing(false);
+    }
+
+    onUpdateStatus(leadId, novoStatus, phone);
+
+    const currentLead = leads.find(l => l.id === leadId);
+    const hasNoObservacao = !currentLead?.observacao || currentLead.observacao.trim() === '';
+
+    if (statusObservacao.includes(novoStatus) && hasNoObservacao) {
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+    } else if (statusObservacao.includes(novoStatus)) {
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+    } else {
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     }
   };
 
-
   return (
-    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
+    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }} ref={containerRef}>
       {isLoading && (
         <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
@@ -284,19 +320,20 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <h1 style={{ margin: 0 }}>Leads</h1>
+
           <button
             title='Clique para atualizar os dados'
             onClick={handleRefreshLeads}
             disabled={isLoading}
             style={{
-                background: 'none',
-                border: 'none',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                padding: '0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#007bff'
+              background: 'none',
+              border: 'none',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              padding: '0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#007bff'
             }}
           >
             {isLoading ? (
@@ -315,6 +352,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
+            flexGrow: 1,
+            justifyContent: 'center',
+            minWidth: '300px',
           }}
         >
           <button
@@ -347,71 +387,12 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           />
         </div>
 
-        {/* --- NOVO: CONTEINER ISOLADO PARA O SINO E A BOLHA --- */}
-        {hasScheduledToday && (
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <div
-              style={{
-                position: 'relative',
-                cursor: 'pointer'
-              }}
-              onClick={() => setShowNotification(!showNotification)}
-            >
-              <Bell size={32} color="#007bff" />
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '-5px',
-                  right: '-5px', // 👈 Ajustado para -5px
-                  backgroundColor: 'red',
-                  color: 'white',
-                  borderRadius: '50%',
-                  width: '20px',
-                  height: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                }}
-              >
-                1
-              </div>
-              {showNotification && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '40px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: '250px',
-                    backgroundColor: 'white',
-                    border: '1px solid #ccc',
-                    borderRadius: '8px',
-                    padding: '15px',
-                    boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
-                    zIndex: 10,
-                  }}
-                >
-                  <p>Você tem agendamentos hoje!</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
+            minWidth: '220px',
           }}
         >
           <button
@@ -442,66 +423,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         </div>
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '15px',
-          marginBottom: '20px',
-          flexWrap: 'wrap',
-        }}
-      >
-        <button
-          onClick={() => aplicarFiltroStatus('Em Contato')}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: filtroStatus === 'Em Contato' ? '#e67e22' : '#f39c12',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            boxShadow: filtroStatus === 'Em Contato' ? 'inset 0 0 5px rgba(0,0,0,0.3)' : 'none',
-          }}
-        >
-          Em Contato
-        </button>
-
-        <button
-          onClick={() => aplicarFiltroStatus('Sem Contato')}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: filtroStatus === 'Sem Contato' ? '#7f8c8d' : '#95a5a6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            boxShadow: filtroStatus === 'Sem Contato' ? 'inset 0 0 5px rgba(0,0,0,0.3)' : 'none',
-          }}
-        >
-          Sem Contato
-        </button>
-
-        {hasScheduledToday && (
-          <button
-            onClick={() => aplicarFiltroStatus('Agendado')}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: filtroStatus === 'Agendado' ? '#2980b9' : '#3498db',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              boxShadow: filtroStatus === 'Agendado' ? 'inset 0 0 5px rgba(0,0,0,0.3)' : 'none',
-            }}
-          >
-            Agendados
-          </button>
-        )}
-      </div>
-
       {isLoading ? (
         null
       ) : gerais.length === 0 ? (
@@ -521,7 +442,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   marginBottom: '15px',
                   position: 'relative',
                   display: 'flex',
-                  gap: '20px',
+                  gap: '1px',
                   alignItems: 'flex-start',
                   flexWrap: 'wrap',
                 }}
@@ -534,21 +455,18 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   />
                 </div>
 
-                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado')) && (
+                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Agendar') && (
                   <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
                       Observações:
                     </label>
                     <textarea
                       id={`observacao-${lead.id}`}
-                      value={lead.observacao || ''}
-                      onChange={(e) => {
-                        // Esta lógica de observação está no componente errado.
-                        // Ela precisa ser movida para o componente 'Lead'
-                      }}
+                      value={observacoes[lead.id] || ''}
+                      onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
                       placeholder="Adicione suas observações aqui..."
                       rows="3"
-                      disabled={false} // Mantém o campo habilitado para edição
+                      disabled={!isEditingObservacao[lead.id]}
                       style={{
                         width: '100%',
                         padding: '10px',
@@ -556,26 +474,46 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                         border: '1px solid #ccc',
                         resize: 'vertical',
                         boxSizing: 'border-box',
+                        backgroundColor: isEditingObservacao[lead.id] ? '#fff' : '#f0f0f0',
+                        cursor: isEditingObservacao[lead.id] ? 'text' : 'not-allowed',
                       }}
                     ></textarea>
-                    <button
-                      onClick={() => handleSalvarObservacao(lead.id, observacoes[lead.id])}
-                      style={{
-                        marginTop: '10px',
-                        padding: '8px 16px',
-                        backgroundColor: '#007bff',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      Salvar Observação
-                    </button>
+                    {isEditingObservacao[lead.id] ? (
+                      <button
+                        onClick={() => handleSalvarObservacao(lead.id)}
+                        style={{
+                          marginTop: '10px',
+                          padding: '8px 16px',
+                          backgroundColor: '#007bff',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        Salvar Observação
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleAlterarObservacao(lead.id)}
+                        style={{
+                          marginTop: '10px',
+                          padding: '8px 16px',
+                          backgroundColor: '#ffc107',
+                          color: '#000',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        Alterar Observação
+                      </button>
+                    )}
                   </div>
                 )}
-                
+
                 <div style={{ width: '100%' }}>
                   {lead.responsavel && responsavel ? (
                     <div style={{ marginTop: '10px' }}>
@@ -598,11 +536,10 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                           Alterar
                         </button>
                       )}
-                  </div>
                   ) : (
                     <div
                       style={{
-                        marginTop: '10px',
+                        marginTop: '0px',
                         display: 'flex',
                         gap: '10px',
                         alignItems: 'center',
