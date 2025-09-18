@@ -26,7 +26,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const initialIsEditingObservacao = {};
     leads.forEach(lead => {
       initialObservacoes[lead.id] = lead.observacao || '';
-      initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
+      initialIsEditingObservacao[lead.id] = false; // Defina como falso para começar não-editável
     });
     setObservacoes(initialObservacoes);
     setIsEditingObservacao(initialIsEditingObservacao);
@@ -37,15 +37,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const todayFormatted = today.toLocaleDateString('pt-BR');
 
     const todayAppointments = leads.filter(lead => {
-        if (!lead.status.startsWith('Agendado')) return false;
-        const statusDateStr = lead.status.split(' - ')[1];
-        if (!statusDateStr) return false;
+      if (!lead.status.startsWith('Agendado')) return false;
+      const statusDateStr = lead.status.split(' - ')[1];
+      if (!statusDateStr) return false;
 
-        const [dia, mes, ano] = statusDateStr.split('/');
-        const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
-        const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
+      const [dia, mes, ano] = statusDateStr.split('/');
+      const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
+      const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
 
-        return statusDateFormatted === todayFormatted;
+      return statusDateFormatted === todayFormatted;
     });
 
     setHasScheduledToday(todayAppointments.length > 0);
@@ -57,7 +57,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       await fetchLeadsFromSheet();
       const refreshedIsEditingObservacao = {};
       leads.forEach(lead => {
-        refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
+        refreshedIsEditingObservacao[lead.id] = false;
       });
       setIsEditingObservacao(refreshedIsEditingObservacao);
     } catch (error) {
@@ -216,17 +216,17 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     if (!dataStr) return '';
     let data;
     if (dataStr.includes('/')) {
-        const partes = dataStr.split('/');
-        data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+      const partes = dataStr.split('/');
+      data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
     } else if (dataStr.includes('-') && dataStr.length === 10) {
-        const partes = dataStr.split('-');
-        data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+      const partes = dataStr.split('-');
+      data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
     } else {
-        data = new Date(dataStr);
+      data = new Date(dataStr);
     }
 
     if (isNaN(data.getTime())) {
-        return '';
+      return '';
     }
     return data.toLocaleDateString('pt-BR');
   };
@@ -273,14 +273,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   const handleConfirmStatus = (leadId, novoStatus, phone) => {
-    const currentLead = leads.find(l => l.id === leadId);
-    const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
-
     onUpdateStatus(leadId, novoStatus, phone);
-    if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus === 'Agendar') && hasNoObservacao) {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+    if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus === 'Agendar') {
+      setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
     } else {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+      setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     }
     fetchLeadsFromSheet();
   };
@@ -560,7 +557,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   />
                 </div>
 
-                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado')) && (
+                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Agendar' || lead.status.startsWith('Agendado')) && (
                   <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
                       Observações:
@@ -571,7 +568,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                       onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
                       placeholder="Adicione suas observações aqui..."
                       rows="3"
-                      disabled={!isEditingObservacao[lead.id]}
+                      disabled={!isEditingObservacao[lead.id] && lead.status !== 'Agendar' && lead.status !== 'Em Contato' && lead.status !== 'Sem Contato'}
                       style={{
                         width: '100%',
                         padding: '10px',
