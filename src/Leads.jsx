@@ -364,9 +364,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            flexGrow: 1,
-            justifyContent: 'center',
-            minWidth: '300px',
+            minWidth: '220px',
           }}
         >
           <button
@@ -399,34 +397,44 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           />
         </div>
 
-        {/* NOVO: Componente do sino de notificação foi movido para cá */}
+        {/* --- DIV DO SINO COM Z-INDEX ADICIONADO --- */}
         {hasScheduledToday && (
             <div
               style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
                 position: 'relative',
-                cursor: 'pointer'
+                flex: '1 1 100px',
               }}
-              onClick={() => setShowNotification(!showNotification)}
             >
-              <Bell size={32} color="#007bff" />
               <div
                 style={{
-                  position: 'absolute',
-                  top: '-5px',
-                  right: '-5px',
-                  backgroundColor: 'red',
-                  color: 'white',
-                  borderRadius: '50%',
-                  width: '20px',
-                  height: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
+                  position: 'relative',
+                  cursor: 'pointer'
                 }}
+                onClick={() => setShowNotification(!showNotification)}
               >
-                1
+                <Bell size={32} color="#007bff" />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '-5px',
+                    right: '-5px',
+                    backgroundColor: 'red',
+                    color: 'white',
+                    borderRadius: '50%',
+                    width: '20px',
+                    height: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  1
+                </div>
               </div>
               {showNotification && (
                 <div
@@ -441,6 +449,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     borderRadius: '8px',
                     padding: '15px',
                     boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
+                    zIndex: 10, // 👈 Nova propriedade adicionada aqui
                   }}
                 >
                   <p>Você tem agendamentos hoje!</p>
