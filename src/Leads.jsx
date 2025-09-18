@@ -271,19 +271,28 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
   };
 
-  const handleConfirmStatus = (leadId, novoStatus, phone) => {
-    onUpdateStatus(leadId, novoStatus, phone);
-    const currentLead = leads.find(l => l.id === leadId);
-    const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
-
-    if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao) {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-    } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+  // 🆕 FUNÇÃO ATUALIZADA: Agora recebe a observação
+  const handleConfirmStatus = (leadId, novoStatus, phone, observacaoAgendamento = '') => {
+    // Verifica se o status é 'Agendado' e se a observação está preenchida
+    if (novoStatus.startsWith('Agendado') && observacaoAgendamento) {
+        // Salva a observação de agendamento usando a mesma lógica de Em Contato/Sem Contato
+        handleObservacaoChange(leadId, observacaoAgendamento);
+        handleSalvarObservacao(leadId); // A função de salvamento já lida com o fetch
     } else {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+        // Mantém a lógica existente para os outros status
+        onUpdateStatus(leadId, novoStatus, phone);
+        const currentLead = leads.find(l => l.id === leadId);
+        const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
+
+        if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao) {
+            setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+        } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
+            setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+        } else {
+            setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+        }
+        fetchLeadsFromSheet();
     }
-    fetchLeadsFromSheet();
   };
 
   return (
@@ -312,14 +321,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             onClick={handleRefreshLeads}
             disabled={isLoading}
             style={{
-                background: 'none',
-                border: 'none',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                padding: '0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#007bff'
+              background: 'none',
+              border: 'none',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              padding: '0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#007bff'
             }}
           >
             {isLoading ? (
@@ -370,7 +379,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           />
         </div>
 
-        {/* --- NOVO: CONTEINER ISOLADO PARA O SINO E A BOLHA --- */}
         {hasScheduledToday && (
           <div
             style={{
@@ -392,7 +400,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                 style={{
                   position: 'absolute',
                   top: '-5px',
-                  right: '-5px', // 👈 Ajustado para -5px
+                  right: '-5px',
                   backgroundColor: 'red',
                   color: 'white',
                   borderRadius: '50%',
@@ -557,7 +565,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   />
                 </div>
 
-                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato') && (
+                {(lead.status.startsWith('Em Contato') || lead.status.startsWith('Sem Contato') || lead.status.startsWith('Agendado')) && (
                   <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
                       Observações:
