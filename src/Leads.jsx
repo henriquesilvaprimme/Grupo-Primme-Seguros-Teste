@@ -520,7 +520,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
               boxShadow: filtroStatus === 'Agendado' ? 'inset 0 0 5px rgba(0,0,0,0.3)' : 'none',
             }}
           >
-            Agendados Hoje
+            Agendados
           </button>
         )}
       </div>
