@@ -1,43 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Lead from './components/Lead';
-import { RefreshCcw } from 'lucide-react';
+import { RefreshCcw, Bell } from 'lucide-react';
 
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
 
-const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, isEditing, setIsEditing }) => {
+const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
   const [selecionados, setSelecionados] = useState({});
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-
   const [observacoes, setObservacoes] = useState({});
   const [isEditingObservacao, setIsEditingObservacao] = useState({});
-
   const [dataInput, setDataInput] = useState('');
   const [filtroData, setFiltroData] = useState('');
-
   const [nomeInput, setNomeInput] = useState('');
   const [filtroNome, setFiltroNome] = useState('');
-
-  const isEditingRef = useRef(isEditing);
-
-  // 1. Crie uma referência para o elemento principal do componente
-  const containerRef = useRef(null);
-
-  // 2. Use o useEffect para rolar a tela quando a página mudar
-  useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-      });
-    }
-  }, [paginaAtual]); // A rolagem é acionada quando o estado 'paginaAtual' muda
-
-  useEffect(() => {
-    isEditingRef.current = isEditing;
-  }, [isEditing]);
+  const [filtroStatus, setFiltroStatus] = useState(null);
+  const [showNotification, setShowNotification] = useState(false);
+  const [hasScheduledToday, setHasScheduledToday] = useState(false);
 
   useEffect(() => {
     const initialObservacoes = {};
@@ -51,20 +32,23 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   }, [leads]);
 
   useEffect(() => {
-    const handleBeforeUnload = (event) => {
-      if (isEditingRef.current) {
-        event.preventDefault();
-        event.returnValue = 'Você tem observações não salvas. Deseja sair e perder as alterações?';
-        return event.returnValue;
-      }
-    };
+    const today = new Date();
+    const todayFormatted = today.toLocaleDateString('pt-BR');
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    const todayAppointments = leads.filter(lead => {
+        if (!lead.status.startsWith('Agendado')) return false;
+        const statusDateStr = lead.status.split(' - ')[1];
+        if (!statusDateStr) return false;
 
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, []);
+        const [dia, mes, ano] = statusDateStr.split('/');
+        const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
+        const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
+
+        return statusDateFormatted === todayFormatted;
+    });
+
+    setHasScheduledToday(todayAppointments.length > 0);
+  }, [leads]);
 
   const handleRefreshLeads = async () => {
     setIsLoading(true);
@@ -99,12 +83,23 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroData(dataInput);
     setFiltroNome('');
     setNomeInput('');
+    setFiltroStatus(null);
     setPaginaAtual(1);
   };
 
   const aplicarFiltroNome = () => {
     const filtroLimpo = nomeInput.trim();
     setFiltroNome(filtroLimpo);
+    setFiltroData('');
+    setDataInput('');
+    setFiltroStatus(null);
+    setPaginaAtual(1);
+  };
+  
+  const aplicarFiltroStatus = (status) => {
+    setFiltroStatus(status);
+    setFiltroNome('');
+    setNomeInput('');
     setFiltroData('');
     setDataInput('');
     setPaginaAtual(1);
@@ -122,15 +117,27 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const nomeContemFiltro = (leadNome, filtroNome) => {
     if (!filtroNome) return true;
     if (!leadNome) return false;
-
     const nomeNormalizado = normalizarTexto(leadNome);
     const filtroNormalizado = normalizarTexto(filtroNome);
-
     return nomeNormalizado.includes(filtroNormalizado);
   };
 
-  const leadsFiltrados = leads.filter((lead) => {
+  const gerais = leads.filter((lead) => {
     if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
+
+    if (filtroStatus) {
+      if (filtroStatus === 'Agendado') {
+        const today = new Date();
+        const todayFormatted = today.toLocaleDateString('pt-BR');
+        const statusDateStr = lead.status.split(' - ')[1];
+        if (!statusDateStr) return false;
+        const [dia, mes, ano] = statusDateStr.split('/');
+        const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
+        const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
+        return lead.status.startsWith('Agendado') && statusDateFormatted === todayFormatted;
+      }
+      return lead.status === filtroStatus;
+    }
 
     if (filtroData) {
       const leadMesAno = lead.createdAt ? lead.createdAt.substring(0, 7) : '';
@@ -144,15 +151,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     return true;
   });
 
-  const gerais = [...leadsFiltrados].sort((a, b) => {
-    const dateA = a.createdAt ? new Date(a.createdAt) : 0;
-    const dateB = b.createdAt ? new Date(b.createdAt) : 0;
-    return dateB - dateA;
-  });
-
   const totalPaginas = Math.max(1, Math.ceil(gerais.length / leadsPorPagina));
   const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
-
   const usuariosAtivos = usuarios.filter((u) => u.status === 'Ativo');
   const isAdmin = usuarioLogado?.tipo === 'Admin';
 
@@ -169,18 +169,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       alert('Selecione um usuário antes de enviar.');
       return;
     }
-
     transferirLead(leadId, userId);
-
     const lead = leads.find((l) => l.id === leadId);
     const leadAtualizado = { ...lead, usuarioId: userId };
-
     enviarLeadAtualizado(leadAtualizado);
   };
 
   const enviarLeadAtualizado = async (lead) => {
     try {
-      const response = await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
+      await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify(lead),
@@ -188,7 +185,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
-      // A chamada para `fetchLeadsFromSheet()` foi removida aqui para permitir que `App.jsx` gerencie o refresh.
+      fetchLeadsFromSheet();
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
     }
@@ -260,11 +257,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
-
-      setIsEditing(false);
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-
-      // A chamada para `fetchLeadsFromSheet()` foi removida aqui para permitir que `App.jsx` gerencie o refresh.
+      fetchLeadsFromSheet();
     } catch (error) {
       console.error('Erro ao salvar observação:', error);
       alert('Erro ao salvar observação. Por favor, tente novamente.');
@@ -278,29 +272,22 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   const handleConfirmStatus = (leadId, novoStatus, phone) => {
-    const statusObservacao = ['Em Contato', 'Sem Contato', 'Agendar'];
-    if (statusObservacao.includes(novoStatus)) {
-      setIsEditing(true);
-    } else {
-      setIsEditing(false);
-    }
-
     onUpdateStatus(leadId, novoStatus, phone);
-
     const currentLead = leads.find(l => l.id === leadId);
-    const hasNoObservacao = !currentLead?.observacao || currentLead.observacao.trim() === '';
+    const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
 
-    if (statusObservacao.includes(novoStatus) && hasNoObservacao) {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-    } else if (statusObservacao.includes(novoStatus)) {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+    if (novoStatus.startsWith('Agendado') && hasNoObservacao) {
+      setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+    } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) {
+      setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     } else {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+      setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     }
+    fetchLeadsFromSheet();
   };
 
   return (
-    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }} ref={containerRef}>
+    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
       {isLoading && (
         <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
@@ -320,20 +307,19 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <h1 style={{ margin: 0 }}>Leads</h1>
-
           <button
             title='Clique para atualizar os dados'
             onClick={handleRefreshLeads}
             disabled={isLoading}
             style={{
-              background: 'none',
-              border: 'none',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              padding: '0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#007bff'
+                background: 'none',
+                border: 'none',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                padding: '0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#007bff'
             }}
           >
             {isLoading ? (
@@ -352,9 +338,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            flexGrow: 1,
-            justifyContent: 'center',
-            minWidth: '300px',
           }}
         >
           <button
@@ -387,12 +370,71 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           />
         </div>
 
+        {/* --- NOVO: CONTEINER ISOLADO PARA O SINO E A BOLHA --- */}
+        {hasScheduledToday && (
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <div
+              style={{
+                position: 'relative',
+                cursor: 'pointer'
+              }}
+              onClick={() => setShowNotification(!showNotification)}
+            >
+              <Bell size={32} color="#007bff" />
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '-5px',
+                  right: '-5px', // 👈 Ajustado para -5px
+                  backgroundColor: 'red',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                }}
+              >
+                1
+              </div>
+              {showNotification && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '40px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '250px',
+                    backgroundColor: 'white',
+                    border: '1px solid #ccc',
+                    borderRadius: '8px',
+                    padding: '15px',
+                    boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
+                    zIndex: 10,
+                  }}
+                >
+                  <p>Você tem agendamentos hoje!</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            minWidth: '220px',
           }}
         >
           <button
@@ -423,6 +465,66 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         </div>
       </div>
 
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '15px',
+          marginBottom: '20px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <button
+          onClick={() => aplicarFiltroStatus('Em Contato')}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: filtroStatus === 'Em Contato' ? '#e67e22' : '#f39c12',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            boxShadow: filtroStatus === 'Em Contato' ? 'inset 0 0 5px rgba(0,0,0,0.3)' : 'none',
+          }}
+        >
+          Em Contato
+        </button>
+
+        <button
+          onClick={() => aplicarFiltroStatus('Sem Contato')}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: filtroStatus === 'Sem Contato' ? '#7f8c8d' : '#95a5a6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            boxShadow: filtroStatus === 'Sem Contato' ? 'inset 0 0 5px rgba(0,0,0,0.3)' : 'none',
+          }}
+        >
+          Sem Contato
+        </button>
+
+        {hasScheduledToday && (
+          <button
+            onClick={() => aplicarFiltroStatus('Agendado')}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: filtroStatus === 'Agendado' ? '#2980b9' : '#3498db',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              boxShadow: filtroStatus === 'Agendado' ? 'inset 0 0 5px rgba(0,0,0,0.3)' : 'none',
+            }}
+          >
+            Agendados
+          </button>
+        )}
+      </div>
+
       {isLoading ? (
         null
       ) : gerais.length === 0 ? (
@@ -442,7 +544,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   marginBottom: '15px',
                   position: 'relative',
                   display: 'flex',
-                  gap: '1px',
+                  gap: '20px',
                   alignItems: 'flex-start',
                   flexWrap: 'wrap',
                 }}
@@ -455,7 +557,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   />
                 </div>
 
-                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Agendar') && (
+                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado')) && isEditingObservacao[lead.id] && (
                   <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
                       Observações:
@@ -513,7 +615,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     )}
                   </div>
                 )}
-
+                
                 <div style={{ width: '100%' }}>
                   {lead.responsavel && responsavel ? (
                     <div style={{ marginTop: '10px' }}>
@@ -540,7 +642,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   ) : (
                     <div
                       style={{
-                        marginTop: '0px',
+                        marginTop: '10px',
                         display: 'flex',
                         gap: '10px',
                         alignItems: 'center',
