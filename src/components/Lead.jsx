@@ -37,14 +37,8 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       return;
     }
 
-    // A lógica foi ajustada aqui para tratar 'Agendar' da mesma forma
-    if (status === 'Em Contato' || status === 'Sem Contato' || status === 'Agendar' || status.startsWith('Agendado')) {
-      onUpdateStatus(lead.id, status, lead.phone);
-      setIsStatusConfirmed(true);
-    } else {
-      onUpdateStatus(lead.id, status, lead.phone);
-      setIsStatusConfirmed(true);
-    }
+    onUpdateStatus(lead.id, status, lead.phone);
+    setIsStatusConfirmed(true);
   };
 
   const handleAlterar = () => {
