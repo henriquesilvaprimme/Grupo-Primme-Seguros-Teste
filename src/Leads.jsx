@@ -7,13 +7,12 @@ const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby
 // ⚠️ ATENÇÃO: VOCÊ PRECISARÁ CRIAR ESTE SCRIPT NO GAS para salvar observações.
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
 
-
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
   const [selecionados, setSelecionados] = useState({}); // { [leadId]: userId }
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
 
-  // NOVO: Estados para Observações e controle de edição
+  // Estados para Observações e controle de edição
   const [observacoes, setObservacoes] = useState({}); // { [leadId]: 'texto da observação' }
   const [isEditingObservacao, setIsEditingObservacao] = useState({}); // { [leadId]: true/false }
 
@@ -24,6 +23,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   // Estados para filtro por nome
   const [nomeInput, setNomeInput] = useState('');
   const [filtroNome, setFiltroNome] = useState('');
+
+  // 🆕 NOVO: Estado para os filtros de status
+  const [filtroStatus, setFiltroStatus] = useState(null);
 
   // NOVOS ESTADOS PARA NOTIFICAÇÃO DE AGENDAMENTO
   const [showNotification, setShowNotification] = useState(false);
@@ -105,12 +107,24 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroData(dataInput);
     setFiltroNome('');
     setNomeInput('');
+    setFiltroStatus(null); // Limpa o filtro de status
     setPaginaAtual(1);
   };
 
   const aplicarFiltroNome = () => {
     const filtroLimpo = nomeInput.trim();
     setFiltroNome(filtroLimpo);
+    setFiltroData('');
+    setDataInput('');
+    setFiltroStatus(null); // Limpa o filtro de status
+    setPaginaAtual(1);
+  };
+  
+  // 🆕 NOVA FUNÇÃO: Aplica o filtro de status
+  const aplicarFiltroStatus = (status) => {
+    setFiltroStatus(status);
+    setFiltroNome('');
+    setNomeInput('');
     setFiltroData('');
     setDataInput('');
     setPaginaAtual(1);
@@ -138,6 +152,21 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   // Filtragem dos leads pendentes + filtro data ou nome
   const gerais = leads.filter((lead) => {
     if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
+
+    // 🆕 NOVO: Lógica de filtro por status
+    if (filtroStatus) {
+      if (filtroStatus === 'Agendado') {
+        const today = new Date();
+        const todayFormatted = today.toLocaleDateString('pt-BR');
+        const statusDateStr = lead.status.split(' - ')[1];
+        if (!statusDateStr) return false;
+        const [dia, mes, ano] = statusDateStr.split('/');
+        const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
+        const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
+        return lead.status.startsWith('Agendado') && statusDateFormatted === todayFormatted;
+      }
+      return lead.status === filtroStatus;
+    }
 
     if (filtroData) {
       // Considerando que lead.createdAt é uma string no formato 'YYYY-MM-DD'
@@ -332,7 +361,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <h1 style={{ margin: 0 }}>Leads</h1>
-
           <button
             title='Clique para atualizar os dados'
             onClick={handleRefreshLeads}
@@ -359,12 +387,12 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           </button>
         </div>
 
+        {/* --- Filtro de Nome (mantido na posição original) --- */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            minWidth: '220px',
           }}
         >
           <button
@@ -397,73 +425,67 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           />
         </div>
 
-        {/* --- DIV DO SINO COM Z-INDEX ADICIONADO --- */}
+        {/* --- NOVO: Div para o sino centralizado (ocupando o espaço do meio) --- */}
         {hasScheduledToday && (
+          <div
+            style={{
+              flex: 1, // Faz com que ocupe todo o espaço disponível
+              display: 'flex',
+              justifyContent: 'center', // Centraliza o conteúdo horizontalmente
+              alignItems: 'center', // Centraliza o conteúdo verticalmente
+              position: 'relative',
+              cursor: 'pointer',
+            }}
+            onClick={() => setShowNotification(!showNotification)}
+          >
+            <Bell size={32} color="#007bff" />
             <div
               style={{
+                position: 'absolute',
+                top: '-5px',
+                right: '40%', // Ajuste para posicionar a bolha corretamente sobre o sino centralizado
+                backgroundColor: 'red',
+                color: 'white',
+                borderRadius: '50%',
+                width: '20px',
+                height: '20px',
                 display: 'flex',
-                justifyContent: 'center',
                 alignItems: 'center',
-                position: 'relative',
-                flex: '1 1 100px',
+                justifyContent: 'center',
+                fontSize: '12px',
+                fontWeight: 'bold',
               }}
             >
+              1
+            </div>
+            {showNotification && (
               <div
                 style={{
-                  position: 'relative',
-                  cursor: 'pointer'
+                  position: 'absolute',
+                  top: '40px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: '250px',
+                  backgroundColor: 'white',
+                  border: '1px solid #ccc',
+                  borderRadius: '8px',
+                  padding: '15px',
+                  boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
+                  zIndex: 10,
                 }}
-                onClick={() => setShowNotification(!showNotification)}
               >
-                <Bell size={32} color="#007bff" />
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '-5px',
-                    right: '-5px',
-                    backgroundColor: 'red',
-                    color: 'white',
-                    borderRadius: '50%',
-                    width: '20px',
-                    height: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  1
-                </div>
+                <p>Você tem agendamentos hoje!</p>
               </div>
-              {showNotification && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '40px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: '250px',
-                    backgroundColor: 'white',
-                    border: '1px solid #ccc',
-                    borderRadius: '8px',
-                    padding: '15px',
-                    boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
-                    zIndex: 10, // 👈 Nova propriedade adicionada aqui
-                  }}
-                >
-                  <p>Você tem agendamentos hoje!</p>
-                </div>
-              )}
-            </div>
+            )}
+          </div>
         )}
 
+        {/* --- Filtro de Data (mantido na posição original) --- */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            minWidth: '220px',
           }}
         >
           <button
@@ -492,6 +514,68 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             title="Filtrar leads pelo mês e ano de criação"
           />
         </div>
+      </div>
+
+      {/* 🆕 NOVOS BOTÕES DE FILTRO */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '15px',
+          marginBottom: '20px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <button
+          onClick={() => aplicarFiltroStatus('Em Contato')}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: filtroStatus === 'Em Contato' ? '#e67e22' : '#f39c12',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            boxShadow: filtroStatus === 'Em Contato' ? 'inset 0 0 5px rgba(0,0,0,0.3)' : 'none',
+          }}
+        >
+          Em Contato
+        </button>
+
+        <button
+          onClick={() => aplicarFiltroStatus('Sem Contato')}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: filtroStatus === 'Sem Contato' ? '#7f8c8d' : '#95a5a6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            boxShadow: filtroStatus === 'Sem Contato' ? 'inset 0 0 5px rgba(0,0,0,0.3)' : 'none',
+          }}
+        >
+          Sem Contato
+        </button>
+
+        {/* Botão "Agendados" só aparece se houver agendamentos para hoje */}
+        {hasScheduledToday && (
+          <button
+            onClick={() => aplicarFiltroStatus('Agendado')}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: filtroStatus === 'Agendado' ? '#2980b9' : '#3498db',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              boxShadow: filtroStatus === 'Agendado' ? 'inset 0 0 5px rgba(0,0,0,0.3)' : 'none',
+            }}
+          >
+            Agendados Hoje
+          </button>
+        )}
       </div>
 
       {isLoading ? (
