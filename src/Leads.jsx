@@ -24,10 +24,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const [showNotification, setShowNotification] = useState(false);
   const [hasScheduledToday, setHasScheduledToday] = useState(false);
-  const [agendamentoData, setAgendamentoData] = useState({});
 
   const isEditingRef = useRef(isEditing);
-
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -50,7 +48,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     leads.forEach(lead => {
       initialObservacoes[lead.id] = lead.observacao || '';
       initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
-      initialIsStatusLocked[lead.id] = ['Em Contato', 'Sem Contato'].includes(lead.status) || lead.status.startsWith('Agendado');
+      initialIsStatusLocked[lead.id] = ['Em Contato', 'Sem Contato', 'Fechado', 'Perdido'].includes(lead.status) || lead.status.startsWith('Agendado');
     });
     setObservacoes(initialObservacoes);
     setIsEditingObservacao(initialIsEditingObservacao);
@@ -100,7 +98,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       const refreshedIsStatusLocked = {};
       leads.forEach(lead => {
         refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
-        refreshedIsStatusLocked[lead.id] = ['Em Contato', 'Sem Contato'].includes(lead.status) || lead.status.startsWith('Agendado');
+        refreshedIsStatusLocked[lead.id] = ['Em Contato', 'Sem Contato', 'Fechado', 'Perdido'].includes(lead.status) || lead.status.startsWith('Agendado');
       });
       setIsEditingObservacao(refreshedIsEditingObservacao);
       setIsStatusLocked(refreshedIsStatusLocked);
@@ -321,28 +319,18 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
   };
 
-  const handleConfirmStatus = (leadId, novoStatus, phone) => {
-    onUpdateStatus(leadId, novoStatus, phone);
-
-    // Lógica para bloquear/desbloquear o status e a observação
-    const currentLead = leads.find(l => l.id === leadId);
-    const hasNoObservacao = !currentLead?.observacao || currentLead.observacao.trim() === '';
-
-    if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus === 'Agendar' || novoStatus.startsWith('Agendado')) {
-      setIsStatusLocked(prev => ({ ...prev, [leadId]: true }));
-      if (hasNoObservacao) {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-      } else {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-      }
-    } else {
-      setIsStatusLocked(prev => ({ ...prev, [leadId]: false }));
-      setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-    }
-
-    fetchLeadsFromSheet();
+  const handleUpdateStatus = (leadId, novoStatus) => {
+    onUpdateStatus(leadId, novoStatus);
   };
 
+  const handleAlterarStatus = (leadId) => {
+    // Essa função é chamada pelo botão "Alterar" no componente Lead
+    const leadToAlter = leads.find(l => l.id === leadId);
+    if (!leadToAlter) return;
+    
+    // Simula a volta para um estado "aberto", que deve desbloquear o status
+    onUpdateStatus(leadId, 'Novo');
+  };
 
   return (
     <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }} ref={containerRef}>
@@ -604,8 +592,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                 <div style={{ flex: '1 1 50%', minWidth: '300px' }}>
                   <Lead
                     lead={lead}
-                    onUpdateStatus={handleConfirmStatus}
-                    isStatusLocked={isStatusLocked[lead.id]}
+                    onUpdateStatus={onUpdateStatus}
+                    onAlterarStatus={() => handleAlterarStatus(lead.id)}
+                    isLocked={isStatusLocked[lead.id]}
                   />
                 </div>
                 {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Agendar' || lead.status.startsWith('Agendado')) && (
