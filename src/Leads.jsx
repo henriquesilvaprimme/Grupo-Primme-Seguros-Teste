@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import Lead from './components/Lead';
 import { RefreshCcw, Bell } from 'lucide-react';
 
-const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
-const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
-const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
+const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7SdTdHQWBb7YCp349/exec';
+const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7SdTdHQWBb7YCp349/exec?v=alterar_atribuido';
+const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7SdTdHQWBb7YCp349/exec?action=salvarObservacao';
+const ALTERAR_STATUS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_status';
 
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
   const [selecionados, setSelecionados] = useState({});
@@ -36,15 +37,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const todayFormatted = today.toLocaleDateString('pt-BR');
 
     const todayAppointments = leads.filter(lead => {
-        if (!lead.status.startsWith('Agendado')) return false;
-        const statusDateStr = lead.status.split(' - ')[1];
-        if (!statusDateStr) return false;
+      if (!lead.status.startsWith('Agendado')) return false;
+      const statusDateStr = lead.status.split(' - ')[1];
+      if (!statusDateStr) return false;
 
-        const [dia, mes, ano] = statusDateStr.split('/');
-        const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
-        const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
+      const [dia, mes, ano] = statusDateStr.split('/');
+      const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
+      const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
 
-        return statusDateFormatted === todayFormatted;
+      return statusDateFormatted === todayFormatted;
     });
 
     setHasScheduledToday(todayAppointments.length > 0);
@@ -215,17 +216,17 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     if (!dataStr) return '';
     let data;
     if (dataStr.includes('/')) {
-        const partes = dataStr.split('/');
-        data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+      const partes = dataStr.split('/');
+      data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
     } else if (dataStr.includes('-') && dataStr.length === 10) {
-        const partes = dataStr.split('-');
-        data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+      const partes = dataStr.split('-');
+      data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
     } else {
-        data = new Date(dataStr);
+      data = new Date(dataStr);
     }
 
     if (isNaN(data.getTime())) {
-        return '';
+      return '';
     }
     return data.toLocaleDateString('pt-BR');
   };
@@ -258,7 +259,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         },
       });
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-      fetchLeadsFromSheet();
+      // Não faz o fetch aqui para não atrapalhar o fluxo do agendamento
     } catch (error) {
       console.error('Erro ao salvar observação:', error);
       alert('Erro ao salvar observação. Por favor, tente novamente.');
@@ -271,27 +272,40 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
   };
 
-  // 🆕 FUNÇÃO ATUALIZADA: Agora recebe a observação
-  const handleConfirmStatus = (leadId, novoStatus, phone, observacaoAgendamento = '') => {
-    // Verifica se o status é 'Agendado' e se a observação está preenchida
-    if (novoStatus.startsWith('Agendado') && observacaoAgendamento) {
-        // Salva a observação de agendamento usando a mesma lógica de Em Contato/Sem Contato
-        handleObservacaoChange(leadId, observacaoAgendamento);
-        handleSalvarObservacao(leadId); // A função de salvamento já lida com o fetch
-    } else {
-        // Mantém a lógica existente para os outros status
-        onUpdateStatus(leadId, novoStatus, phone);
-        const currentLead = leads.find(l => l.id === leadId);
-        const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
+  // 🆕 FUNÇÃO ATUALIZADA: Agora lida com o status Agendado
+  const handleConfirmStatus = async (leadId, novoStatus, phone, observacaoAgendamento = '') => {
+    // Primeiro, verifique se o status é 'Agendado'
+    if (novoStatus.startsWith('Agendado')) {
+      // Se for Agendado, a observação deve ser salva primeiro
+      if (observacaoAgendamento.trim()) {
+        await handleSalvarObservacao(leadId, observacaoAgendamento);
+      } else {
+        alert('Por favor, adicione uma observação para o agendamento.');
+        return; // Não prossegue se não houver observação
+      }
+    }
 
-        if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao) {
-            setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-        } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
-            setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-        } else {
-            setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-        }
-        fetchLeadsFromSheet();
+    // Agora, altere o status do lead (para todos os casos, incluindo o agendamento)
+    // O `onUpdateStatus` é o `handleConfirmStatus` que você está editando, então
+    // vamos chamar a função de `fetch` diretamente.
+    try {
+      await fetch(ALTERAR_STATUS_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({
+          lead: leadId,
+          status: novoStatus,
+          phone: phone,
+          observacao: observacaoAgendamento
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      fetchLeadsFromSheet(); // Busca os leads atualizados após a alteração de status
+    } catch (error) {
+      console.error('Erro ao enviar lead:', error);
+      alert('Erro ao salvar status. Por favor, tente novamente.');
     }
   };
 
