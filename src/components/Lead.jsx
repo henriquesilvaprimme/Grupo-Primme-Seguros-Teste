@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
-// import { Phone } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+// import { Phone } from 'lucide-react'; <-- REMOVIDO: Ícone de telefone para o botão do WhatsApp não é mais necessário
 
-const Lead = ({ lead, onUpdateStatus, isLocked, onAlterarStatus }) => {
-  const [selectedStatus, setSelectedStatus] = useState(lead.status || '');
+const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
+  const [status, setStatus] = useState(lead.status || '');
+  // `isStatusConfirmed` para controlar o bloqueio da seleção e exibição do botão "Alterar"
+  const [isStatusConfirmed, setIsStatusConfirmed] = useState(
+    lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado')
+  );
 
   // Define a cor do card conforme o status
   const cardColor = (() => {
-    switch (lead.status) {
+    switch (status) {
       case 'Fechado':
         return '#d4edda'; // verde claro
       case 'Perdido':
@@ -16,22 +20,40 @@ const Lead = ({ lead, onUpdateStatus, isLocked, onAlterarStatus }) => {
       case 'Sem Contato':
         return '#e2e3e5'; // cinza claro
       default:
-        if (lead.status && lead.status.startsWith('Agendado')) {
+        if (status.startsWith('Agendado')) {
           return '#cfe2ff'; // azul claro
         }
         return '#ffffff'; // branco
     }
   })();
 
+  // Sincroniza o estado `isStatusConfirmed` quando o `lead.status` muda (ex: após um refresh de leads)
+  useEffect(() => {
+    setIsStatusConfirmed(
+      lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado')
+    );
+    setStatus(lead.status || ''); // Garante que o status exibido esteja sempre atualizado com o lead
+  }, [lead.status]);
+
   const handleConfirm = () => {
-    if (!selectedStatus || selectedStatus === 'Selecione o status') {
+    if (!status || status === 'Selecione o status') {
       alert('Selecione um status antes de confirmar!');
       return;
     }
-    
-    // A chamada onUpdateStatus agora é responsável por atualizar o estado do lead no componente pai
-    // e, consequentemente, a prop 'isLocked'
-    onUpdateStatus(lead.id, selectedStatus, lead.phone);
+
+    enviarLeadAtualizado(lead.id, status, lead.phone);
+
+    // Após a confirmação, bloqueia a caixa de seleção e define o status como confirmado
+    setIsStatusConfirmed(true);
+
+    if (onUpdateStatus) {
+      onUpdateStatus(lead.id, status, lead.phone); // chama o callback pra informar a atualização
+    }
+  };
+
+  const handleAlterar = () => {
+    // Permite a edição do status novamente
+    setIsStatusConfirmed(false);
   };
 
   const enviarLeadAtualizado = async (leadId, status, phone) => {
@@ -72,22 +94,25 @@ const Lead = ({ lead, onUpdateStatus, isLocked, onAlterarStatus }) => {
 
       <div style={{ marginTop: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
         <select
-          value={selectedStatus}
+          value={status}
           onChange={(e) => {
-            setSelectedStatus(e.target.value);
+            setStatus(e.target.value);
           }}
-          disabled={isLocked}
+          // O select é desabilitado se o status já foi confirmado
+          disabled={isStatusConfirmed}
           style={{
             marginRight: '10px',
             padding: '8px',
             border: '2px solid #ccc',
             borderRadius: '4px',
             minWidth: '160px',
-            backgroundColor: isLocked ? '#e9ecef' : '#fff',
-            cursor: isLocked ? 'not-allowed' : 'pointer'
+            // Estilo para indicar que está desabilitado
+            backgroundColor: isStatusConfirmed ? '#e9ecef' : '#fff',
+            cursor: isStatusConfirmed ? 'not-allowed' : 'pointer'
           }}
         >
           <option value="">Selecione o status</option>
+          {/* REMOVIDO: <option value="Novo">Novo</option> */}
           <option value="Em Contato">Em Contato</option>
           <option value="Agendar">Agendar</option>
           <option value="Fechado">Fechado</option>
@@ -95,13 +120,29 @@ const Lead = ({ lead, onUpdateStatus, isLocked, onAlterarStatus }) => {
           <option value="Sem Contato">Sem Contato</option>
         </select>
 
-        {isLocked ? (
+        {/* Lógica condicional para exibir Confirmar ou Alterar */}
+        {!isStatusConfirmed ? (
           <button
-            onClick={onAlterarStatus}
+            onClick={handleConfirm}
+            disabled={disabledConfirm || !status || status === '' || status === 'Selecione o status'}
             style={{
               padding: '8px 16px',
-              backgroundColor: '#ffc107',
-              color: '#212529',
+              backgroundColor: (disabledConfirm || !status || status === '' || status === 'Selecione o status') ? '#aaa' : '#007bff',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: (disabledConfirm || !status || status === '' || status === 'Selecione o status') ? 'not-allowed' : 'pointer'
+            }}
+          >
+            Confirmar
+          </button>
+        ) : (
+          <button
+            onClick={handleAlterar}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#ffc107', // Cor amarela
+              color: '#212529', // Texto escuro para contraste
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer'
@@ -109,23 +150,32 @@ const Lead = ({ lead, onUpdateStatus, isLocked, onAlterarStatus }) => {
           >
             Alterar
           </button>
-        ) : (
-          <button
-            onClick={handleConfirm}
-            disabled={!selectedStatus || selectedStatus === '' || selectedStatus === 'Selecione o status'}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: (!selectedStatus || selectedStatus === '' || selectedStatus === 'Selecione o status') ? '#aaa' : '#007bff',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: (!selectedStatus || selectedStatus === '' || selectedStatus === 'Selecione o status') ? 'not-allowed' : 'pointer'
-            }}
-          >
-            Confirmar
-          </button>
         )}
       </div>
+
+      {/* REMOVIDO: Botão do WhatsApp */}
+      {/*
+      <div style={{ marginTop: '10px' }}>
+        <a
+          href={`https://wa.me/${lead.phone}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
+            backgroundColor: '#25D366',
+            color: 'white',
+            padding: '8px 12px',
+            borderRadius: '5px',
+            textDecoration: 'none',
+            fontSize: '0.9em',
+          }}
+        >
+          <Phone size={16} /> Enviar WhatsApp
+        </a>
+      </div>
+      */}
     </div>
   );
 };
