@@ -142,7 +142,7 @@ function App() {
           responsavel: item.responsavel || '',
           editado: item.editado || '',
           observacao: item.observacao || '',
-          agendamento: item.agendamento || ''
+          agendamento: item.agendamento || '',
           agendados: item.agendados || '',
         }));
 
