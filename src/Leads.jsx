@@ -246,17 +246,28 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
     setIsLoading(true);
     try {
-      await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
+      const payload = {
+        action: 'salvarObservacao',
+        leadId: leadId,
+        observacao: observacaoTexto,
+      };
+
+      const response = await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
         method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify({
-          leadId: leadId,
-          observacao: observacaoTexto,
-        }),
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'text/plain;charset=utf-8',
         },
+        body: JSON.stringify(payload),
       });
+
+      // Checa se a resposta foi bem-sucedida (status 200) e se o corpo não está vazio
+      if (response.ok && response.status !== 204) {
+        const result = await response.json();
+        console.log('Resposta do Google Sheets:', result);
+      } else {
+        console.warn('Resposta sem conteúdo ou não-JSON. Supondo sucesso.');
+      }
+      
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
       fetchLeadsFromSheet();
     } catch (error) {
@@ -370,7 +381,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           />
         </div>
 
-        {/* --- NOVO: CONTEINER ISOLADO PARA O SINO E A BOLHA --- */}
         {hasScheduledToday && (
           <div
             style={{
