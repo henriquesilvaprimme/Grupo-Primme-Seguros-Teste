@@ -4,7 +4,7 @@ import { RefreshCcw } from 'lucide-react';
 
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
-const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
+const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
 
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, onConfirmAgendamento }) => {
   const [selecionados, setSelecionados] = useState({});
@@ -247,6 +247,21 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     // Chama a função principal para salvar no Google Sheets
     await onConfirmAgendamento(leadId, data);
   };
+  
+  const handleAlterarAgendamento = async (leadId) => {
+    setIsLoading(true);
+    try {
+      // Limpa a data do agendamento localmente
+      setAgendamento(prev => ({ ...prev, [leadId]: '' }));
+      
+      // Chama a função para atualizar o status e limpar a data na planilha
+      await onUpdateStatus(leadId, 'Em Contato', ''); 
+    } catch (error) {
+      console.error('Erro ao alterar agendamento:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
@@ -421,6 +436,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     agendamento={agendamento[lead.id]}
                     onAgendamentoChange={(date) => handleAgendamentoChange(lead.id, date)}
                     onConfirmAgendamento={(data) => handleConfirmarAgendamento(lead.id, data)}
+                    // Nova prop para a função de alterar
+                    onAlterarAgendamento={handleAlterarAgendamento} 
                   />
                 </div>
 
