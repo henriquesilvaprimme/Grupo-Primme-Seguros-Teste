@@ -260,7 +260,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         body: JSON.stringify(payload),
       });
 
-      // Checa se a resposta foi bem-sucedida (status 200) e se o corpo não está vazio
       if (response.ok && response.status !== 204) {
         const result = await response.json();
         console.log('Resposta do Google Sheets:', result);
@@ -287,9 +286,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const currentLead = leads.find(l => l.id === leadId);
     const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
 
-    if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao) {
+    if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) && hasNoObservacao) {
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-    } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
+    } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) {
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     } else {
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
@@ -543,6 +542,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         <>
           {leadsPagina.map((lead) => {
             const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
+            const isAgendado = lead.status.startsWith('Agendado');
 
             return (
               <div
@@ -567,7 +567,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   />
                 </div>
 
-                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato') && (
+                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || isAgendado) && (
                   <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
                       Observações:
