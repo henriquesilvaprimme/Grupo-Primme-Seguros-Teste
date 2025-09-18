@@ -5,6 +5,8 @@ import { RefreshCcw, Bell } from 'lucide-react';
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
+// NOVA URL PARA ATUALIZAR STATUS E OPBSERVACAO
+const ALTERAR_STATUS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_status';
 
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
   const [selecionados, setSelecionados] = useState({});
@@ -243,8 +245,13 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       alert('Por favor, digite uma observação antes de salvar.');
       return;
     }
-
+    
     setIsLoading(true);
+    
+    // Obtém o status atual do lead
+    const currentLead = leads.find(l => l.id === leadId);
+    let novoStatus = currentLead.status;
+
     try {
       await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
         method: 'POST',
@@ -252,6 +259,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         body: JSON.stringify({
           leadId: leadId,
           observacao: observacaoTexto,
+          status: novoStatus // Inclui o status atual no envio da observação
         }),
         headers: {
           'Content-Type': 'application/json',
@@ -271,20 +279,33 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
   };
 
-  const handleConfirmStatus = (leadId, novoStatus, phone) => {
-    onUpdateStatus(leadId, novoStatus, phone);
-    const currentLead = leads.find(l => l.id === leadId);
-    const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
-
-    if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao) {
+  const handleConfirmStatus = async (leadId, novoStatus, phone) => {
+    setIsLoading(true);
+    try {
+        await fetch(ALTERAR_STATUS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({
+                lead: leadId,
+                status: novoStatus,
+                phone: phone
+            }),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        // onUpdateStatus já é chamado no Lead.jsx, mas é bom garantir a atualização local
+        onUpdateStatus(leadId, novoStatus, phone);
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-    } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-    } else {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+        fetchLeadsFromSheet();
+    } catch (error) {
+        console.error('Erro ao enviar lead:', error);
+        alert('Erro ao atualizar o status. Por favor, tente novamente.');
+    } finally {
+        setIsLoading(false);
     }
-    fetchLeadsFromSheet();
-  };
+};
+
 
   return (
     <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
@@ -312,14 +333,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             onClick={handleRefreshLeads}
             disabled={isLoading}
             style={{
-                background: 'none',
-                border: 'none',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                padding: '0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#007bff'
+              background: 'none',
+              border: 'none',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              padding: '0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#007bff'
             }}
           >
             {isLoading ? (
@@ -557,7 +578,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   />
                 </div>
 
-                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato') && (
+                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado')) && (
                   <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
                       Observações:
