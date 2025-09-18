@@ -6,10 +6,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
   const [isStatusConfirmed, setIsStatusConfirmed] = useState(
     lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado')
   );
-  
-  const [showModal, setShowModal] = useState(false);
-  const [agendarData, setAgendarData] = useState('');
-  const [observacao, setObservacao] = useState('');
 
   const cardColor = (() => {
     switch (true) {
@@ -34,17 +30,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado')
     );
     setStatus(lead.status || '');
-    
-    // Se o status for "Agendado", pré-preenche a data
-    if (lead.status.startsWith('Agendado')) {
-      const statusDateStr = lead.status.split(' - ')[1];
-      if (statusDateStr) {
-        const [dia, mes, ano] = statusDateStr.split('/');
-        // Converte para o formato YYYY-MM-DD
-        const formattedDate = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
-        setAgendarData(formattedDate);
-      }
-    }
   }, [lead.status]);
 
   const handleConfirm = () => {
@@ -52,32 +37,34 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       alert('Selecione um status antes de confirmar!');
       return;
     }
-
-    if (status === 'Agendar') {
-        setShowModal(true);
-    } else {
-        onUpdateStatus(lead.id, status, lead.phone);
-        setIsStatusConfirmed(true);
-    }
+    
+    // Atualiza o status e chama o callback
+    onUpdateStatus(lead.id, status, lead.phone);
+    setIsStatusConfirmed(true);
   };
   
   const handleAlterar = () => {
+    // Permite a edição do status novamente
     setIsStatusConfirmed(false);
-    setShowModal(false);
   };
 
-  const handleModalConfirm = () => {
-      if (status === 'Agendar' && !agendarData) {
-          alert('Por favor, selecione uma data para o agendamento.');
-          return;
-      }
-      
-      const novoStatus = status === 'Agendar' ? `Agendado - ${new Date(agendarData + 'T00:00:00').toLocaleDateString('pt-BR')}` : status;
-      onUpdateStatus(lead.id, novoStatus, lead.phone, observacao);
-      setIsStatusConfirmed(true);
-      setShowModal(false);
-      setAgendarData('');
-      setObservacao('');
+  const enviarLeadAtualizado = async (leadId, status, phone) => {
+    try {
+      await fetch('https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_status', {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({
+          lead: leadId,
+          status: status,
+          phone: phone
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (error) {
+      console.error('Erro ao enviar lead:', error);
+    }
   };
 
   return (
@@ -173,77 +160,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
           </button>
         )}
       </div>
-
-      {showModal && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          right: '20px',
-          transform: 'translateY(-50%)',
-          zIndex: 10,
-          backgroundColor: '#fff',
-          padding: '20px',
-          borderRadius: '8px',
-          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '15px'
-        }}>
-          <div>
-            <label htmlFor={`agendar-data-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-              Selecione a data:
-            </label>
-            <input
-              type="date"
-              id={`agendar-data-${lead.id}`}
-              value={agendarData}
-              onChange={(e) => setAgendarData(e.target.value)}
-              style={{
-                padding: '8px',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                width: '100%',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
-          <div>
-            <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-              Observações:
-            </label>
-            <textarea
-              id={`observacao-${lead.id}`}
-              value={observacao}
-              onChange={(e) => setObservacao(e.target.value)}
-              placeholder="Adicione observações sobre o agendamento..."
-              rows="4"
-              style={{
-                padding: '8px',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                width: '100%',
-                boxSizing: 'border-box',
-                resize: 'vertical'
-              }}
-            ></textarea>
-          </div>
-          <button
-            onClick={handleModalConfirm}
-            disabled={!agendarData && status === 'Agendar'}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#28a745',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: (!agendarData && status === 'Agendar') ? 'not-allowed' : 'pointer',
-              opacity: (!agendarData && status === 'Agendar') ? 0.6 : 1
-            }}
-          >
-            Salvar Agendamento
-          </button>
-        </div>
-      )}
     </div>
   );
 };
