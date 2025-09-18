@@ -7,6 +7,9 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
   const [isStatusConfirmed, setIsStatusConfirmed] = useState(
     lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado')
   );
+  
+  // Estado local para a data do agendamento
+  const [agendarData, setAgendarData] = useState('');
 
   // Define a cor do card conforme o status
   const cardColor = (() => {
@@ -40,9 +43,17 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       alert('Selecione um status antes de confirmar!');
       return;
     }
+
+    if (status === 'Agendar' && !agendarData) {
+      alert('Selecione uma data para o agendamento.');
+      return;
+    }
     
+    // Constrói o novo status com a data formatada, se for agendamento
+    const novoStatus = status === 'Agendar' ? `Agendado - ${new Date(agendarData).toLocaleDateString('pt-BR')}` : status;
+
     // Atualiza o status e chama o callback
-    onUpdateStatus(lead.id, status, lead.phone);
+    onUpdateStatus(lead.id, novoStatus, lead.phone);
     setIsStatusConfirmed(true);
   };
   
@@ -168,6 +179,27 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
           </button>
         )}
       </div>
+
+      {status === 'Agendar' && (
+        <div style={{ marginTop: '10px' }}>
+          <label htmlFor={`agendar-data-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
+            Data do agendamento:
+          </label>
+          <input
+            type="date"
+            id={`agendar-data-${lead.id}`}
+            value={agendarData}
+            onChange={(e) => setAgendarData(e.target.value)}
+            style={{
+              padding: '8px',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}
+          />
+        </div>
+      )}
 
       {/* REMOVIDO: Botão do WhatsApp */}
       {/*
