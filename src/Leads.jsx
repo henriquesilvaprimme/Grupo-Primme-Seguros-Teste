@@ -1,55 +1,68 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Lead from './components/Lead';
-import { RefreshCcw, Bell } from 'lucide-react';
+import { RefreshCcw } from 'lucide-react';
 
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
 
-const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
+const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, isEditing, setIsEditing }) => {
   const [selecionados, setSelecionados] = useState({});
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+
   const [observacoes, setObservacoes] = useState({});
   const [isEditingObservacao, setIsEditingObservacao] = useState({});
+
   const [dataInput, setDataInput] = useState('');
   const [filtroData, setFiltroData] = useState('');
+
   const [nomeInput, setNomeInput] = useState('');
   const [filtroNome, setFiltroNome] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState(null);
-  const [showNotification, setShowNotification] = useState(false);
-  const [hasScheduledToday, setHasScheduledToday] = useState(false);
-  const [agendamentoData, setAgendamentoData] = useState({});
+
+  const isEditingRef = useRef(isEditing);
+
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  }, [paginaAtual]);
+
+  useEffect(() => {
+    isEditingRef.current = isEditing;
+  }, [isEditing]);
 
   useEffect(() => {
     const initialObservacoes = {};
     const initialIsEditingObservacao = {};
     leads.forEach(lead => {
       initialObservacoes[lead.id] = lead.observacao || '';
-      initialIsEditingObservacao[lead.id] = true;
+      initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
     });
     setObservacoes(initialObservacoes);
     setIsEditingObservacao(initialIsEditingObservacao);
   }, [leads]);
 
   useEffect(() => {
-    const today = new Date();
-    const todayFormatted = today.toLocaleDateString('pt-BR');
+    const handleBeforeUnload = (event) => {
+      if (isEditingRef.current) {
+        event.preventDefault();
+        event.returnValue = 'Você tem observações não salvas. Deseja sair e perder as alterações?';
+        return event.returnValue;
+      }
+    };
 
-    const todayAppointments = leads.filter(lead => {
-      if (!lead.status.startsWith('Agendado')) return false;
-      const statusDateStr = lead.status.split(' - ')[1];
-      if (!statusDateStr) return false;
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
-      const [dia, mes, ano] = statusDateStr.split('/');
-      const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
-      const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
-
-      return statusDateFormatted === todayFormatted;
-    });
-
-    setHasScheduledToday(todayAppointments.length > 0);
-  }, [leads]);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
 
   const handleRefreshLeads = async () => {
     setIsLoading(true);
@@ -57,7 +70,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       await fetchLeadsFromSheet();
       const refreshedIsEditingObservacao = {};
       leads.forEach(lead => {
-        refreshedIsEditingObservacao[lead.id] = false;
+        refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
       });
       setIsEditingObservacao(refreshedIsEditingObservacao);
     } catch (error) {
@@ -84,23 +97,12 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroData(dataInput);
     setFiltroNome('');
     setNomeInput('');
-    setFiltroStatus(null);
     setPaginaAtual(1);
   };
 
   const aplicarFiltroNome = () => {
     const filtroLimpo = nomeInput.trim();
     setFiltroNome(filtroLimpo);
-    setFiltroData('');
-    setDataInput('');
-    setFiltroStatus(null);
-    setPaginaAtual(1);
-  };
-  
-  const aplicarFiltroStatus = (status) => {
-    setFiltroStatus(status);
-    setFiltroNome('');
-    setNomeInput('');
     setFiltroData('');
     setDataInput('');
     setPaginaAtual(1);
@@ -123,22 +125,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     return nomeNormalizado.includes(filtroNormalizado);
   };
 
-  const gerais = leads.filter((lead) => {
+  const leadsFiltrados = leads.filter((lead) => {
     if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
-
-    if (filtroStatus) {
-      if (filtroStatus === 'Agendado') {
-        const today = new Date();
-        const todayFormatted = today.toLocaleDateString('pt-BR');
-        const statusDateStr = lead.status.split(' - ')[1];
-        if (!statusDateStr) return false;
-        const [dia, mes, ano] = statusDateStr.split('/');
-        const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
-        const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
-        return lead.status.startsWith('Agendado') && statusDateFormatted === todayFormatted;
-      }
-      return lead.status === filtroStatus;
-    }
 
     if (filtroData) {
       const leadMesAno = lead.createdAt ? lead.createdAt.substring(0, 7) : '';
@@ -152,8 +140,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     return true;
   });
 
+  const gerais = [...leadsFiltrados].sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt) : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt) : 0;
+    return dateB - dateA;
+  });
+
   const totalPaginas = Math.max(1, Math.ceil(gerais.length / leadsPorPagina));
   const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
+
   const usuariosAtivos = usuarios.filter((u) => u.status === 'Ativo');
   const isAdmin = usuarioLogado?.tipo === 'Admin';
 
@@ -186,7 +181,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
-      fetchLeadsFromSheet();
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
     }
@@ -224,7 +218,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     } else {
       data = new Date(dataStr);
     }
-
     if (isNaN(data.getTime())) {
       return '';
     }
@@ -244,7 +237,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       alert('Por favor, digite uma observação antes de salvar.');
       return;
     }
-
     setIsLoading(true);
     try {
       await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
@@ -258,7 +250,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
+      setIsEditing(false);
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+      // Recarrega os leads para que a observação salva seja exibida corretamente
       fetchLeadsFromSheet();
     } catch (error) {
       console.error('Erro ao salvar observação:', error);
@@ -274,27 +268,27 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const handleConfirmStatus = (leadId, novoStatus, phone) => {
     onUpdateStatus(leadId, novoStatus, phone);
-    if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus === 'Agendar') {
+    const currentLead = leads.find(l => l.id === leadId);
+    const hasNoObservacao = !currentLead?.observacao || currentLead.observacao.trim() === '';
+
+    if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus === 'Agendar') && hasNoObservacao) {
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+    } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus === 'Agendar') {
+      setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     } else {
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     }
     fetchLeadsFromSheet();
   };
 
-  const handleAgendamentoChange = (leadId, date) => {
-    setAgendamentoData(prev => ({ ...prev, [leadId]: date }));
-  };
-
   return (
-    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
+    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }} ref={containerRef}>
       {isLoading && (
         <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
           <p className="ml-4 text-lg text-gray-700">Carregando LEADS...</p>
         </div>
       )}
-
       <div
         style={{
           display: 'flex',
@@ -332,12 +326,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             )}
           </button>
         </div>
-
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
+            flexGrow: 1,
+            justifyContent: 'center',
+            minWidth: '300px',
           }}
         >
           <button
@@ -369,72 +365,12 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             title="Filtrar leads pelo nome (contém)"
           />
         </div>
-
-        {/* --- NOVO: CONTEINER ISOLADO PARA O SINO E A BOLHA --- */}
-        {hasScheduledToday && (
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <div
-              style={{
-                position: 'relative',
-                cursor: 'pointer'
-              }}
-              onClick={() => setShowNotification(!showNotification)}
-            >
-              <Bell size={32} color="#007bff" />
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '-5px',
-                  right: '-5px',
-                  backgroundColor: 'red',
-                  color: 'white',
-                  borderRadius: '50%',
-                  width: '20px',
-                  height: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                }}
-              >
-                1
-              </div>
-              {showNotification && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '40px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: '250px',
-                    backgroundColor: 'white',
-                    border: '1px solid #ccc',
-                    borderRadius: '8px',
-                    padding: '15px',
-                    boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
-                    zIndex: 10,
-                  }}
-                >
-                  <p>Você tem agendamentos hoje!</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
+            minWidth: '220px',
           }}
         >
           <button
@@ -464,67 +400,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           />
         </div>
       </div>
-
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '15px',
-          marginBottom: '20px',
-          flexWrap: 'wrap',
-        }}
-      >
-        <button
-          onClick={() => aplicarFiltroStatus('Em Contato')}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: filtroStatus === 'Em Contato' ? '#e67e22' : '#f39c12',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            boxShadow: filtroStatus === 'Em Contato' ? 'inset 0 0 5px rgba(0,0,0,0.3)' : 'none',
-          }}
-        >
-          Em Contato
-        </button>
-
-        <button
-          onClick={() => aplicarFiltroStatus('Sem Contato')}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: filtroStatus === 'Sem Contato' ? '#7f8c8d' : '#95a5a6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            boxShadow: filtroStatus === 'Sem Contato' ? 'inset 0 0 5px rgba(0,0,0,0.3)' : 'none',
-          }}
-        >
-          Sem Contato
-        </button>
-
-        {hasScheduledToday && (
-          <button
-            onClick={() => aplicarFiltroStatus('Agendado')}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: filtroStatus === 'Agendado' ? '#2980b9' : '#3498db',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              boxShadow: filtroStatus === 'Agendado' ? 'inset 0 0 5px rgba(0,0,0,0.3)' : 'none',
-            }}
-          >
-            Agendados
-          </button>
-        )}
-      </div>
-
       {isLoading ? (
         null
       ) : gerais.length === 0 ? (
@@ -533,7 +408,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         <>
           {leadsPagina.map((lead) => {
             const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
-
             return (
               <div
                 key={lead.id}
@@ -544,7 +418,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   marginBottom: '15px',
                   position: 'relative',
                   display: 'flex',
-                  gap: '20px',
+                  gap: '1px',
                   alignItems: 'flex-start',
                   flexWrap: 'wrap',
                 }}
@@ -556,7 +430,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     disabledConfirm={!lead.responsavel}
                   />
                 </div>
-
                 {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Agendar' || lead.status.startsWith('Agendado')) && (
                   <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
@@ -615,7 +488,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     )}
                   </div>
                 )}
-
                 <div style={{ width: '100%' }}>
                   {lead.responsavel && responsavel ? (
                     <div style={{ marginTop: '10px' }}>
@@ -642,7 +514,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   ) : (
                     <div
                       style={{
-                        marginTop: '10px',
+                        marginTop: '0px',
                         display: 'flex',
                         gap: '10px',
                         alignItems: 'center',
@@ -680,7 +552,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     </div>
                   )}
                 </div>
-
                 <div
                   style={{
                     position: 'absolute',
@@ -697,7 +568,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
               </div>
             );
           })}
-
           <div
             style={{
               display: 'flex',
