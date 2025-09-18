@@ -7,8 +7,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
   );
   const [showCalendar, setShowCalendar] = useState(false);
   const [scheduledDate, setScheduledDate] = useState('');
-  
-  // 🆕 NOVO ESTADO PARA A OBSERVAÇÃO DO AGENDAMENTO
+  // NOVO ESTADO PARA A OBSERVAÇÃO DO AGENDAMENTO
   const [observacaoAgendamento, setObservacaoAgendamento] = useState('');
 
   const cardColor = (() => {
@@ -34,6 +33,13 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado')
     );
     setStatus(lead.status || '');
+    if (lead.status.startsWith('Agendado')) {
+        const dateStr = lead.status.split(' - ')[1];
+        if (dateStr) {
+            const [day, month, year] = dateStr.split('/');
+            setScheduledDate(`${year}-${month}-${day}`);
+        }
+    }
   }, [lead.status]);
 
   const handleConfirm = () => {
@@ -57,16 +63,17 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
     const formattedDate = selectedDate.toLocaleDateString('pt-BR');
     const newStatus = `Agendado - ${formattedDate}`;
 
-    // 🆕 Inclui a observação na chamada da função
-    enviarLeadAtualizado(lead.id, newStatus, lead.phone, observacaoAgendamento);
+    // Passa a observação para o componente pai
+    if (onUpdateStatus) {
+      onUpdateStatus(lead.id, newStatus, lead.phone, observacaoAgendamento);
+    }
+
+    // A chamada para `enviarLeadAtualizado` agora será feita pelo componente pai `Leads.jsx`
+    // para centralizar a lógica de salvamento da observação.
+    // O `onUpdateStatus` no `Leads.jsx` irá cuidar tanto do status quanto da observação.
     setStatus(newStatus);
     setIsStatusConfirmed(true);
     setShowCalendar(false);
-
-    if (onUpdateStatus) {
-      // 🆕 Passa a observação para o componente pai
-      onUpdateStatus(lead.id, newStatus, lead.phone, observacaoAgendamento);
-    }
   };
 
   const handleAlterar = () => {
@@ -74,27 +81,11 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
     setShowCalendar(false);
   };
 
-  // 🆕 ATUALIZADO: Função para enviar lead agora pode receber a observação
-  const enviarLeadAtualizado = async (leadId, status, phone, observacao = '') => {
-    try {
-      await fetch('https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_status', {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify({
-          lead: leadId,
-          status: status,
-          phone: phone,
-          // 🆕 Incluído o campo de observação
-          observacao: observacao
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-    } catch (error) {
-      console.error('Erro ao enviar lead:', error);
-    }
-  };
+  // ATUALIZADO: Função para enviar lead
+  // Esta função agora é chamada diretamente de `Leads.jsx` para centralizar o fetch.
+  // Você não precisa mais dela aqui se o `onUpdateStatus` já faz essa chamada.
+  // Vamos remover a chamada aqui para evitar duplicação.
+  // const enviarLeadAtualizado = ...
 
   return (
     <div
@@ -199,7 +190,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
         )}
       </div>
 
-      {/* 🆕 Novos campos para o status "Agendar" */}
+      {/* Novos campos para o status "Agendar" */}
       {showCalendar && (
         <div style={{ marginTop: '15px' }}>
           <div style={{ marginBottom: '10px' }}>
