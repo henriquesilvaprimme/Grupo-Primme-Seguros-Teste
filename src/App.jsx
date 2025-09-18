@@ -143,6 +143,7 @@ function App() {
           editado: item.editado || '',
           observacao: item.observacao || '',
           agendamento: item.agendamento || ''
+          agendados: item.agendados || '',
         }));
 
         if (!leadSelecionado) {
