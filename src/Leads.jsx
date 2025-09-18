@@ -399,34 +399,44 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           />
         </div>
 
-        {/* NOVO: Componente do sino de notificação foi movido para cá */}
+        {/* NOVO: Componente do sino de notificação foi movido e centralizado */}
         {hasScheduledToday && (
             <div
               style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
                 position: 'relative',
-                cursor: 'pointer'
+                flex: '1 1 100px', // Ocupa espaço flexível e mantém um tamanho mínimo
               }}
-              onClick={() => setShowNotification(!showNotification)}
             >
-              <Bell size={32} color="#007bff" />
               <div
                 style={{
-                  position: 'absolute',
-                  top: '-5px',
-                  right: '-5px',
-                  backgroundColor: 'red',
-                  color: 'white',
-                  borderRadius: '50%',
-                  width: '20px',
-                  height: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
+                  position: 'relative',
+                  cursor: 'pointer'
                 }}
+                onClick={() => setShowNotification(!showNotification)}
               >
-                1
+                <Bell size={32} color="#007bff" />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '-5px',
+                    right: '-5px',
+                    backgroundColor: 'red',
+                    color: 'white',
+                    borderRadius: '50%',
+                    width: '20px',
+                    height: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  1
+                </div>
               </div>
               {showNotification && (
                 <div
