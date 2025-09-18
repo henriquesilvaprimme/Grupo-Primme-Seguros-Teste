@@ -5,9 +5,9 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
   const [isStatusConfirmed, setIsStatusConfirmed] = useState(
     lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado')
   );
-  const [showCalendar, setShowCalendar] = useState(false);
+  // Estado para mostrar o calendário e a observação
+  const [showScheduleFields, setShowScheduleFields] = useState(false);
   const [scheduledDate, setScheduledDate] = useState('');
-  // NOVO ESTADO PARA A OBSERVAÇÃO DO AGENDAMENTO
   const [observacaoAgendamento, setObservacaoAgendamento] = useState('');
 
   const cardColor = (() => {
@@ -33,13 +33,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado')
     );
     setStatus(lead.status || '');
-    if (lead.status.startsWith('Agendado')) {
-        const dateStr = lead.status.split(' - ')[1];
-        if (dateStr) {
-            const [day, month, year] = dateStr.split('/');
-            setScheduledDate(`${year}-${month}-${day}`);
-        }
-    }
   }, [lead.status]);
 
   const handleConfirm = () => {
@@ -47,6 +40,12 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       alert('Selecione um status antes de confirmar!');
       return;
     }
+    if (status === 'Agendar') {
+      // Se o status for "Agendar", mostre os campos de agendamento
+      setShowScheduleFields(true);
+      return;
+    }
+    // Para outros status, confirme imediatamente
     enviarLeadAtualizado(lead.id, status, lead.phone);
     setIsStatusConfirmed(true);
     if (onUpdateStatus) {
@@ -63,29 +62,39 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
     const formattedDate = selectedDate.toLocaleDateString('pt-BR');
     const newStatus = `Agendado - ${formattedDate}`;
 
-    // Passa a observação para o componente pai
+    enviarLeadAtualizado(lead.id, newStatus, lead.phone, observacaoAgendamento);
+    setStatus(newStatus);
+    setIsStatusConfirmed(true);
+    setShowScheduleFields(false); // Esconda os campos após a confirmação
     if (onUpdateStatus) {
       onUpdateStatus(lead.id, newStatus, lead.phone, observacaoAgendamento);
     }
-
-    // A chamada para `enviarLeadAtualizado` agora será feita pelo componente pai `Leads.jsx`
-    // para centralizar a lógica de salvamento da observação.
-    // O `onUpdateStatus` no `Leads.jsx` irá cuidar tanto do status quanto da observação.
-    setStatus(newStatus);
-    setIsStatusConfirmed(true);
-    setShowCalendar(false);
   };
 
   const handleAlterar = () => {
     setIsStatusConfirmed(false);
-    setShowCalendar(false);
+    setShowScheduleFields(false);
   };
 
-  // ATUALIZADO: Função para enviar lead
-  // Esta função agora é chamada diretamente de `Leads.jsx` para centralizar o fetch.
-  // Você não precisa mais dela aqui se o `onUpdateStatus` já faz essa chamada.
-  // Vamos remover a chamada aqui para evitar duplicação.
-  // const enviarLeadAtualizado = ...
+  const enviarLeadAtualizado = async (leadId, status, phone, observacao = '') => {
+    try {
+      await fetch('https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_status', {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({
+          lead: leadId,
+          status: status,
+          phone: phone,
+          observacao: observacao
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (error) {
+      console.error('Erro ao enviar lead:', error);
+    }
+  };
 
   return (
     <div
@@ -95,106 +104,113 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
         marginBottom: '15px',
         borderRadius: '5px',
         backgroundColor: cardColor,
-        position: 'relative'
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'row', // Adicionado para organizar os elementos lado a lado
+        gap: '20px' // Espaço entre o card e a seção de agendamento
       }}
     >
-      {isStatusConfirmed && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '10px',
-            right: '10px',
-            padding: '5px 10px',
-            borderRadius: '5px',
-            backgroundColor: '#007bff',
-            color: 'white',
-            fontWeight: 'bold',
-            fontSize: '14px',
-          }}
-        >
-          {status}
-        </div>
-      )}
-
-      <p><strong>Nome:</strong> {lead.name}</p>
-      <p><strong>Modelo do veículo:</strong> {lead.vehicleModel}</p>
-      <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
-      <p><strong>Cidade:</strong> {lead.city}</p>
-      <p><strong>Telefone:</strong> {lead.phone}</p>
-      <p><strong>Tipo de Seguro:</strong> {lead.insuranceType}</p>
-
-      <div style={{ marginTop: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <select
-          value={status}
-          onChange={(e) => {
-            const newStatus = e.target.value;
-            setStatus(newStatus);
-            if (newStatus === 'Agendar') {
-              setShowCalendar(true);
-            } else {
-              setShowCalendar(false);
-            }
-          }}
-          disabled={isStatusConfirmed}
-          style={{
-            marginRight: '10px',
-            padding: '8px',
-            border: '2px solid #ccc',
-            borderRadius: '4px',
-            minWidth: '160px',
-            backgroundColor: isStatusConfirmed ? '#e9ecef' : '#fff',
-            cursor: isStatusConfirmed ? 'not-allowed' : 'pointer'
-          }}
-        >
-          <option value="">Selecione o status</option>
-          <option value="Agendar">Agendar</option>
-          <option value="Em Contato">Em Contato</option>
-          <option value="Fechado">Fechado</option>
-          <option value="Perdido">Perdido</option>
-          <option value="Sem Contato">Sem Contato</option>
-        </select>
-
-        {!isStatusConfirmed ? (
-          <>
-            {!showCalendar && (
-              <button
-                onClick={handleConfirm}
-                disabled={disabledConfirm || !status || status === '' || status === 'Selecione o status'}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: (disabledConfirm || !status || status === '' || status === 'Selecione o status') ? '#aaa' : '#007bff',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: (disabledConfirm || !status || status === '' || status === 'Selecione o status') ? 'not-allowed' : 'pointer'
-                }}
-              >
-                Confirmar
-              </button>
-            )}
-          </>
-        ) : (
-          <button
-            onClick={handleAlterar}
+      <div style={{ flex: 1 }}> {/* Card principal do lead */}
+        {isStatusConfirmed && (
+          <div
             style={{
-              padding: '8px 16px',
-              backgroundColor: '#ffc107',
-              color: '#212529',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              padding: '5px 10px',
+              borderRadius: '5px',
+              backgroundColor: '#007bff',
+              color: 'white',
+              fontWeight: 'bold',
+              fontSize: '14px',
             }}
           >
-            Alterar
-          </button>
+            {status}
+          </div>
         )}
+
+        <p><strong>Nome:</strong> {lead.name}</p>
+        <p><strong>Modelo do veículo:</strong> {lead.vehicleModel}</p>
+        <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
+        <p><strong>Cidade:</strong> {lead.city}</p>
+        <p><strong>Telefone:</strong> {lead.phone}</p>
+        <p><strong>Tipo de Seguro:</strong> {lead.insuranceType}</p>
+
+        <div style={{ marginTop: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <select
+            value={status}
+            onChange={(e) => {
+              const newStatus = e.target.value;
+              setStatus(newStatus);
+              // Esconda os campos se o status mudar para outra coisa que não "Agendar"
+              if (newStatus !== 'Agendar') {
+                setShowScheduleFields(false);
+              }
+            }}
+            disabled={isStatusConfirmed || showScheduleFields}
+            style={{
+              marginRight: '10px',
+              padding: '8px',
+              border: '2px solid #ccc',
+              borderRadius: '4px',
+              minWidth: '160px',
+              backgroundColor: isStatusConfirmed || showScheduleFields ? '#e9ecef' : '#fff',
+              cursor: isStatusConfirmed || showScheduleFields ? 'not-allowed' : 'pointer'
+            }}
+          >
+            <option value="">Selecione o status</option>
+            <option value="Agendar">Agendar</option>
+            <option value="Em Contato">Em Contato</option>
+            <option value="Fechado">Fechado</option>
+            <option value="Perdido">Perdido</option>
+            <option value="Sem Contato">Sem Contato</option>
+          </select>
+
+          {!isStatusConfirmed && !showScheduleFields ? (
+            <button
+              onClick={handleConfirm}
+              disabled={disabledConfirm || !status || status === '' || status === 'Selecione o status'}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: (disabledConfirm || !status || status === '' || status === 'Selecione o status') ? '#aaa' : '#007bff',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: (disabledConfirm || !status || status === '' || status === 'Selecione o status') ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Confirmar
+            </button>
+          ) : isStatusConfirmed && (
+            <button
+              onClick={handleAlterar}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#ffc107',
+                color: '#212529',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Alterar
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Novos campos para o status "Agendar" */}
-      {showCalendar && (
-        <div style={{ marginTop: '15px' }}>
+      {/* Seção para o status "Agendar", à direita */}
+      {showScheduleFields && (
+        <div style={{
+          padding: '15px',
+          border: '1px solid #ccc',
+          borderRadius: '5px',
+          backgroundColor: '#f9f9f9',
+          flex: 1 // Ocupa o espaço restante
+        }}>
+          <h4>Detalhes do Agendamento</h4>
           <div style={{ marginBottom: '10px' }}>
-            <label htmlFor="agendamento-data" style={{ display: 'block', fontWeight: 'bold' }}>Data do Agendamento:</label>
+            <label htmlFor="agendamento-data" style={{ display: 'block', fontWeight: 'bold' }}>Data:</label>
             <input
               type="date"
               id="agendamento-data"
@@ -223,7 +239,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
             ></textarea>
           </div>
           
-          {/* Botão de confirmação para Agendamento, agora abaixo do campo de observação */}
           <button
             onClick={handleScheduleConfirm}
             disabled={!scheduledDate}
