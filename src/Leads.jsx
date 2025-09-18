@@ -5,8 +5,6 @@ import { RefreshCcw, Bell } from 'lucide-react';
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
-// NOVA URL PARA ATUALIZAR STATUS E OPBSERVACAO
-const ALTERAR_STATUS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_status';
 
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
   const [selecionados, setSelecionados] = useState({});
@@ -21,10 +19,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const [filtroStatus, setFiltroStatus] = useState(null);
   const [showNotification, setShowNotification] = useState(false);
   const [hasScheduledToday, setHasScheduledToday] = useState(false);
-  
-  // NOVOS ESTADOS PARA AGENDAMENTO
-  const [selectedDate, setSelectedDate] = useState({});
-  const [schedulingLeadId, setSchedulingLeadId] = useState(null);
 
   useEffect(() => {
     const initialObservacoes = {};
@@ -101,7 +95,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setFiltroStatus(null);
     setPaginaAtual(1);
   };
-    
+  
   const aplicarFiltroStatus = (status) => {
     setFiltroStatus(status);
     setFiltroNome('');
@@ -249,13 +243,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       alert('Por favor, digite uma observação antes de salvar.');
       return;
     }
-    
-    setIsLoading(true);
-    
-    // Obtém o status atual do lead
-    const currentLead = leads.find(l => l.id === leadId);
-    let novoStatus = currentLead.status;
 
+    setIsLoading(true);
     try {
       await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
         method: 'POST',
@@ -263,7 +252,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         body: JSON.stringify({
           leadId: leadId,
           observacao: observacaoTexto,
-          status: novoStatus // Inclui o status atual no envio da observação
         }),
         headers: {
           'Content-Type': 'application/json',
@@ -283,80 +271,19 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
   };
 
-  // Lógica para exibir os campos de agendamento e observações
-  const handleConfirmStatus = async (leadId, novoStatus, phone) => {
-    if (novoStatus === 'Agendar') {
-      setSchedulingLeadId(leadId);
-      // Garante que o campo de observação seja editável quando a opção Agendar for selecionada
-      setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-      setObservacoes(prev => ({ ...prev, [leadId]: prev[leadId] || '' }));
-      return;
-    }
+  const handleConfirmStatus = (leadId, novoStatus, phone) => {
+    onUpdateStatus(leadId, novoStatus, phone);
+    const currentLead = leads.find(l => l.id === leadId);
+    const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
 
-    setIsLoading(true);
-    try {
-        await fetch(ALTERAR_STATUS_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            body: JSON.stringify({
-                lead: leadId,
-                status: novoStatus,
-                phone: phone
-            }),
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-        onUpdateStatus(leadId, novoStatus, phone);
+    if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao) {
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-        fetchLeadsFromSheet();
-    } catch (error) {
-        console.error('Erro ao enviar lead:', error);
-        alert('Erro ao atualizar o status. Por favor, tente novamente.');
-    } finally {
-        setIsLoading(false);
+    } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+    } else {
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     }
-  };
-  
-  // NOVA FUNÇÃO para confirmar o agendamento após a seleção da data
-  const handleConfirmAgendamento = async (leadId) => {
-    const dataAgendada = selectedDate[leadId];
-    const observacaoTexto = observacoes[leadId] || '';
-
-    if (!dataAgendada) {
-      alert('Por favor, selecione uma data para o agendamento.');
-      return;
-    }
-    
-    setIsLoading(true);
-    const novoStatus = `Agendado - ${dataAgendada.toLocaleDateString('pt-BR')}`;
-    const phone = leads.find(l => l.id === leadId).phone;
-    
-    try {
-      await fetch(ALTERAR_STATUS_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify({
-          lead: leadId,
-          status: novoStatus,
-          observacao: observacaoTexto,
-          phone: phone
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      onUpdateStatus(leadId, novoStatus, phone);
-      setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-      setSchedulingLeadId(null);
-      fetchLeadsFromSheet();
-    } catch (error) {
-      console.error('Erro ao atualizar o status de agendamento:', error);
-      alert('Erro ao agendar. Por favor, tente novamente.');
-    } finally {
-      setIsLoading(false);
-    }
+    fetchLeadsFromSheet();
   };
 
   return (
@@ -385,14 +312,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             onClick={handleRefreshLeads}
             disabled={isLoading}
             style={{
-              background: 'none',
-              border: 'none',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              padding: '0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#007bff'
+                background: 'none',
+                border: 'none',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                padding: '0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#007bff'
             }}
           >
             {isLoading ? (
@@ -630,65 +557,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   />
                 </div>
 
-                {/* Bloco de agendamento - Visível apenas quando o status "Agendar" é selecionado */}
-                {schedulingLeadId === lead.id && (
-                  <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
-                    <label htmlFor={`agendamento-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
-                      Data do Agendamento:
-                    </label>
-                    <input
-                      type="date"
-                      id={`agendamento-${lead.id}`}
-                      value={selectedDate[lead.id] ? selectedDate[lead.id].toISOString().substring(0, 10) : ''}
-                      onChange={(e) => setSelectedDate(prev => ({ ...prev, [lead.id]: new Date(e.target.value) }))}
-                      style={{
-                        width: '100%',
-                        padding: '10px',
-                        borderRadius: '6px',
-                        border: '1px solid #ccc',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                    
-                    <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginTop: '10px', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
-                      Observações:
-                    </label>
-                    <textarea
-                      id={`observacao-${lead.id}`}
-                      value={observacoes[lead.id] || ''}
-                      onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
-                      placeholder="Adicione suas observações aqui..."
-                      rows="3"
-                      style={{
-                        width: '100%',
-                        padding: '10px',
-                        borderRadius: '6px',
-                        border: '1px solid #ccc',
-                        resize: 'vertical',
-                        boxSizing: 'border-box',
-                      }}
-                    ></textarea>
-
-                    <button
-                      onClick={() => handleConfirmAgendamento(lead.id)}
-                      style={{
-                        marginTop: '10px',
-                        padding: '8px 16px',
-                        backgroundColor: '#28a745',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      Confirmar Agendamento
-                    </button>
-                  </div>
-                )}
-
-
-                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado')) && schedulingLeadId !== lead.id && (
+                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato') && (
                   <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
                       Observações:
