@@ -6,7 +6,6 @@ const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vuj
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
 // Script para salvar a observação e a data agendada
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
-const SALVAR_AGENDAMENTO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarAgendamento';
 
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, isEditing, setIsEditing }) => {
     const [selecionados, setSelecionados] = useState({});
@@ -48,13 +47,20 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         const initialObservacoes = {};
         const initialIsEditingObservacao = {};
         const initialIsStatusLocked = {};
-        const initialAgendamentos = {}; // Inicializa o novo estado de agendamentos
+        const initialAgendamentos = {}; 
 
         leads.forEach(lead => {
             initialObservacoes[lead.id] = lead.observacao || '';
             initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
             initialIsStatusLocked[lead.id] = ['Em Contato', 'Sem Contato', 'Fechado', 'Perdido'].includes(lead.status) || lead.status.startsWith('Agendado');
-            initialAgendamentos[lead.id] = ''; // Adicione esta linha
+            // MODIFICAÇÃO: Captura a data de agendamento se o status já for Agendado
+            if (lead.status.startsWith('Agendado - ')) {
+                const dateStr = lead.status.split(' - ')[1];
+                const [dia, mes, ano] = dateStr.split('/');
+                initialAgendamentos[lead.id] = `${ano}-${mes}-${dia}`;
+            } else {
+                initialAgendamentos[lead.id] = '';
+            }
         });
         setObservacoes(initialObservacoes);
         setIsEditingObservacao(initialIsEditingObservacao);
@@ -303,26 +309,44 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         const observacaoTexto = observacoes[leadId] || '';
         const agendamentoData = agendamentos[leadId] || '';
 
-        if (!observacaoTexto.trim() && !agendamentoData) {
+        // MODIFICAÇÃO: Verifica se a data de agendamento está preenchida
+        if (!agendamentoData && !observacaoTexto.trim()) {
             alert('Por favor, adicione uma observação ou selecione uma data de agendamento antes de salvar.');
             return;
         }
+
         setIsLoading(true);
         try {
+            const lead = leads.find(l => l.id === leadId);
+
+            // MODIFICAÇÃO: Cria o novo status se houver data de agendamento
+            let novoStatus = lead.status;
+            if (agendamentoData) {
+                const [ano, mes, dia] = agendamentoData.split('-');
+                const dataFormatada = `${dia}/${mes}/${ano}`;
+                novoStatus = `Agendado - ${dataFormatada}`;
+            }
+
+            const payload = {
+                leadId: leadId,
+                observacao: observacaoTexto,
+                agendamento: agendamentoData, // Envia a data completa
+                novoStatus: novoStatus // Adiciona o novo status
+            };
+
             await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
-                body: JSON.stringify({
-                    leadId: leadId,
-                    observacao: observacaoTexto,
-                    agendamento: agendamentoData, // Adiciona a data do agendamento
-                }),
+                body: JSON.stringify(payload),
                 headers: {
                     'Content-Type': 'application/json',
                 },
             });
             setIsEditing(false);
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+
+            // MODIFICAÇÃO: Atualiza o status localmente para refletir a mudança imediatamente
+            onUpdateStatus(leadId, novoStatus);
             fetchLeadsFromSheet();
         } catch (error) {
             console.error('Erro ao salvar observação:', error);
@@ -708,44 +732,33 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                                                 </button>
                                             )}
                                         </div>
-                                    ) : (
-                                        <div
-                                            style={{
-                                                marginTop: '0px',
-                                                display: 'flex',
-                                                gap: '10px',
-                                                alignItems: 'center',
-                                            }}
-                                        >
+                                    ) : isAdmin && (
+                                        <div style={{ marginTop: '10px' }}>
                                             <select
-                                                value={selecionados[lead.id] || ''}
                                                 onChange={(e) => handleSelect(lead.id, e.target.value)}
-                                                disabled={isStatusLocked[lead.id]}
+                                                value={selecionados[lead.id] || ''}
                                                 style={{
-                                                    padding: '5px',
+                                                    padding: '8px',
                                                     borderRadius: '4px',
                                                     border: '1px solid #ccc',
-                                                    backgroundColor: isStatusLocked[lead.id] ? '#f0f0f0' : '#fff',
-                                                    cursor: isStatusLocked[lead.id] ? 'not-allowed' : 'pointer',
+                                                    marginRight: '10px'
                                                 }}
                                             >
-                                                <option value="">Selecione usuário ativo</option>
-                                                {usuariosAtivos.map((u) => (
-                                                    <option key={u.id} value={u.id}>
-                                                        {u.nome}
-                                                    </option>
+                                                <option value="">Atribuir a...</option>
+                                                {usuariosAtivos.map(usuario => (
+                                                    <option key={usuario.id} value={usuario.id}>{usuario.nome}</option>
                                                 ))}
                                             </select>
                                             <button
                                                 onClick={() => handleEnviar(lead.id)}
-                                                disabled={isStatusLocked[lead.id]}
+                                                disabled={!selecionados[lead.id]}
                                                 style={{
-                                                    padding: '5px 12px',
-                                                    backgroundColor: isStatusLocked[lead.id] ? '#ccc' : '#28a745',
+                                                    padding: '8px 16px',
+                                                    backgroundColor: selecionados[lead.id] ? '#28a745' : '#ccc',
                                                     color: 'white',
                                                     border: 'none',
                                                     borderRadius: '4px',
-                                                    cursor: isStatusLocked[lead.id] ? 'not-allowed' : 'pointer',
+                                                    cursor: selecionados[lead.id] ? 'pointer' : 'not-allowed',
                                                 }}
                                             >
                                                 Enviar
@@ -753,55 +766,35 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                                         </div>
                                     )}
                                 </div>
-                                <div
-                                    style={{
-                                        position: 'absolute',
-                                        bottom: '10px',
-                                        right: '15px',
-                                        fontSize: '12px',
-                                        color: '#888',
-                                        fontStyle: 'italic',
-                                    }}
-                                    title={`Criado em: ${formatarData(lead.createdAt)}`}
-                                >
-                                    {formatarData(lead.createdAt)}
-                                </div>
                             </div>
                         );
                     })}
-                    <div
-                        style={{
-                            display: 'flex',
-                            justifyContent: 'center',
-                            gap: '15px',
-                            marginTop: '20px',
-                        }}
-                    >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
                         <button
                             onClick={handlePaginaAnterior}
-                            disabled={paginaCorrigida <= 1 || isLoading}
+                            disabled={paginaCorrigida === 1}
                             style={{
-                                padding: '6px 14px',
-                                borderRadius: '6px',
-                                border: '1px solid #ccc',
-                                cursor: (paginaCorrigida <= 1 || isLoading) ? 'not-allowed' : 'pointer',
-                                backgroundColor: (paginaCorrigida <= 1 || isLoading) ? '#f0f0f0' : '#fff',
+                                padding: '10px 20px',
+                                backgroundColor: paginaCorrigida === 1 ? '#ccc' : '#007bff',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: paginaCorrigida === 1 ? 'not-allowed' : 'pointer'
                             }}
                         >
                             Anterior
                         </button>
-                        <span style={{ alignSelf: 'center' }}>
-                            Página {paginaCorrigida} de {totalPaginas}
-                        </span>
+                        <span>Página {paginaCorrigida} de {totalPaginas}</span>
                         <button
                             onClick={handlePaginaProxima}
-                            disabled={paginaCorrigida >= totalPaginas || isLoading}
+                            disabled={paginaCorrigida === totalPaginas}
                             style={{
-                                padding: '6px 14px',
-                                borderRadius: '6px',
-                                border: '1px solid #ccc',
-                                cursor: (paginaCorrigida >= totalPaginas || isLoading) ? 'not-allowed' : 'pointer',
-                                backgroundColor: (paginaCorrigida >= totalPaginas || isLoading) ? '#f0f0f0' : '#fff',
+                                padding: '10px 20px',
+                                backgroundColor: paginaCorrigida === totalPaginas ? '#ccc' : '#007bff',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: paginaCorrigida === totalPaginas ? 'not-allowed' : 'pointer'
                             }}
                         >
                             Próxima
