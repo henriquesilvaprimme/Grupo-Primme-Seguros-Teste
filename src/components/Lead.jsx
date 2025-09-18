@@ -13,20 +13,24 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, agendamento, onAgendament
     const newStatus = e.target.value;
     setStatusTemp(newStatus);
     if (newStatus !== 'Agendado') {
-      onUpdateStatus(lead.id, newStatus);
+      onUpdateStatus(lead.id, newStatus, '');
     }
   };
 
   const handleConfirm = async () => {
+    setIsUpdating(true);
     if (statusTemp === 'Agendado') {
       await onConfirmAgendamento(lead.id, agendamento);
     } else {
       await onUpdateStatus(lead.id, statusTemp);
     }
+    setIsUpdating(false);
   };
 
-  const handleAlterar = () => {
-    onAlterarAgendamento(lead.id);
+  const handleAlterar = async () => {
+    setIsUpdating(true);
+    await onAlterarAgendamento(lead.id);
+    setIsUpdating(false);
   };
 
   const isAgendadoAndConfirmed = lead.status === 'Agendado' && lead.agendamento;
@@ -57,13 +61,13 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, agendamento, onAgendament
         <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Phone size={16} /> {lead.phone}
         </p>
-        {lead.status === 'Agendado' && (
+        {statusTemp === 'Agendado' && (
           <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Calendar size={16} />
             <input 
               type="date" 
               value={agendamento || lead.agendamento || ''} 
-              onChange={(e) => onAgendamentoChange(e.target.value)} 
+              onChange={(e) => onAgendamentoChange(lead.id, e.target.value)} 
               disabled={isAgendadoAndConfirmed}
               style={{ padding: '4px', borderRadius: '4px', border: '1px solid #ccc' }} 
             />
