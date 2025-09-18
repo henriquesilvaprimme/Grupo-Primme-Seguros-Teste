@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Phone, Calendar, MapPin, Loader, CheckCircle, XCircle } from 'lucide-react';
+import { Mail, Phone, Calendar, MapPin, Loader } from 'lucide-react';
 
 const Lead = ({ lead, onUpdateStatus, disabledConfirm, agendamento, onAgendamentoChange, onConfirmAgendamento, onAlterarAgendamento }) => {
   const [statusTemp, setStatusTemp] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [dataAgendamento, setDataAgendamento] = useState('');
 
   useEffect(() => {
     setStatusTemp(lead.status);
-  }, [lead.status]);
+    setDataAgendamento(agendamento || lead.agendamento || '');
+  }, [lead.status, agendamento, lead.agendamento]);
 
   const handleStatusChange = (e) => {
     const newStatus = e.target.value;
@@ -20,7 +22,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, agendamento, onAgendament
   const handleConfirm = async () => {
     setIsUpdating(true);
     if (statusTemp === 'Agendado') {
-      await onConfirmAgendamento(lead.id, agendamento);
+      await onConfirmAgendamento(lead.id, dataAgendamento);
     } else {
       await onUpdateStatus(lead.id, statusTemp);
     }
@@ -66,8 +68,11 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, agendamento, onAgendament
             <Calendar size={16} />
             <input 
               type="date" 
-              value={agendamento || lead.agendamento || ''} 
-              onChange={(e) => onAgendamentoChange(lead.id, e.target.value)} 
+              value={dataAgendamento} 
+              onChange={(e) => {
+                setDataAgendamento(e.target.value);
+                onAgendamentoChange(e.target.value);
+              }} 
               disabled={isAgendadoAndConfirmed}
               style={{ padding: '4px', borderRadius: '4px', border: '1px solid #ccc' }} 
             />
