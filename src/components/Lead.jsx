@@ -71,7 +71,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, agendamento, onAgendament
               value={dataAgendamento} 
               onChange={(e) => {
                 setDataAgendamento(e.target.value);
-                onAgendamentoChange(e.target.value);
+                onAgendamentoChange(lead.id, e.target.value);
               }} 
               disabled={isAgendadoAndConfirmed}
               style={{ padding: '4px', borderRadius: '4px', border: '1px solid #ccc' }} 
