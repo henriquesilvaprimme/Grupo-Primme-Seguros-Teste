@@ -278,14 +278,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   const handleConfirmStatus = (leadId, novoStatus, phone) => {
+    // Salva o status "Agendar" na coluna J e abre o modal
     if (novoStatus === 'Agendar') {
-      // Abre o modal para incluir a data, não faz mais a chamada de API aqui
+      onUpdateStatus(leadId, novoStatus, phone);
       setAgendamentoLead({ leadId, phone });
       setShowAgendarModal(true);
       return;
     }
     
-    // Lógica original para outros status
+    // Lógica para todos os outros status (Em Contato, Sem Contato, etc.)
     onUpdateStatus(leadId, novoStatus, phone);
     const currentLead = leads.find(l => l.id === leadId);
     const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
@@ -313,18 +314,16 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       const novoStatusAgendado = `Agendado - ${formattedDate}`;
       const observacaoTexto = observacoes[agendamentoLead.leadId] || '';
       
-      // Criando um objeto com o leadId e os dois novos status
       const dataToSave = {
         leadId: agendamentoLead.leadId,
-        statusAgendar: 'Agendar', // Status para a coluna J
-        statusAgendado: novoStatusAgendado, // Status para a coluna M
-        observacao: observacaoTexto // Mantém a observação
+        status: novoStatusAgendado, // Envia o novo status para a coluna M
+        observacao: observacaoTexto
       };
 
       await fetch(SALVAR_AGENDAMENTO_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
-        body: JSON.stringify(dataToSave), // Envia o novo objeto
+        body: JSON.stringify(dataToSave),
         headers: {
           'Content-Type': 'application/json',
         },
