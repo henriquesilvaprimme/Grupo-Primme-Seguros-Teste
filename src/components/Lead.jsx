@@ -40,50 +40,46 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
     setStatus(lead.status || ''); // Garante que o status exibido esteja sempre atualizado com o lead
   }, [lead.status]);
 
+
+  // Lógica principal de confirmação, unificada para todos os status.
   const handleConfirm = () => {
-    if (!status || status === 'Selecione o status') {
-      alert('Selecione um status antes de confirmar!');
-      return;
-    }
-    
-    // NOVO: Se o status for 'Agendar', exibe os campos de agendamento e sai da função.
+    let newStatus = status;
+    let observationToSend = '';
+  
+    // Lógica específica para o agendamento
     if (status === 'Agendar') {
-      setShowScheduleOptions(true);
-      return;
+      if (!scheduledDate) {
+        alert('Selecione uma data para o agendamento!');
+        return;
+      }
+      const selectedDate = new Date(scheduledDate + 'T00:00:00');
+      const formattedDate = selectedDate.toLocaleDateString('pt-BR');
+      newStatus = `Agendado - ${formattedDate}`;
+      observationToSend = scheduleObservation;
+    } else {
+      if (!status || status === 'Selecione o status') {
+        alert('Selecione um status antes de confirmar!');
+        return;
+      }
     }
-
-    enviarLeadAtualizado(lead.id, status, lead.phone, '');
-
-    setIsStatusConfirmed(true);
-
-    if (onUpdateStatus) {
-      onUpdateStatus(lead.id, status, lead.phone);
-    }
-  };
-
-  const handleScheduleConfirm = () => {
-    if (!scheduledDate) {
-      alert('Selecione uma data para o agendamento!');
-      return;
-    }
-
-    const selectedDate = new Date(scheduledDate + 'T00:00:00');
-    const formattedDate = selectedDate.toLocaleDateString('pt-BR');
-    const newStatus = `Agendado - ${formattedDate}`;
-
-    enviarLeadAtualizado(lead.id, newStatus, lead.phone, scheduleObservation);
-    setStatus(newStatus);
+  
+    // Envia a requisição com base no status final
+    enviarLeadAtualizado(lead.id, newStatus, lead.phone, observationToSend);
+    setStatus(newStatus); // Atualiza o estado local com o novo status
     setIsStatusConfirmed(true);
     setShowScheduleOptions(false);
-
+  
     if (onUpdateStatus) {
       onUpdateStatus(lead.id, newStatus, lead.phone);
     }
   };
 
+
   const handleAlterar = () => {
+    // Permite a edição do status novamente e esconde os campos de agendamento
     setIsStatusConfirmed(false);
     setShowScheduleOptions(false);
+    // Limpa os campos de agendamento ao clicar em "Alterar"
     setScheduledDate('');
     setScheduleObservation('');
   };
@@ -97,6 +93,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
           lead: leadId,
           status: status,
           phone: phone,
+          // NOVO: Adiciona a observação ao corpo da requisição
           observation: observation
         }),
         headers: {
@@ -119,6 +116,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
         position: 'relative'
       }}
     >
+      {/* Exibe o status atual no canto superior direito se o status estiver confirmado */}
       {isStatusConfirmed && (
         <div
           style={{
@@ -144,41 +142,39 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       <p><strong>Telefone:</strong> {lead.phone}</p>
       <p><strong>Tipo de Seguro:</strong> {lead.insuranceType}</p>
 
-      <div style={{ marginTop: '15px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-        <select
-          value={status}
-          onChange={(e) => {
-            const newStatus = e.target.value;
-            setStatus(newStatus);
-            // Ao mudar o status, sempre esconde os campos de agendamento para evitar estados inconsistentes.
-            if (newStatus !== 'Agendar') {
-              setShowScheduleOptions(false);
-            }
-          }}
-          disabled={isStatusConfirmed}
-          style={{
-            marginRight: '10px',
-            padding: '8px',
-            border: '2px solid #ccc',
-            borderRadius: '4px',
-            minWidth: '160px',
-            backgroundColor: isStatusConfirmed ? '#e9ecef' : '#fff',
-            cursor: isStatusConfirmed ? 'not-allowed' : 'pointer'
-          }}
-        >
-          <option value="">Selecione o status</option>
-          <option value="Agendar">Agendar</option>
-          <option value="Em Contato">Em Contato</option>
-          <option value="Fechado">Fechado</option>
-          <option value="Perdido">Perdido</option>
-          <option value="Sem Contato">Sem Contato</option>
-        </select>
+      <div style={{ marginTop: '15px', display: 'flex', alignItems: 'flex-start', gap: '10px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          <select
+            value={status}
+            onChange={(e) => {
+              const newStatus = e.target.value;
+              setStatus(newStatus);
+              // Exibe os campos de agendamento apenas quando "Agendar" é selecionado
+              setShowScheduleOptions(newStatus === 'Agendar');
+            }}
+            // O select é desabilitado se o status já foi confirmado
+            disabled={isStatusConfirmed}
+            style={{
+              padding: '8px',
+              border: '2px solid #ccc',
+              borderRadius: '4px',
+              minWidth: '160px',
+              // Estilo para indicar que está desabilitado
+              backgroundColor: isStatusConfirmed ? '#e9ecef' : '#fff',
+              cursor: isStatusConfirmed ? 'not-allowed' : 'pointer'
+            }}
+          >
+            <option value="">Selecione o status</option>
+            <option value="Agendar">Agendar</option>
+            <option value="Em Contato">Em Contato</option>
+            <option value="Fechado">Fechado</option>
+            <option value="Perdido">Perdido</option>
+            <option value="Sem Contato">Sem Contato</option>
+          </select>
 
-        {/* Lógica para exibir o botão Confirmar/Alterar e os campos de agendamento */}
-        {!isStatusConfirmed ? (
-          // NOVO: Exibe os campos de agendamento se showScheduleOptions for true
-          showScheduleOptions ? (
-            <>
+          {/* NOVO: Renderiza os campos de agendamento abaixo do select */}
+          {showScheduleOptions && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '5px' }}>
               <input
                 type="date"
                 value={scheduledDate}
@@ -197,49 +193,38 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
                   padding: '8px',
                   border: '2px solid #ccc',
                   borderRadius: '4px',
-                  minHeight: '40px',
-                  width: '200px'
+                  minHeight: '40px'
                 }}
               />
-              <button
-                onClick={handleScheduleConfirm}
-                disabled={!scheduledDate}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: !scheduledDate ? '#aaa' : '#007bff',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: !scheduledDate ? 'not-allowed' : 'pointer'
-                }}
-              >
-                Confirmar Agendamento
-              </button>
-            </>
-          ) : (
-            // Se Agendar não foi selecionado e confirmado, exibe o botão de confirmação padrão
-            <button
-              onClick={handleConfirm}
-              disabled={disabledConfirm || !status || status === '' || status === 'Selecione o status'}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: (disabledConfirm || !status || status === '' || status === 'Selecione o status') ? '#aaa' : '#007bff',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: (disabledConfirm || !status || status === '' || status === 'Selecione o status') ? 'not-allowed' : 'pointer'
-              }}
-            >
-              Confirmar
-            </button>
-          )
+            </div>
+          )}
+        </div>
+
+        {/* Lógica para exibir Confirmar ou Alterar */}
+        {!isStatusConfirmed ? (
+          <button
+            onClick={handleConfirm}
+            // A validação agora é mais complexa: se for 'Agendar', a data é obrigatória
+            disabled={disabledConfirm || !status || status === '' || status === 'Selecione o status' || (status === 'Agendar' && !scheduledDate)}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: (disabledConfirm || !status || status === '' || status === 'Selecione o status' || (status === 'Agendar' && !scheduledDate)) ? '#aaa' : '#007bff',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: (disabledConfirm || !status || status === '' || status === 'Selecione o status' || (status === 'Agendar' && !scheduledDate)) ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {/* O texto do botão muda dinamicamente */}
+            {status === 'Agendar' ? 'Confirmar Agendamento' : 'Confirmar'}
+          </button>
         ) : (
           <button
             onClick={handleAlterar}
             style={{
               padding: '8px 16px',
-              backgroundColor: '#ffc107',
-              color: '#212529',
+              backgroundColor: '#ffc107', // Cor amarela
+              color: '#212529', // Texto escuro para contraste
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer'
