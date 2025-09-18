@@ -276,10 +276,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const currentLead = leads.find(l => l.id === leadId);
     const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
 
-    if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao) {
+    if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) {
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-    } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     } else {
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     }
@@ -557,7 +555,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   />
                 </div>
 
-                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato') && (
+                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado')) && (
                   <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
                       Observações:
