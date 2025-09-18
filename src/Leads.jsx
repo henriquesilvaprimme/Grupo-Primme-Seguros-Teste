@@ -544,7 +544,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   marginBottom: '15px',
                   position: 'relative',
                   display: 'flex',
-                  gap: '20px',
+                  gap: '0px',
                   alignItems: 'flex-start',
                   flexWrap: 'wrap',
                 }}
