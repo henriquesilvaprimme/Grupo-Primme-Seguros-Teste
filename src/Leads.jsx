@@ -50,7 +50,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     leads.forEach(lead => {
       initialObservacoes[lead.id] = lead.observacao || '';
       initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
-      initialIsStatusLocked[lead.id] = lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado');
+      initialIsStatusLocked[lead.id] = ['Em Contato', 'Sem Contato'].includes(lead.status) || lead.status.startsWith('Agendado');
     });
     setObservacoes(initialObservacoes);
     setIsEditingObservacao(initialIsEditingObservacao);
@@ -100,7 +100,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       const refreshedIsStatusLocked = {};
       leads.forEach(lead => {
         refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
-        refreshedIsStatusLocked[lead.id] = lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado');
+        refreshedIsStatusLocked[lead.id] = ['Em Contato', 'Sem Contato'].includes(lead.status) || lead.status.startsWith('Agendado');
       });
       setIsEditingObservacao(refreshedIsEditingObservacao);
       setIsStatusLocked(refreshedIsStatusLocked);
@@ -605,7 +605,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   <Lead
                     lead={lead}
                     onUpdateStatus={handleConfirmStatus}
-                    disabledConfirm={!lead.responsavel}
                     isStatusLocked={isStatusLocked[lead.id]}
                   />
                 </div>
