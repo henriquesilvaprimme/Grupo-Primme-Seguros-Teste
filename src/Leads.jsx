@@ -3,9 +3,9 @@ import Lead from './components/Lead';
 import { RefreshCcw, Bell } from 'lucide-react';
 
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
-const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
+const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?v=alterar_atribuido';
 // Script para salvar a observação e a data agendada
-const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
+const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?action=salvarObservacao';
 
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, isEditing, setIsEditing }) => {
     const [selecionados, setSelecionados] = useState({});
@@ -64,16 +64,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
             initialIsStatusLocked[lead.id] = ['Em Contato', 'Sem Contato', 'Fechado', 'Perdido'].includes(lead.status) || lead.status.startsWith('Agendado');
 
+            // Corrigido para usar a propriedade 'agendamento' vinda do GAS
             if (lead.agendamento) {
-                const partesData = lead.agendamento.split('/');
-                if (partesData.length === 3) {
-                    const [dia, mes, ano] = partesData;
-                    initialAgendamentos[lead.id] = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
-                } else {
-                    initialAgendamentos[lead.id] = '';
-                }
+                 initialAgendamentos[lead.id] = lead.agendamento;
             } else {
-                initialAgendamentos[lead.id] = '';
+                 initialAgendamentos[lead.id] = '';
             }
         });
 
@@ -718,6 +713,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                                             >
                                                 Alterar Observação
                                             </button>
+                                        )}
+                                        {lead.editado && (
+                                            <div style={{ marginTop: '10px', fontSize: '12px', color: '#888' }}>
+                                                Última Edição: {formatarData(lead.editado)}
+                                            </div>
                                         )}
                                     </div>
                                 )}
