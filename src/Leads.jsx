@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import Lead from './components/Lead';
 import { RefreshCcw, Bell } from 'lucide-react';
 
-const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
-const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
-const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
+const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec';
+const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?v=alterar_atribuido';
+const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWB7YCp349/exec?action=salvarObservacao';
 
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
   const [selecionados, setSelecionados] = useState({});
@@ -19,6 +19,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const [filtroStatus, setFiltroStatus] = useState(null);
   const [showNotification, setShowNotification] = useState(false);
   const [hasScheduledToday, setHasScheduledToday] = useState(false);
+  const [agendamentoData, setAgendamentoData] = useState({});
 
   useEffect(() => {
     const initialObservacoes = {};
@@ -272,18 +273,33 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   const handleConfirmStatus = (leadId, novoStatus, phone) => {
-    onUpdateStatus(leadId, novoStatus, phone);
     const currentLead = leads.find(l => l.id === leadId);
     const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
 
-    if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao) {
+    if (novoStatus === 'Agendado') {
+      const dataSelecionada = agendamentoData[leadId];
+      if (!dataSelecionada) {
+        alert('Por favor, selecione uma data para o agendamento.');
+        return;
+      }
+      const statusComData = `Agendado - ${dataSelecionada.split('-').reverse().join('/')}`;
+      onUpdateStatus(leadId, statusComData, phone);
+      if (hasNoObservacao) {
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-    } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+      }
     } else {
+      onUpdateStatus(leadId, novoStatus, phone);
+      if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato') && hasNoObservacao) {
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+      } else {
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+      }
     }
     fetchLeadsFromSheet();
+  };
+  
+  const handleAgendamentoChange = (leadId, date) => {
+    setAgendamentoData(prev => ({ ...prev, [leadId]: date }));
   };
 
   return (
@@ -392,7 +408,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                 style={{
                   position: 'absolute',
                   top: '-5px',
-                  right: '-5px', // 👈 Ajustado para -5px
+                  right: '-5px',
                   backgroundColor: 'red',
                   color: 'white',
                   borderRadius: '50%',
@@ -555,9 +571,44 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     onUpdateStatus={handleConfirmStatus}
                     disabledConfirm={!lead.responsavel}
                   />
+                  {lead.status === 'Em Contato' && (
+                    <div style={{ marginTop: '10px' }}>
+                      <label htmlFor={`agendamento-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
+                        Agendar para:
+                      </label>
+                      <input
+                        id={`agendamento-${lead.id}`}
+                        type="date"
+                        value={agendamentoData[lead.id] || ''}
+                        onChange={(e) => handleAgendamentoChange(lead.id, e.target.value)}
+                        style={{
+                          padding: '8px',
+                          borderRadius: '6px',
+                          border: '1px solid #ccc',
+                          boxSizing: 'border-box',
+                          width: '100%',
+                        }}
+                      />
+                      <button
+                        onClick={() => handleConfirmStatus(lead.id, 'Agendado', lead.phone)}
+                        style={{
+                          marginTop: '10px',
+                          padding: '8px 16px',
+                          backgroundColor: '#3498db',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        Confirmar Agendamento
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato') && (
+                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado')) && (
                   <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
                       Observações:
