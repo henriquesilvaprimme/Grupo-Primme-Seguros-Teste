@@ -43,12 +43,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         isEditingRef.current = isEditing;
     }, [isEditing]);
 
-    // Função para formatar a data para o formato YYYY-MM-DD
     const formatarDataParaInput = (dataStr) => {
         if (!dataStr) return '';
-        const [dia, mes, ano] = dataStr.split('/');
-        // Converte para o formato YYYY-MM-DD
-        return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+        const partes = dataStr.split('/');
+        if (partes.length === 3) {
+            const [dia, mes, ano] = partes;
+            return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+        }
+        return '';
     };
 
     useEffect(() => {
@@ -61,7 +63,18 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             initialObservacoes[lead.id] = lead.observacao || '';
             initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
             initialIsStatusLocked[lead.id] = ['Em Contato', 'Sem Contato', 'Fechado', 'Perdido'].includes(lead.status) || lead.status.startsWith('Agendado');
-            initialAgendamentos[lead.id] = formatarDataParaInput(lead.agendamento); // <-- LINHA CORRIGIDA
+
+            if (lead.agendamento) {
+                const partesData = lead.agendamento.split('/');
+                if (partesData.length === 3) {
+                    const [dia, mes, ano] = partesData;
+                    initialAgendamentos[lead.id] = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+                } else {
+                    initialAgendamentos[lead.id] = '';
+                }
+            } else {
+                initialAgendamentos[lead.id] = '';
+            }
         });
 
         setObservacoes(initialObservacoes);
