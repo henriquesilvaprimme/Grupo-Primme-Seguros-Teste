@@ -8,6 +8,8 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
     lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado')
   );
   
+  // Estado para controlar a visibilidade do calendário
+  const [showDatePicker, setShowDatePicker] = useState(false);
   // Estado local para a data do agendamento
   const [agendarData, setAgendarData] = useState('');
 
@@ -44,22 +46,33 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       return;
     }
 
-    if (status === 'Agendar' && !agendarData) {
-      alert('Selecione uma data para o agendamento.');
-      return;
+    if (status === 'Agendar') {
+        setShowDatePicker(true);
+        // Não chama onUpdateStatus ainda, espera a data ser selecionada
+        return;
     }
     
-    // Constrói o novo status com a data formatada, se for agendamento
-    const novoStatus = status === 'Agendar' ? `Agendado - ${new Date(agendarData).toLocaleDateString('pt-BR')}` : status;
-
-    // Atualiza o status e chama o callback
-    onUpdateStatus(lead.id, novoStatus, lead.phone);
+    // Se não for "Agendar", chama o callback imediatamente
+    onUpdateStatus(lead.id, status, lead.phone);
     setIsStatusConfirmed(true);
   };
   
   const handleAlterar = () => {
     // Permite a edição do status novamente
     setIsStatusConfirmed(false);
+    setShowDatePicker(false);
+  };
+
+  const handleAgendarConfirm = () => {
+      if (!agendarData) {
+          alert('Por favor, selecione uma data para o agendamento.');
+          return;
+      }
+
+      const novoStatus = `Agendado - ${new Date(agendarData).toLocaleDateString('pt-BR')}`;
+      onUpdateStatus(lead.id, novoStatus, lead.phone);
+      setIsStatusConfirmed(true);
+      setShowDatePicker(false);
   };
 
   const enviarLeadAtualizado = async (leadId, status, phone) => {
@@ -180,10 +193,22 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
         )}
       </div>
 
-      {status === 'Agendar' && (
-        <div style={{ marginTop: '10px' }}>
-          <label htmlFor={`agendar-data-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
-            Data do agendamento:
+      {showDatePicker && (
+        <div 
+          style={{
+            position: 'absolute',
+            top: '50%',
+            right: '20px',
+            transform: 'translateY(-50%)',
+            zIndex: 10,
+            backgroundColor: '#fff',
+            padding: '20px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+          }}
+        >
+          <label htmlFor={`agendar-data-${lead.id}`} style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>
+            Selecione a data:
           </label>
           <input
             type="date"
@@ -195,35 +220,28 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
               border: '1px solid #ccc',
               borderRadius: '4px',
               width: '100%',
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
+              marginBottom: '10px'
             }}
           />
+          <button
+            onClick={handleAgendarConfirm}
+            disabled={!agendarData}
+            style={{
+              width: '100%',
+              padding: '8px 16px',
+              backgroundColor: '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: !agendarData ? 'not-allowed' : 'pointer',
+              opacity: !agendarData ? 0.6 : 1
+            }}
+          >
+            Agendar e Salvar
+          </button>
         </div>
       )}
-
-      {/* REMOVIDO: Botão do WhatsApp */}
-      {/*
-      <div style={{ marginTop: '10px' }}>
-        <a
-          href={`https://wa.me/${lead.phone}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            backgroundColor: '#25D366',
-            color: 'white',
-            padding: '8px 12px',
-            borderRadius: '5px',
-            textDecoration: 'none',
-            fontSize: '0.9em',
-          }}
-        >
-          <Phone size={16} /> Enviar WhatsApp
-        </a>
-      </div>
-      */}
     </div>
   );
 };
