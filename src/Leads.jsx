@@ -269,7 +269,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   const handleAlterarObservacao = (leadId) => {
-    setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+    setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
   };
 
   const handleConfirmStatus = (leadId, novoStatus, phone) => {
