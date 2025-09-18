@@ -5,6 +5,8 @@ import { RefreshCcw, Bell } from 'lucide-react';
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
+// NOVA URL PARA ATUALIZAR STATUS E OPBSERVACAO
+const ALTERAR_STATUS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_status';
 
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
   const [selecionados, setSelecionados] = useState({});
@@ -19,8 +21,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const [filtroStatus, setFiltroStatus] = useState(null);
   const [showNotification, setShowNotification] = useState(false);
   const [hasScheduledToday, setHasScheduledToday] = useState(false);
-  const [agendamentoAtivo, setAgendamentoAtivo] = useState(null); // Estado para controlar o agendamento ativo
-  const [scheduledDate, setScheduledDate] = useState(''); // Estado para a data do agendamento
 
   useEffect(() => {
     const initialObservacoes = {};
@@ -248,13 +248,9 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     
     setIsLoading(true);
     
-    // Se for um agendamento, formata o novo status com a data
-    let novoStatus = leads.find(l => l.id === leadId).status;
-    if (agendamentoAtivo && scheduledDate) {
-        const selectedDate = new Date(scheduledDate + 'T00:00:00');
-        const formattedDate = selectedDate.toLocaleDateString('pt-BR');
-        novoStatus = `Agendado - ${formattedDate}`;
-    }
+    // Obtém o status atual do lead
+    const currentLead = leads.find(l => l.id === leadId);
+    let novoStatus = currentLead.status;
 
     try {
       await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
@@ -263,15 +259,13 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         body: JSON.stringify({
           leadId: leadId,
           observacao: observacaoTexto,
-          status: novoStatus // Inclui o novo status no envio da observação
+          status: novoStatus // Inclui o status atual no envio da observação
         }),
         headers: {
           'Content-Type': 'application/json',
         },
       });
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-      setAgendamentoAtivo(null); // Reseta o agendamento
-      setScheduledDate(''); // Limpa a data selecionada
       fetchLeadsFromSheet();
     } catch (error) {
       console.error('Erro ao salvar observação:', error);
@@ -283,27 +277,35 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const handleAlterarObservacao = (leadId) => {
     setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-    setAgendamentoAtivo(null); // Certifica que o agendamento está inativo ao alterar
-    setScheduledDate(''); // Limpa a data ao alterar a observação
   };
 
-  const handleConfirmStatus = (leadId, novoStatus, phone) => {
-    onUpdateStatus(leadId, novoStatus, phone);
-    const currentLead = leads.find(l => l.id === leadId);
-
-    if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) {
+  const handleConfirmStatus = async (leadId, novoStatus, phone) => {
+    setIsLoading(true);
+    try {
+        await fetch(ALTERAR_STATUS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({
+                lead: leadId,
+                status: novoStatus,
+                phone: phone
+            }),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        // onUpdateStatus já é chamado no Lead.jsx, mas é bom garantir a atualização local
+        onUpdateStatus(leadId, novoStatus, phone);
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-        if (novoStatus === 'Agendar') {
-            setAgendamentoAtivo(leadId); // Ativa o agendamento para este lead
-        } else {
-            setAgendamentoAtivo(null); // Desativa para outros status
-        }
-    } else {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-        setAgendamentoAtivo(null);
+        fetchLeadsFromSheet();
+    } catch (error) {
+        console.error('Erro ao enviar lead:', error);
+        alert('Erro ao atualizar o status. Por favor, tente novamente.');
+    } finally {
+        setIsLoading(false);
     }
-    fetchLeadsFromSheet();
-  };
+};
+
 
   return (
     <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
@@ -331,14 +333,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             onClick={handleRefreshLeads}
             disabled={isLoading}
             style={{
-                background: 'none',
-                border: 'none',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                padding: '0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#007bff'
+              background: 'none',
+              border: 'none',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              padding: '0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#007bff'
             }}
           >
             {isLoading ? (
@@ -578,27 +580,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
                 {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado')) && (
                   <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
-                    {agendamentoAtivo === lead.id && (
-                        <>
-                            <label htmlFor={`agendar-data-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
-                                Data do agendamento:
-                            </label>
-                            <input
-                                type="date"
-                                id={`agendar-data-${lead.id}`}
-                                value={scheduledDate}
-                                onChange={(e) => setScheduledDate(e.target.value)}
-                                style={{
-                                    width: '100%',
-                                    padding: '10px',
-                                    borderRadius: '6px',
-                                    border: '1px solid #ccc',
-                                    marginBottom: '10px',
-                                    boxSizing: 'border-box'
-                                }}
-                            />
-                        </>
-                    )}
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
                       Observações:
                     </label>
