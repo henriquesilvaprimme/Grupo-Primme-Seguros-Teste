@@ -279,9 +279,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
   const handleConfirmStatus = (leadId, novoStatus, phone) => {
     if (novoStatus === 'Agendar') {
-      // Salva 'Agendar' na coluna J
-      onUpdateStatus(leadId, novoStatus, phone);
-      // Abre o modal para incluir a data
+      // Abre o modal para incluir a data, não faz mais a chamada de API aqui
       setAgendamentoLead({ leadId, phone });
       setShowAgendarModal(true);
       return;
@@ -313,15 +311,20 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     try {
       const formattedDate = new Date(dataAgendamento).toLocaleString('pt-BR');
       const novoStatusAgendado = `Agendado - ${formattedDate}`;
+      const observacaoTexto = observacoes[agendamentoLead.leadId] || '';
       
+      // Criando um objeto com o leadId e os dois novos status
+      const dataToSave = {
+        leadId: agendamentoLead.leadId,
+        statusAgendar: 'Agendar', // Status para a coluna J
+        statusAgendado: novoStatusAgendado, // Status para a coluna M
+        observacao: observacaoTexto // Mantém a observação
+      };
+
       await fetch(SALVAR_AGENDAMENTO_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
-        body: JSON.stringify({
-          leadId: agendamentoLead.leadId,
-          status: novoStatusAgendado,
-          observacao: observacoes[agendamentoLead.leadId],
-        }),
+        body: JSON.stringify(dataToSave), // Envia o novo objeto
         headers: {
           'Content-Type': 'application/json',
         },
