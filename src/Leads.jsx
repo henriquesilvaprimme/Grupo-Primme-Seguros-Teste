@@ -320,64 +320,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         </div>
       )}
 
-      {/* NOVO: Componente do sino de notificação */}
-      {hasScheduledToday && (
-          <div
-            style={{
-              position: 'fixed',
-              top: '20px',
-              right: '20px',
-              zIndex: 100,
-            }}
-          >
-            <div
-              style={{
-                position: 'relative',
-                cursor: 'pointer'
-              }}
-              onClick={() => setShowNotification(!showNotification)}
-            >
-              <Bell size={32} color="#007bff" />
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '-5px',
-                  right: '-5px',
-                  backgroundColor: 'red',
-                  color: 'white',
-                  borderRadius: '50%',
-                  width: '20px',
-                  height: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                }}
-              >
-                1
-              </div>
-            </div>
-            {showNotification && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '40px',
-                  right: '0',
-                  width: '250px',
-                  backgroundColor: 'white',
-                  border: '1px solid #ccc',
-                  borderRadius: '8px',
-                  padding: '15px',
-                  boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
-                }}
-              >
-                <p>Você tem agendamentos hoje!</p>
-              </div>
-            )}
-          </div>
-      )}
-
       <div
         style={{
           display: 'flex',
@@ -456,6 +398,56 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             title="Filtrar leads pelo nome (contém)"
           />
         </div>
+
+        {/* NOVO: Componente do sino de notificação foi movido para cá */}
+        {hasScheduledToday && (
+            <div
+              style={{
+                position: 'relative',
+                cursor: 'pointer'
+              }}
+              onClick={() => setShowNotification(!showNotification)}
+            >
+              <Bell size={32} color="#007bff" />
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '-5px',
+                  right: '-5px',
+                  backgroundColor: 'red',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                }}
+              >
+                1
+              </div>
+              {showNotification && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '40px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '250px',
+                    backgroundColor: 'white',
+                    border: '1px solid #ccc',
+                    borderRadius: '8px',
+                    padding: '15px',
+                    boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
+                  }}
+                >
+                  <p>Você tem agendamentos hoje!</p>
+                </div>
+              )}
+            </div>
+        )}
 
         <div
           style={{
