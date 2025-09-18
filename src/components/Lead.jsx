@@ -5,7 +5,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
   const [status, setStatus] = useState(lead.status || '');
   // `isStatusConfirmed` para controlar o bloqueio da seleção e exibição do botão "Alterar"
   const [isStatusConfirmed, setIsStatusConfirmed] = useState(
-    lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido'
+    lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado')
   );
 
   // Define a cor do card conforme o status
@@ -19,9 +19,10 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
         return '#fff3cd'; // laranja claro
       case 'Sem Contato':
         return '#e2e3e5'; // cinza claro
-      case 'Selecione o status':
-      case '':
       default:
+        if (status.startsWith('Agendado')) {
+          return '#cfe2ff'; // azul claro
+        }
         return '#ffffff'; // branco
     }
   })();
@@ -29,7 +30,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
   // Sincroniza o estado `isStatusConfirmed` quando o `lead.status` muda (ex: após um refresh de leads)
   useEffect(() => {
     setIsStatusConfirmed(
-      lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido'
+      lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado')
     );
     setStatus(lead.status || ''); // Garante que o status exibido esteja sempre atualizado com o lead
   }, [lead.status]);
@@ -113,6 +114,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
           <option value="">Selecione o status</option>
           {/* REMOVIDO: <option value="Novo">Novo</option> */}
           <option value="Em Contato">Em Contato</option>
+          <option value="Agendar">Agendar</option>
           <option value="Fechado">Fechado</option>
           <option value="Perdido">Perdido</option>
           <option value="Sem Contato">Sem Contato</option>
