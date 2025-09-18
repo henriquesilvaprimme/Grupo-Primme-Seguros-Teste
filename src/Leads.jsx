@@ -332,7 +332,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <h1 style={{ margin: 0 }}>Leads</h1>
-
           <button
             title='Clique para atualizar os dados'
             onClick={handleRefreshLeads}
@@ -359,14 +358,12 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           </button>
         </div>
 
+        {/* --- Filtro de Nome (mantido na posição original) --- */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            flexGrow: 1,
-            justifyContent: 'center',
-            minWidth: '300px',
           }}
         >
           <button
@@ -399,72 +396,67 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           />
         </div>
 
-        {/* NOVO: Componente do sino de notificação foi movido e centralizado */}
+        {/* --- NOVO: Div para o sino centralizado (ocupando o espaço do meio) --- */}
         {hasScheduledToday && (
+          <div
+            style={{
+              flex: 1, // Faz com que ocupe todo o espaço disponível
+              display: 'flex',
+              justifyContent: 'center', // Centraliza o conteúdo horizontalmente
+              alignItems: 'center', // Centraliza o conteúdo verticalmente
+              position: 'relative',
+              cursor: 'pointer',
+            }}
+            onClick={() => setShowNotification(!showNotification)}
+          >
+            <Bell size={32} color="#007bff" />
             <div
               style={{
+                position: 'absolute',
+                top: '-5px',
+                right: '40%', // Ajuste para posicionar a bolha corretamente sobre o sino centralizado
+                backgroundColor: 'red',
+                color: 'white',
+                borderRadius: '50%',
+                width: '20px',
+                height: '20px',
                 display: 'flex',
-                justifyContent: 'center',
                 alignItems: 'center',
-                position: 'relative',
-                flex: '1 1 100px', // Ocupa espaço flexível e mantém um tamanho mínimo
+                justifyContent: 'center',
+                fontSize: '12px',
+                fontWeight: 'bold',
               }}
             >
+              1
+            </div>
+            {showNotification && (
               <div
                 style={{
-                  position: 'relative',
-                  cursor: 'pointer'
+                  position: 'absolute',
+                  top: '40px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: '250px',
+                  backgroundColor: 'white',
+                  border: '1px solid #ccc',
+                  borderRadius: '8px',
+                  padding: '15px',
+                  boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
+                  zIndex: 10,
                 }}
-                onClick={() => setShowNotification(!showNotification)}
               >
-                <Bell size={32} color="#007bff" />
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '-5px',
-                    right: '-5px',
-                    backgroundColor: 'red',
-                    color: 'white',
-                    borderRadius: '50%',
-                    width: '20px',
-                    height: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  1
-                </div>
+                <p>Você tem agendamentos hoje!</p>
               </div>
-              {showNotification && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '40px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: '250px',
-                    backgroundColor: 'white',
-                    border: '1px solid #ccc',
-                    borderRadius: '8px',
-                    padding: '15px',
-                    boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
-                  }}
-                >
-                  <p>Você tem agendamentos hoje!</p>
-                </div>
-              )}
-            </div>
+            )}
+          </div>
         )}
 
+        {/* --- Filtro de Data (mantido na posição original) --- */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            minWidth: '220px',
           }}
         >
           <button
