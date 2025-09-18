@@ -5,7 +5,6 @@ import { RefreshCcw, Bell } from 'lucide-react';
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
-const SALVAR_AGENDAMENTO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarAgendamento';
 
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet }) => {
   const [selecionados, setSelecionados] = useState({});
@@ -20,11 +19,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const [filtroStatus, setFiltroStatus] = useState(null);
   const [showNotification, setShowNotification] = useState(false);
   const [hasScheduledToday, setHasScheduledToday] = useState(false);
-  
-  // Novos estados para o modal de agendamento
-  const [showAgendarModal, setShowAgendarModal] = useState(false);
-  const [agendamentoLead, setAgendamentoLead] = useState(null);
-  const [dataAgendamento, setDataAgendamento] = useState('');
 
   useEffect(() => {
     const initialObservacoes = {};
@@ -42,15 +36,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const todayFormatted = today.toLocaleDateString('pt-BR');
 
     const todayAppointments = leads.filter(lead => {
-      if (!lead.status.startsWith('Agendado')) return false;
-      const statusDateStr = lead.status.split(' - ')[1];
-      if (!statusDateStr) return false;
+        if (!lead.status.startsWith('Agendado')) return false;
+        const statusDateStr = lead.status.split(' - ')[1];
+        if (!statusDateStr) return false;
 
-      const [dia, mes, ano] = statusDateStr.split('/');
-      const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
-      const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
+        const [dia, mes, ano] = statusDateStr.split('/');
+        const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
+        const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
 
-      return statusDateFormatted === todayFormatted;
+        return statusDateFormatted === todayFormatted;
     });
 
     setHasScheduledToday(todayAppointments.length > 0);
@@ -278,15 +272,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   const handleConfirmStatus = (leadId, novoStatus, phone) => {
-    // Salva o status "Agendar" na coluna J e abre o modal
-    if (novoStatus === 'Agendar') {
-      onUpdateStatus(leadId, novoStatus, phone);
-      setAgendamentoLead({ leadId, phone });
-      setShowAgendarModal(true);
-      return;
-    }
-    
-    // Lógica para todos os outros status (Em Contato, Sem Contato, etc.)
     onUpdateStatus(leadId, novoStatus, phone);
     const currentLead = leads.find(l => l.id === leadId);
     const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
@@ -299,47 +284,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     }
     fetchLeadsFromSheet();
-  };
-  
-  const handleSalvarAgendamento = async () => {
-    if (!dataAgendamento) {
-      alert('Por favor, selecione uma data e hora.');
-      return;
-    }
-    
-    setIsLoading(true);
-
-    try {
-      const formattedDate = new Date(dataAgendamento).toLocaleString('pt-BR');
-      const novoStatusAgendado = `Agendado - ${formattedDate}`;
-      const observacaoTexto = observacoes[agendamentoLead.leadId] || '';
-      
-      const dataToSave = {
-        leadId: agendamentoLead.leadId,
-        status: novoStatusAgendado, // Envia o novo status para a coluna M
-        observacao: observacaoTexto
-      };
-
-      await fetch(SALVAR_AGENDAMENTO_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify(dataToSave),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      setShowAgendarModal(false);
-      setDataAgendamento('');
-      setAgendamentoLead(null);
-      
-      fetchLeadsFromSheet();
-    } catch (error) {
-      console.error('Erro ao salvar agendamento:', error);
-      alert('Erro ao salvar agendamento. Por favor, tente novamente.');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   return (
@@ -794,98 +738,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           </div>
         </>
       )}
-      
-      {/* --- NOVO MODAL DE AGENDAMENTO --- */}
-      {showAgendarModal && agendamentoLead && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 100
-        }}>
-          <div style={{
-            backgroundColor: '#fff',
-            padding: '30px',
-            borderRadius: '8px',
-            maxWidth: '500px',
-            width: '90%',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px'
-          }}>
-            <h2 style={{ margin: 0 }}>Confirmar Agendamento</h2>
-            
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Data e Hora:</label>
-              <input
-                type="datetime-local"
-                value={dataAgendamento}
-                onChange={(e) => setDataAgendamento(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: '6px',
-                  border: '1px solid #ccc'
-                }}
-              />
-            </div>
-            
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Observações:</label>
-              <textarea
-                value={observacoes[agendamentoLead.leadId] || ''}
-                onChange={(e) => handleObservacaoChange(agendamentoLead.leadId, e.target.value)}
-                placeholder="Adicione suas observações aqui..."
-                rows="3"
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: '6px',
-                  border: '1px solid #ccc',
-                  resize: 'vertical'
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                onClick={() => setShowAgendarModal(false)}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#ccc',
-                  color: '#333',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSalvarAgendamento}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Confirmar Agendamento
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
     </div>
   );
 };
