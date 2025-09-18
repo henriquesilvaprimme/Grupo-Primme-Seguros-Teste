@@ -294,7 +294,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                 'Content-Type': 'application/json',
             },
         });
-        // onUpdateStatus já é chamado no Lead.jsx, mas é bom garantir a atualização local
         onUpdateStatus(leadId, novoStatus, phone);
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
         fetchLeadsFromSheet();
@@ -305,7 +304,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         setIsLoading(false);
     }
 };
-
 
   return (
     <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
