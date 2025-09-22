@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 
-// Importe os componentes do seu projeto
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Leads from './Leads';
@@ -13,20 +12,16 @@ import GerenciarUsuarios from './pages/GerenciarUsuarios';
 import Ranking from './pages/Ranking';
 import CriarLead from './pages/CriarLead';
 
-// Constante para a URL BASE do Google Apps Script Web App
-// Esta URL NÃO deve conter "?v=..."
-// Use a URL que você copiou da implantação do seu GAS (sem o ?v=...)
 const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
-
-// URLs para buscar dados, que ainda usam o ?v=...
 const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads`;
 const GOOGLE_SHEETS_LEADS_FECHADOS = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`;
 const GOOGLE_SHEETS_USERS_AUTH_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_usuario`;
-
+const SALVAR_AGENDAMENTO_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?action=salvarAgendamento`;
+const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}`;
 
 function App() {
   const navigate = useNavigate();
-  const mainContentRef = useRef(null); // Cria uma referência para o elemento main
+  const mainContentRef = useRef(null);
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginInput, setLoginInput] = useState('');
@@ -39,11 +34,9 @@ function App() {
   const [leadSelecionado, setLeadSelecionado] = useState(null);
 
   const [usuarios, setUsuarios] = useState([]);
-  // NOVO ESTADO: Adicione um estado para controlar se há uma edição em andamento
   const [isEditing, setIsEditing] = useState(false);
-  
-  // NOVO ESTADO: Adicione um estado para controlar a contagem de leads
   const [leadsCount, setLeadsCount] = useState(0);
+  const [ultimoFechadoId, setUltimoFechadoId] = useState(null);
 
   useEffect(() => {
     const img = new Image();
@@ -76,7 +69,6 @@ function App() {
     }
   };
 
-  // MODIFICAÇÃO: A função agora só roda se não houver edição em andamento
   useEffect(() => {
     if (!isEditing) {
       fetchUsuariosForLogin();
@@ -109,7 +101,7 @@ function App() {
       const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
       const ano = dateObj.getFullYear();
       const nomeMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-                          "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+                         "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
       const mesExtenso = nomeMeses[dateObj.getMonth()];
       const anoCurto = String(ano).substring(2);
 
@@ -126,7 +118,6 @@ function App() {
       const data = await response.json();
 
       if (Array.isArray(data)) {
-        // Remove a ordenação aqui. O Apps Script já deve retornar a ordem correta.
         const sortedData = data;
         
         const formattedLeads = sortedData.map((item, index) => ({
@@ -150,8 +141,9 @@ function App() {
           createdAt: item.data || new Date().toISOString(),
           responsavel: item.responsavel || '',
           editado: item.editado || '',
-          // ADIÇÃO DO CAMPO OBSERVACAO AQUI
-          observacao: item.observacao || ''
+          observacao: item.observacao || '',
+          agendamento: item.agendamento || '',
+          agendados: item.agendados || '',
         }));
 
         if (!leadSelecionado) {
@@ -170,15 +162,12 @@ function App() {
     }
   };
 
-  // MODIFICAÇÃO: A função só será executada se não houver uma edição em andamento.
   useEffect(() => {
     if (!isEditing) {
       fetchLeadsFromSheet();
-
       const interval = setInterval(() => {
         fetchLeadsFromSheet();
       }, 60000);
-
       return () => clearInterval(interval);
     }
   }, [leadSelecionado, isEditing]);
@@ -190,7 +179,6 @@ function App() {
 
       const formattedData = data.map(item => ({
         ...item,
-        // *** MUDANÇA AQUI PARA GARANTIR CONSISTÊNCIA DE CASE ***
         insuranceType: item.insuranceType || '',
       }));
       setLeadsFechados(formattedData);
@@ -201,20 +189,15 @@ function App() {
     }
   };
 
-  // MODIFICAÇÃO: A função só será executada se não houver uma edição em andamento.
   useEffect(() => {
     if (!isEditing) {
       fetchLeadsFechadosFromSheet();
-
       const interval = setInterval(() => {
         fetchLeadsFechadosFromSheet();
       }, 60000);
-
       return () => clearInterval(interval);
     }
   }, [isEditing]);
-
-  const [ultimoFechadoId, setUltimoFechadoId] = useState(null);
 
   const adicionarUsuario = (usuario) => {
     setUsuarios((prev) => [...prev, { ...usuario, id: prev.length + 1 }]);
@@ -292,7 +275,6 @@ function App() {
               tipo: leadParaAdicionar.tipo || "Usuario",
               "Ativo/Inativo": leadParaAdicionar["Ativo/Inativo"] || "Ativo",
               confirmado: true,
-              // ADIÇÃO DO CAMPO OBSERVACAO AQUI
               observacao: leadParaAdicionar.observacao || ''
             };
             return [...prev, novoLeadFechado];
@@ -301,6 +283,28 @@ function App() {
           return prev;
         }
       });
+    }
+  };
+  
+  const handleConfirmAgendamento = async (leadId, dataAgendada) => {
+    try {
+      await fetch(SALVAR_AGENDAMENTO_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({
+          leadId: leadId,
+          dataAgendada: dataAgendada,
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      // Recarrega os leads para que a nova data apareça
+      await fetchLeadsFromSheet();
+      
+    } catch (error) {
+      console.error('Erro ao confirmar agendamento:', error);
     }
   };
 
@@ -330,7 +334,6 @@ function App() {
       return;
     }
 
-    // Atualiza o estado local ANTES de enviar para o GAS
     lead.Seguradora = seguradora;
     lead.PremioLiquido = premio;
     lead.Comissao = comissao;
@@ -367,10 +370,10 @@ function App() {
         },
       })
       .then(response => {
-          console.log('Requisição de dados da seguradora enviada (com no-cors).');
-          setTimeout(() => {
-            fetchLeadsFechadosFromSheet();
-          }, 1000);
+        console.log('Requisição de dados da seguradora enviada (com no-cors).');
+        setTimeout(() => {
+          fetchLeadsFechadosFromSheet();
+        }, 1000);
       })
       .catch(error => {
         console.error('Erro ao enviar lead (rede ou CORS):', error);
@@ -433,6 +436,33 @@ function App() {
       alert('Login ou senha inválidos ou usuário inativo.');
     }
   };
+  
+  // FUNÇÃO PARA SALVAR OBSERVAÇÃO
+  const salvarObservacao = async (leadId, observacao) => {
+    try {
+      const response = await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'salvarObservacao',
+          leadId: leadId,
+          observacao: observacao,
+        }),
+      });
+  
+      if (response.ok) {
+        console.log('Observação salva com sucesso!');
+        fetchLeadsFromSheet(); // Recarrega os leads para que a nova observação apareça
+      } else {
+        console.error('Erro ao salvar observação:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Erro de rede ao salvar observação:', error);
+    }
+  };
+
 
   if (!isAuthenticated) {
     return (
@@ -507,7 +537,6 @@ function App() {
                     : leads.filter((lead) => lead.responsavel === usuarioLogado.nome)
                 }
                 usuarioLogado={usuarioLogado}
-                // PASSE A PROPRIEDADE setIsEditing PARA OS COMPONENTES QUE PODEM SER EDITADOS
                 setIsEditing={setIsEditing}
               />
             }
@@ -522,12 +551,11 @@ function App() {
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 transferirLead={transferirLead}
                 usuarioLogado={usuarioLogado}
-                // PASSA A PROPRIEDADE leadSelecionado PARA Leads
                 leadSelecionado={leadSelecionado}
-                // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE Leads
                 setIsEditing={setIsEditing}
-                // PASSE A REFERÊNCIA PARA O COMPONENTE Leads
                 scrollContainerRef={mainContentRef}
+                onConfirmAgendamento={handleConfirmAgendamento}
+                salvarObservacao={salvarObservacao}
               />
             }
           />
@@ -546,9 +574,7 @@ function App() {
                 onAbrirLead={onAbrirLead}
                 leadSelecionado={leadSelecionado}
                 formatarDataParaExibicao={formatarDataParaExibicao}
-                // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE LeadsFechados
                 setIsEditing={setIsEditing}
-                // ADICIONA A PROPRIEDADE scrollContainerRef AQUI
                 scrollContainerRef={mainContentRef}
               />
             }
@@ -557,14 +583,12 @@ function App() {
             path="/leads-perdidos"
             element={
               <LeadsPerdidos
-                // Filtra os leads para mostrar apenas os "Perdidos"
                 leads={isAdmin ? leads.filter((lead) => lead.status === 'Perdido') : leads.filter((lead) => lead.responsavel === usuarioLogado.nome && lead.status === 'Perdido')}
                 usuarios={usuarios}
                 fetchLeadsFromSheet={fetchLeadsFromSheet}
                 onAbrirLead={onAbrirLead}
                 isAdmin={isAdmin}
                 leadSelecionado={leadSelecionado}
-                // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE LeadsPerdidos
                 setIsEditing={setIsEditing}
               />
             }
@@ -573,7 +597,6 @@ function App() {
             leads={leads}
             fetchLeadsFromSheet={fetchLeadsFromSheet}
             fetchLeadsFechadosFromSheet={fetchLeadsFechadosFromSheet}
-            // PASSE A PROPRIEDADE setIsEditing PARA O COMPONENTE BuscarLead
             setIsEditing={setIsEditing}
           />} />
           <Route
@@ -627,7 +650,7 @@ const formatarDataParaDDMMYYYY = (dataString) => {
     const mesIndex = dateObj.getMonth();
     const ano = dateObj.getFullYear();
     const nomeMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-                        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+                       "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
     const mesExtenso = nomeMeses[mesIndex];
     const anoCurto = String(ano).substring(2);
 
