@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -11,6 +11,20 @@ import CriarUsuario from './pages/CriarUsuario';
 import GerenciarUsuarios from './pages/GerenciarUsuarios';
 import Ranking from './pages/Ranking';
 import CriarLead from './pages/CriarLead';
+
+// Componente para rolar a página para o topo
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }, [pathname]);
+
+  return null;
+}
 
 const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads`;
@@ -143,7 +157,7 @@ function App() {
           editado: item.editado || '',
           observacao: item.observacao || '',
           agendamento: item.agendamento || '',
-          agendados: item.agendados || '',
+          agendados: item.agendados || '',
         }));
 
         if (!leadSelecionado) {
@@ -436,32 +450,32 @@ function App() {
       alert('Login ou senha inválidos ou usuário inativo.');
     }
   };
-  
-  // FUNÇÃO PARA SALVAR OBSERVAÇÃO
-  const salvarObservacao = async (leadId, observacao) => {
-    try {
-      const response = await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'salvarObservacao',
-          leadId: leadId,
-          observacao: observacao,
-        }),
-      });
-  
-      if (response.ok) {
-        console.log('Observação salva com sucesso!');
-        fetchLeadsFromSheet(); // Recarrega os leads para que a nova observação apareça
-      } else {
-        console.error('Erro ao salvar observação:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Erro de rede ao salvar observação:', error);
-    }
-  };
+  
+  // FUNÇÃO PARA SALVAR OBSERVAÇÃO
+  const salvarObservacao = async (leadId, observacao) => {
+    try {
+      const response = await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'salvarObservacao',
+          leadId: leadId,
+          observacao: observacao,
+        }),
+      });
+  
+      if (response.ok) {
+        console.log('Observação salva com sucesso!');
+        fetchLeadsFromSheet(); // Recarrega os leads para que a nova observação apareça
+      } else {
+        console.error('Erro ao salvar observação:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Erro de rede ao salvar observação:', error);
+    }
+  };
 
 
   if (!isAuthenticated) {
@@ -520,6 +534,7 @@ function App() {
       <Sidebar isAdmin={isAdmin} nomeUsuario={usuarioLogado} />
 
       <main ref={mainContentRef} style={{ flex: 1, overflow: 'auto' }}>
+        <ScrollToTop />
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route
