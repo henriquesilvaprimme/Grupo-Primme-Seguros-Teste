@@ -1,24 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import Lead from './components/Lead'; // Certifique-se de que o caminho está correto
+import Lead from './components/Lead';
 import { RefreshCcw, Bell } from 'lucide-react';
 
 // ===============================================
-// 1. CONFIGURAÇÃO PARA A ABA 'Renovações' (Assumindo que Leads.jsx AGORA representa Renovacoes)
+// 1. CONFIGURAÇÃO PARA A ABA 'Leads'
 // ===============================================
-const SHEET_NAME = 'Renovações'; // O nome da aba que este componente irá buscar
+const SHEET_NAME = 'Leads';
 
 // URL base do seu Google Apps Script
 const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
 
-// URLs com o parâmetro 'sheet' adicionado
+// URLs com o parâmetro 'sheet' adicionado para apontar para a nova aba
 const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?sheet=${SHEET_NAME}`;
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?v=alterar_atribuido&sheet=${SHEET_NAME}`;
 const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=salvarObservacao&sheet=${SHEET_NAME}`;
 
 // ===============================================
-// 2. COMPONENTE PRINCIPAL RENOMEADO PARA 'Leads'
+// 2. COMPONENTE RENOMEADO PARA 'Leads'
 // ===============================================
-// Adaptado a partir do seu componente 'Renovacoes'
 const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, scrollContainerRef }) => {
   const [selecionados, setSelecionados] = useState({});
   const [paginaAtual, setPaginaAtual] = useState(1);
@@ -33,7 +32,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const [showNotification, setShowNotification] = useState(false);
   const [hasScheduledToday, setHasScheduledToday] = useState(false);
 
-  // Efeito para configurar o filtro inicial de data e estado de observações
   useEffect(() => {
     // Calcula o mês/ano atual no formato YYYY-MM
     const today = new Date();
@@ -49,18 +47,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const initialIsEditingObservacao = {};
     leads.forEach(lead => {
       initialObservacoes[lead.id] = lead.observacao || '';
-      // Começa a editar se não houver observação
-      initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === ''; 
+      initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
     });
     setObservacoes(initialObservacoes);
     setIsEditingObservacao(initialIsEditingObservacao);
   }, [leads]);
 
-  // Efeito para verificar agendamentos para hoje e mostrar notificação
   useEffect(() => {
     const today = new Date();
-    // Formato 'dd/mm/yyyy' para comparação
-    const todayFormatted = today.toLocaleDateString('pt-BR'); 
+    const todayFormatted = today.toLocaleDateString('pt-BR');
 
     const todayAppointments = leads.filter(lead => {
       if (!lead.status.startsWith('Agendado')) return false;
@@ -68,8 +63,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       if (!statusDateStr) return false;
 
       const [dia, mes, ano] = statusDateStr.split('/');
-      // Cria a data no fuso horário local para evitar problemas de dia
-      const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`); 
+      const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
       const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
 
       return statusDateFormatted === todayFormatted;
@@ -81,9 +75,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const handleRefreshLeads = async () => {
     setIsLoading(true);
     try {
-      // Chama a função passada via props, que deve buscar os dados na sheet 'Renovações'
-      await fetchLeadsFromSheet(SHEET_NAME); 
-      // Reinicializa o estado de edição após a atualização dos leads
+      // Usando fetchLeadsFromSheet, que deve ser ajustada no componente pai
+      await fetchLeadsFromSheet(SHEET_NAME);  
       const refreshedIsEditingObservacao = {};
       leads.forEach(lead => {
         refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
@@ -135,6 +128,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setPaginaAtual(1);
   };
 
+  const isSameMonthAndYear = (leadDateStr, filtroMesAno) => {
+    if (!filtroMesAno) return true;
+    if (!leadDateStr) return false;
+    const leadData = new Date(leadDateStr);
+    const leadAno = leadData.getFullYear();
+    const leadMes = String(leadData.getMonth() + 1).padStart(2, '0');
+    return filtroMesAno === `${leadAno}-${leadMes}`;
+  };
+
   const nomeContemFiltro = (leadNome, filtroNome) => {
     if (!filtroNome) return true;
     if (!leadNome) return false;
@@ -143,10 +145,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     return nomeNormalizado.includes(filtroNormalizado);
   };
 
-  // Filtragem principal dos leads
   const gerais = leads.filter((lead) => {
-    // Exclui Fechado/Perdido (Regra da aba Renovacoes/Pendentes)
-    if (lead.status === 'Fechado' || lead.status === 'Perdido') return false; 
+    if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
 
     if (filtroStatus) {
       if (filtroStatus === 'Agendado') {
@@ -163,7 +163,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     }
 
     if (filtroData) {
-      // Filtrar pelo mês e ano de criação (coluna 'createdAt')
       const leadMesAno = lead.createdAt ? lead.createdAt.substring(0, 7) : '';
       return leadMesAno === filtroData;
     }
@@ -172,7 +171,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       return nomeContemFiltro(lead.name, filtroNome);
     }
 
-    return true; // Se nenhum filtro for aplicado
+    return true;
   });
 
   const totalPaginas = Math.max(1, Math.ceil(gerais.length / leadsPorPagina));
@@ -209,7 +208,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
-      fetchLeadsFromSheet(SHEET_NAME); // Atualiza dados após transferência
+      fetchLeadsFromSheet(SHEET_NAME); // Passando SHEET_NAME
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
     }
@@ -227,7 +226,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const fim = inicio + leadsPorPagina;
   const leadsPagina = gerais.slice(inicio, fim);
 
-  // Função para rolar o contêiner principal para o topo (útil na paginação)
+  // Função para rolar o contêiner principal para o topo
   const scrollToTop = () => {
     if (scrollContainerRef && scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({
@@ -294,7 +293,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         },
       });
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-      fetchLeadsFromSheet(SHEET_NAME); // Atualiza leads após salvar a observação
+      fetchLeadsFromSheet(SHEET_NAME); // Passando SHEET_NAME
     } catch (error) {
       console.error('Erro ao salvar observação:', error);
       alert('Erro ao salvar observação. Por favor, tente novamente.');
@@ -310,9 +309,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const handleConfirmStatus = (leadId, novoStatus, phone) => {
     onUpdateStatus(leadId, novoStatus, phone);
     const currentLead = leads.find(l => l.id === leadId);
-    const hasNoObservacao = !currentLead?.observacao || currentLead.observacao.trim() === '';
+    const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
 
-    // Lógica para forçar a edição se o status mudar e não houver observação
     if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) && hasNoObservacao) {
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
     } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) {
@@ -320,20 +318,18 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     } else {
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     }
-    fetchLeadsFromSheet(SHEET_NAME); // Atualiza leads após alteração de status
+    fetchLeadsFromSheet(SHEET_NAME); // Passando SHEET_NAME
   };
 
   return (
     <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
-      {/* Overlay de Loading */}
       {isLoading && (
         <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
-          <p className="ml-4 text-lg text-gray-700">Carregando RENOVAÇÕES...</p>
+          <p className="ml-4 text-lg text-gray-700">Carregando LEADS...</p>
         </div>
       )}
 
-      {/* Cabeçalho e Filtros Principais */}
       <div
         style={{
           display: 'flex',
@@ -345,20 +341,20 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h1 style={{ margin: 0 }}>Renovações</h1> 
+          <h1 style={{ margin: 0 }}>Leads</h1>  
           <button
             title='Clique para atualizar os dados'
             onClick={handleRefreshLeads}
             disabled={isLoading}
             style={{
-              background: 'none',
-              border: 'none',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              padding: '0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#007bff'
+                background: 'none',
+                border: 'none',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                padding: '0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#007bff'
             }}
           >
             {isLoading ? (
@@ -372,7 +368,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           </button>
         </div>
 
-        {/* Filtro por Nome */}
         <div
           style={{
             display: 'flex',
@@ -406,11 +401,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
               width: '220px',
               maxWidth: '100%',
             }}
-            title="Filtrar renovações pelo nome (contém)"
+            title="Filtrar leads pelo nome (contém)"
           />
         </div>
 
-        {/* Notificação de Agendamento do Dia */}
+        {/* --- NOVO: CONTEINER ISOLADO PARA O SINO E A BOLHA --- */}
         {hasScheduledToday && (
           <div
             style={{
@@ -432,7 +427,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                 style={{
                   position: 'absolute',
                   top: '-5px',
-                  right: '-5px',
+                  right: '-5px', // 👈 Ajustado para -5px
                   backgroundColor: 'red',
                   color: 'white',
                   borderRadius: '50%',
@@ -470,7 +465,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           </div>
         )}
 
-        {/* Filtro por Mês/Ano */}
         <div
           style={{
             display: 'flex',
@@ -501,12 +495,11 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
               border: '1px solid #ccc',
               cursor: 'pointer',
             }}
-            title="Filtrar renovações pelo mês e ano de criação"
+            title="Filtrar leads pelo mês e ano de criação"
           />
         </div>
       </div>
 
-      {/* Botões de Filtro Rápido por Status */}
       <div
         style={{
           display: 'flex',
@@ -567,11 +560,10 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         )}
       </div>
 
-      {/* Lista de Leads e Paginação */}
       {isLoading ? (
         null
       ) : gerais.length === 0 ? (
-        <p>Não há renovações pendentes para os filtros aplicados.</p>
+        <p>Não há leads pendentes para os filtros aplicados.</p>
       ) : (
         <>
           {leadsPagina.map((lead) => {
@@ -592,7 +584,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   flexWrap: 'wrap',
                 }}
               >
-                {/* Componente Lead (Dados e Ações de Status) */}
                 <div style={{ flex: '1 1 50%', minWidth: '300px' }}>
                   <Lead
                     lead={lead}
@@ -601,7 +592,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   />
                 </div>
 
-                {/* Seção de Observações (visível apenas para status específicos) */}
                 {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado')) && (
                   <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
                     <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
@@ -661,10 +651,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   </div>
                 )}
 
-                {/* Seção de Transferência de Lead */}
                 <div style={{ width: '100%' }}>
                   {lead.responsavel && responsavel ? (
-                    // Lead já atribuído
                     <div style={{ marginTop: '10px' }}>
                       <p style={{ color: '#28a745' }}>
                         Transferido para <strong>{responsavel.nome}</strong>
@@ -686,8 +674,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                         </button>
                       )}
                     </div>
-                  ) : (
-                    // Lead não atribuído (Dropdown e Botão Enviar)
+                    ) : (
                     <div
                       style={{
                         marginTop: '0px',
@@ -729,7 +716,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   )}
                 </div>
 
-                {/* Data de Criação do Lead */}
                 <div
                   style={{
                     position: 'absolute',
@@ -748,7 +734,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             );
           })}
 
-          {/* Controles de Paginação */}
           <div
             style={{
               display: 'flex',
