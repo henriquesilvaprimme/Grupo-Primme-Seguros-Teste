@@ -299,52 +299,66 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   return (
-    <div style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
+    <div style={{ 
+      padding: '20px', 
+      position: 'relative', 
+      minHeight: 'calc(100vh - 100px)', 
+      backgroundColor: '#f8f9fa' // Cor de fundo suave
+    }}>
       {isLoading && (
-        <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
+        <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8, position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
-          <p className="ml-4 text-lg text-gray-700">Carregando LEADS...</p>
+          <p className="ml-4 text-lg text-gray-700" style={{ marginLeft: '16px', fontSize: '1.125rem', color: '#495057' }}>Carregando LEADS...</p>
         </div>
       )}
 
+      {/* --- Cabeçalho e Filtros Principais --- */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '15px',
-          gap: '10px',
+          marginBottom: '20px',
+          gap: '15px', // Aumentei o gap
           flexWrap: 'wrap',
+          backgroundColor: '#fff',
+          padding: '15px',
+          borderRadius: '8px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h1 style={{ margin: 0 }}>Leads</h1>
+        {/* Título e Botão de Atualizar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <h1 style={{ margin: 0, color: '#343a40', fontSize: '1.5rem' }}>Gestão de Leads</h1>
           <button
             title='Clique para atualizar os dados'
             onClick={handleRefreshLeads}
             disabled={isLoading}
             style={{
-                background: 'none',
-                border: 'none',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                padding: '0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#007bff'
+              background: 'none',
+              border: 'none',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              padding: '0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#007bff',
+              transition: 'transform 0.2s',
+              transform: isLoading ? 'rotate(360deg)' : 'rotate(0deg)',
             }}
           >
             {isLoading ? (
-              <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style={{ animation: 'spin 1s linear infinite', height: '20px', width: '20px', color: '#4f46e5' }}>
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
             ) : (
-              <RefreshCcw size={20} />
+              <RefreshCcw size={22} />
             )}
           </button>
         </div>
 
+        {/* Filtro por Nome */}
         <div
           style={{
             display: 'flex',
@@ -352,6 +366,21 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             gap: '8px',
           }}
         >
+          <input
+            type="text"
+            placeholder="Filtrar por nome"
+            value={nomeInput}
+            onChange={(e) => setNomeInput(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '6px',
+              border: '1px solid #ced4da',
+              width: '200px',
+              maxWidth: '100%',
+              fontSize: '14px',
+            }}
+            title="Filtrar leads pelo nome (contém)"
+          />
           <button
             onClick={aplicarFiltroNome}
             style={{
@@ -359,53 +388,83 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
               color: 'white',
               border: 'none',
               borderRadius: '6px',
-              padding: '6px 14px',
+              padding: '8px 14px',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
+              fontWeight: '600',
+              transition: 'background-color 0.2s',
             }}
           >
             Filtrar
           </button>
+        </div>
+        
+        {/* Filtro por Data */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
           <input
-            type="text"
-            placeholder="Filtrar por nome"
-            value={nomeInput}
-            onChange={(e) => setNomeInput(e.target.value)}
+            type="month"
+            value={dataInput}
+            onChange={(e) => setDataInput(e.target.value)}
             style={{
-              padding: '6px 10px',
+              padding: '8px 12px',
               borderRadius: '6px',
-              border: '1px solid #ccc',
-              width: '220px',
-              maxWidth: '100%',
+              border: '1px solid #ced4da',
+              cursor: 'pointer',
+              fontSize: '14px',
             }}
-            title="Filtrar leads pelo nome (contém)"
+            title="Filtrar leads pelo mês e ano de criação"
           />
+          <button
+            onClick={aplicarFiltroData}
+            style={{
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '8px 14px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              whiteSpace: 'nowrap',
+              transition: 'background-color 0.2s',
+            }}
+          >
+            Filtrar
+          </button>
         </div>
 
-        {/* --- NOVO: CONTEINER ISOLADO PARA O SINO E A BOLHA --- */}
+        {/* Notificação de Agendamento (Sino e Bolha) */}
         {hasScheduledToday && (
           <div
             style={{
-              flex: 1,
               display: 'flex',
-              justifyContent: 'center',
+              justifyContent: 'flex-end',
               alignItems: 'center',
+              flex: '1 1 auto', // Permite que ele cresça se houver espaço, mas fica alinhado à direita
+              minWidth: '100px',
             }}
           >
             <div
               style={{
                 position: 'relative',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                marginLeft: 'auto', // Empurra para a direita
               }}
               onClick={() => setShowNotification(!showNotification)}
+              title="Você tem agendamentos para hoje!"
             >
-              <Bell size={32} color="#007bff" />
+              <Bell size={32} color="#dc3545" style={{ filter: 'drop-shadow(0 0 5px rgba(220, 53, 69, 0.5))' }} />
               <div
                 style={{
                   position: 'absolute',
                   top: '-5px',
-                  right: '-5px', // 👈 Ajustado para -5px
-                  backgroundColor: 'red',
+                  right: '-5px',
+                  backgroundColor: '#dc3545',
                   color: 'white',
                   borderRadius: '50%',
                   width: '20px',
@@ -415,6 +474,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   justifyContent: 'center',
                   fontSize: '12px',
                   fontWeight: 'bold',
+                  boxShadow: '0 0 5px rgba(0,0,0,0.2)',
+                  animation: 'pulse 1s infinite', // Adicionado animação
                 }}
               >
                 1
@@ -423,81 +484,66 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                 <div
                   style={{
                     position: 'absolute',
-                    top: '40px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: '250px',
+                    top: '45px',
+                    right: '0', // Alinhado à direita do sino
+                    width: '280px', // Aumentei a largura
                     backgroundColor: 'white',
-                    border: '1px solid #ccc',
+                    border: '1px solid #007bff', // Cor da borda azul
                     borderRadius: '8px',
                     padding: '15px',
-                    boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
-                    zIndex: 10,
+                    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.2)', // Sombra mais proeminente
+                    zIndex: 20, // ZIndex maior
+                    fontSize: '14px',
                   }}
                 >
-                  <p>Você tem agendamentos hoje!</p>
+                  <p style={{ margin: 0, fontWeight: 'bold', color: '#007bff' }}>🔔 Atenção!</p>
+                  <p style={{ margin: '5px 0 0 0' }}>Você tem **agendamentos** de leads para hoje. Verifique a lista!</p>
                 </div>
               )}
             </div>
+            {/* Adicionar estilo para o efeito pulse (necessário CSS global ou styled-components, mas vou simular o que for possível com JS inline) */}
+            <style>
+              {`
+                @keyframes pulse {
+                  0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+                  70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+                  100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+                }
+                .animate-spin { animation: spin 1s linear infinite; }
+                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+              `}
+            </style>
           </div>
         )}
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          <button
-            onClick={aplicarFiltroData}
-            style={{
-              backgroundColor: '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '6px 14px',
-              cursor: 'pointer',
-            }}
-          >
-            Filtrar
-          </button>
-          <input
-            type="month"
-            value={dataInput}
-            onChange={(e) => setDataInput(e.target.value)}
-            style={{
-              padding: '6px 10px',
-              borderRadius: '6px',
-              border: '1px solid #ccc',
-              cursor: 'pointer',
-            }}
-            title="Filtrar leads pelo mês e ano de criação"
-          />
-        </div>
       </div>
-
+      
+      {/* --- Botões de Status (Filtros Rápidos) --- */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'center',
           gap: '15px',
           marginBottom: '20px',
+          padding: '10px 0',
           flexWrap: 'wrap',
+          borderBottom: '1px solid #dee2e6', // Linha divisória
         }}
       >
         <button
           onClick={() => aplicarFiltroStatus('Em Contato')}
           style={{
-            padding: '8px 16px',
-            backgroundColor: filtroStatus === 'Em Contato' ? '#e67e22' : '#f39c12',
+            padding: '10px 20px',
+            backgroundColor: filtroStatus === 'Em Contato' ? '#e67e22' : '#f39c12', // Laranja
             color: 'white',
             border: 'none',
-            borderRadius: '6px',
+            borderRadius: '20px', // Mais arredondado
             cursor: 'pointer',
             fontWeight: 'bold',
-            boxShadow: filtroStatus === 'Em Contato' ? 'inset 0 0 5px rgba(0,0,0,0.3)' : 'none',
+            boxShadow: filtroStatus === 'Em Contato' ? '0 3px 5px rgba(0,0,0,0.2), inset 0 0 5px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
+            transition: 'all 0.3s',
+            minWidth: '120px',
           }}
+          title="Ver leads em primeiro contato"
         >
           Em Contato
         </button>
@@ -505,15 +551,18 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         <button
           onClick={() => aplicarFiltroStatus('Sem Contato')}
           style={{
-            padding: '8px 16px',
-            backgroundColor: filtroStatus === 'Sem Contato' ? '#7f8c8d' : '#95a5a6',
+            padding: '10px 20px',
+            backgroundColor: filtroStatus === 'Sem Contato' ? '#7f8c8d' : '#95a5a6', // Cinza
             color: 'white',
             border: 'none',
-            borderRadius: '6px',
+            borderRadius: '20px',
             cursor: 'pointer',
             fontWeight: 'bold',
-            boxShadow: filtroStatus === 'Sem Contato' ? 'inset 0 0 5px rgba(0,0,0,0.3)' : 'none',
+            boxShadow: filtroStatus === 'Sem Contato' ? '0 3px 5px rgba(0,0,0,0.2), inset 0 0 5px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
+            transition: 'all 0.3s',
+            minWidth: '120px',
           }}
+          title="Ver leads sem sucesso no contato"
         >
           Sem Contato
         </button>
@@ -522,25 +571,31 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           <button
             onClick={() => aplicarFiltroStatus('Agendado')}
             style={{
-              padding: '8px 16px',
-              backgroundColor: filtroStatus === 'Agendado' ? '#2980b9' : '#3498db',
+              padding: '10px 20px',
+              backgroundColor: filtroStatus === 'Agendado' ? '#1a75b9' : '#3498db', // Azul
               color: 'white',
               border: 'none',
-              borderRadius: '6px',
+              borderRadius: '20px',
               cursor: 'pointer',
               fontWeight: 'bold',
-              boxShadow: filtroStatus === 'Agendado' ? 'inset 0 0 5px rgba(0,0,0,0.3)' : 'none',
+              boxShadow: filtroStatus === 'Agendado' ? '0 3px 5px rgba(0,0,0,0.2), inset 0 0 5px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
+              transition: 'all 0.3s',
+              minWidth: '120px',
             }}
+            title="Ver leads agendados para hoje"
           >
             Agendados
           </button>
         )}
       </div>
 
+      {/* --- Lista de Leads --- */}
       {isLoading ? (
         null
       ) : gerais.length === 0 ? (
-        <p>Não há leads pendentes para os filtros aplicados.</p>
+        <div style={{ textAlign: 'center', padding: '50px', backgroundColor: '#fff', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+          <p style={{ fontSize: '1.1rem', color: '#6c757d' }}>Não há leads pendentes para os filtros aplicados. 🎉</p>
+        </div>
       ) : (
         <>
           {leadsPagina.map((lead) => {
@@ -550,18 +605,21 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
               <div
                 key={lead.id}
                 style={{
-                  border: '1px solid #ccc',
-                  borderRadius: '8px',
-                  padding: '15px',
-                  marginBottom: '15px',
+                  border: '1px solid #e9ecef',
+                  borderRadius: '10px',
+                  padding: '20px', // Aumentei o padding
+                  marginBottom: '20px', // Aumentei a margem
                   position: 'relative',
                   display: 'flex',
-                  gap: '0px',
+                  gap: '20px',
                   alignItems: 'flex-start',
                   flexWrap: 'wrap',
+                  backgroundColor: '#fff',
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.08)', // Sombra leve para destaque
                 }}
               >
-                <div style={{ flex: '1 1 50%', minWidth: '300px' }}>
+                {/* Informações do Lead (Lead Component - Presume-se que o estilo está nele ou Tailwind) */}
+                <div style={{ flex: '1 1 55%', minWidth: '320px' }}>
                   <Lead
                     lead={lead}
                     onUpdateStatus={handleConfirmStatus}
@@ -569,180 +627,220 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   />
                 </div>
 
-                {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado')) && (
-                  <div style={{ flex: '1 1 45%', minWidth: '280px', borderLeft: '1px dashed #eee', paddingLeft: '20px' }}>
-                    <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
-                      Observações:
-                    </label>
-                    <textarea
-                      id={`observacao-${lead.id}`}
-                      value={observacoes[lead.id] || ''}
-                      onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
-                      placeholder="Adicione suas observações aqui..."
-                      rows="3"
-                      disabled={!isEditingObservacao[lead.id]}
-                      style={{
-                        width: '100%',
-                        padding: '10px',
-                        borderRadius: '6px',
-                        border: '1px solid #ccc',
-                        resize: 'vertical',
-                        boxSizing: 'border-box',
-                        backgroundColor: isEditingObservacao[lead.id] ? '#fff' : '#f0f0f0',
-                        cursor: isEditingObservacao[lead.id] ? 'text' : 'not-allowed',
-                      }}
-                    ></textarea>
-                    {isEditingObservacao[lead.id] ? (
-                      <button
-                        onClick={() => handleSalvarObservacao(lead.id)}
+                {/* Área de Observações e Transferência - Flex Container */}
+                <div style={{ flex: '1 1 40%', minWidth: '300px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  
+                  {/* Observações */}
+                  {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado')) && (
+                    <div style={{ padding: '10px', border: '1px solid #f0f0f0', borderRadius: '8px', backgroundColor: '#fcfcfc' }}>
+                      <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#007bff', fontSize: '1rem' }}>
+                        ✍️ Observações:
+                      </label>
+                      <textarea
+                        id={`observacao-${lead.id}`}
+                        value={observacoes[lead.id] || ''}
+                        onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
+                        placeholder="Adicione suas observações aqui..."
+                        rows="4"
+                        disabled={!isEditingObservacao[lead.id]}
                         style={{
-                          marginTop: '10px',
-                          padding: '8px 16px',
-                          backgroundColor: '#007bff',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontWeight: 'bold',
+                          width: '100%',
+                          padding: '10px',
+                          borderRadius: '6px',
+                          border: `1px solid ${isEditingObservacao[lead.id] ? '#007bff' : '#ced4da'}`,
+                          resize: 'vertical',
+                          boxSizing: 'border-box',
+                          backgroundColor: isEditingObservacao[lead.id] ? '#e9f7ff' : '#f8f9fa',
+                          cursor: isEditingObservacao[lead.id] ? 'text' : 'default',
+                          fontSize: '14px',
+                          transition: 'border-color 0.3s, background-color 0.3s',
                         }}
-                      >
-                        Salvar Observação
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleAlterarObservacao(lead.id)}
-                        style={{
-                          marginTop: '10px',
-                          padding: '8px 16px',
-                          backgroundColor: '#ffc107',
-                          color: '#000',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        Alterar Observação
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                <div style={{ width: '100%' }}>
-                  {lead.responsavel && responsavel ? (
-                    <div style={{ marginTop: '10px' }}>
-                      <p style={{ color: '#28a745' }}>
-                        Transferido para <strong>{responsavel.nome}</strong>
-                      </p>
-                      {isAdmin && (
-                        <button
-                          onClick={() => handleAlterar(lead.id)}
-                          style={{
-                            marginTop: '5px',
-                            padding: '5px 12px',
-                            backgroundColor: '#ffc107',
-                            color: '#000',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Alterar
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <div
-                      style={{
-                        marginTop: '0px',
-                        display: 'flex',
-                        gap: '10px',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <select
-                        value={selecionados[lead.id] || ''}
-                        onChange={(e) => handleSelect(lead.id, e.target.value)}
-                        style={{
-                          padding: '5px',
-                          borderRadius: '4px',
-                          border: '1px solid #ccc',
-                        }}
-                      >
-                        <option value="">Selecione usuário ativo</option>
-                        {usuariosAtivos.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.nome}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={() => handleEnviar(lead.id)}
-                        style={{
-                          padding: '5px 12px',
-                          backgroundColor: '#28a745',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Enviar
-                      </button>
+                      ></textarea>
+                      <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
+                        {isEditingObservacao[lead.id] ? (
+                          <button
+                            onClick={() => handleSalvarObservacao(lead.id)}
+                            disabled={isLoading}
+                            style={{
+                              padding: '8px 16px',
+                              backgroundColor: '#28a745', // Verde de sucesso
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: isLoading ? 'not-allowed' : 'pointer',
+                              fontWeight: 'bold',
+                              transition: 'background-color 0.2s',
+                              opacity: isLoading ? 0.6 : 1,
+                            }}
+                          >
+                            Salvar
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleAlterarObservacao(lead.id)}
+                            style={{
+                              padding: '8px 16px',
+                              backgroundColor: '#ffc107', // Amarelo de alerta
+                              color: '#000',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontWeight: 'bold',
+                              transition: 'background-color 0.2s',
+                            }}
+                          >
+                            Alterar
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
+
+                  {/* Transferência de Lead */}
+                  <div style={{ padding: '10px', border: '1px solid #e9ecef', borderRadius: '8px', backgroundColor: '#fcfcfc' }}>
+                    {lead.responsavel && responsavel ? (
+                      <div>
+                        <p style={{ color: '#28a745', fontWeight: 'bold', margin: '5px 0' }}>
+                          ✅ Transferido para <strong>{responsavel.nome}</strong>
+                        </p>
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleAlterar(lead.id)}
+                            style={{
+                              marginTop: '8px',
+                              padding: '6px 14px',
+                              backgroundColor: '#dc3545', // Vermelho para Alterar/Remover
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontWeight: '600',
+                              transition: 'background-color 0.2s',
+                            }}
+                            title="Remover atribuição do lead"
+                          >
+                            Alterar/Remover Atribuição
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: '10px',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <select
+                          value={selecionados[lead.id] || ''}
+                          onChange={(e) => handleSelect(lead.id, e.target.value)}
+                          style={{
+                            padding: '8px',
+                            borderRadius: '4px',
+                            border: '1px solid #ced4da',
+                            flex: '1 1 auto',
+                            minWidth: '150px',
+                            fontSize: '14px',
+                          }}
+                          title="Selecione o usuário para transferir o lead"
+                        >
+                          <option value="">Selecione usuário ativo</option>
+                          {usuariosAtivos.map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.nome}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleEnviar(lead.id)}
+                          disabled={!selecionados[lead.id] || isLoading}
+                          style={{
+                            padding: '8px 14px',
+                            backgroundColor: '#007bff', // Azul primário para Enviar
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: (!selecionados[lead.id] || isLoading) ? 'not-allowed' : 'pointer',
+                            fontWeight: '600',
+                            whiteSpace: 'nowrap',
+                            transition: 'background-color 0.2s',
+                            opacity: (!selecionados[lead.id] || isLoading) ? 0.6 : 1,
+                          }}
+                        >
+                          Enviar
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
+                {/* Data de Criação - Canto Inferior Direito */}
                 <div
                   style={{
                     position: 'absolute',
                     bottom: '10px',
-                    right: '15px',
-                    fontSize: '12px',
+                    right: '20px',
+                    fontSize: '11px',
                     color: '#888',
                     fontStyle: 'italic',
+                    backgroundColor: '#fff',
+                    padding: '2px 5px',
+                    borderRadius: '3px',
                   }}
                   title={`Criado em: ${formatarData(lead.createdAt)}`}
                 >
-                  {formatarData(lead.createdAt)}
+                  Criado em: {formatarData(lead.createdAt)}
                 </div>
               </div>
             );
           })}
 
+          {/* --- Paginação --- */}
           <div
             style={{
               display: 'flex',
               justifyContent: 'center',
+              alignItems: 'center',
               gap: '15px',
               marginTop: '20px',
+              padding: '15px',
+              backgroundColor: '#fff',
+              borderRadius: '8px',
+              boxShadow: '0 -2px 4px rgba(0,0,0,0.05)',
             }}
           >
             <button
               onClick={handlePaginaAnterior}
               disabled={paginaCorrigida <= 1 || isLoading}
               style={{
-                padding: '6px 14px',
+                padding: '8px 16px',
                 borderRadius: '6px',
-                border: '1px solid #ccc',
+                border: '1px solid #ced4da',
                 cursor: (paginaCorrigida <= 1 || isLoading) ? 'not-allowed' : 'pointer',
-                backgroundColor: (paginaCorrigida <= 1 || isLoading) ? '#f0f0f0' : '#fff',
+                backgroundColor: (paginaCorrigida <= 1 || isLoading) ? '#e9ecef' : '#f8f9fa',
+                color: '#495057',
+                fontWeight: '600',
+                transition: 'background-color 0.2s',
               }}
             >
               Anterior
             </button>
-            <span style={{ alignSelf: 'center' }}>
-              Página {paginaCorrigida} de {totalPaginas}
+            <span style={{ alignSelf: 'center', fontSize: '1rem', color: '#343a40' }}>
+              Página <strong style={{ color: '#007bff' }}>{paginaCorrigida}</strong> de <strong style={{ color: '#007bff' }}>{totalPaginas}</strong>
             </span>
             <button
               onClick={handlePaginaProxima}
               disabled={paginaCorrigida >= totalPaginas || isLoading}
               style={{
-                padding: '6px 14px',
+                padding: '8px 16px',
                 borderRadius: '6px',
-                border: '1px solid #ccc',
+                border: '1px solid #ced4da',
                 cursor: (paginaCorrigida >= totalPaginas || isLoading) ? 'not-allowed' : 'pointer',
-                backgroundColor: (paginaCorrigida >= totalPaginas || isLoading) ? '#f0f0f0' : '#fff',
+                backgroundColor: (paginaCorrigida >= totalPaginas || isLoading) ? '#e9ecef' : '#f8f9fa',
+                color: '#495057',
+                fontWeight: '600',
+                transition: 'background-color 0.2s',
               }}
             >
               Próxima
