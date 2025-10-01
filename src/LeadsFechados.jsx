@@ -505,7 +505,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                         <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
                                         <p><strong>Cidade:</strong> {lead.city}</p>
                                         <p><strong>Telefone:</strong> {lead.phone}</p>
-                                        <p><strong>Data de Criação:</strong> {lead.Data}</p>
+                                        <p><strong>Tipo de Seguro:</strong> {lead.insuranceType}</p>
                                     </div>
 
                                     {responsavel && isAdmin && (
@@ -649,12 +649,12 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                             }`}
                                         >
                                             <CheckCircle size={20} className="mr-2" />
-                                            Confirmar Renovação
+                                            Concluir Venda!
                                         </button>
                                     ) : (
                                         <div className="w-full py-3 px-4 rounded-xl font-bold bg-green-100 text-green-700 flex items-center justify-center border border-green-300">
                                             <CheckCircle size={20} className="mr-2" />
-                                            Renovação Concluída
+                                            Fechado!
                                         </div>
                                     )}
                                 </div>
