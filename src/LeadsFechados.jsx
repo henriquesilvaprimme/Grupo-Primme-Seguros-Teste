@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RefreshCcw } from 'lucide-react';
+import { RefreshCcw, Search, ChevronLeft, ChevronRight, CheckCircle, DollarSign, Calendar } from 'lucide-react';
+
+// ===============================================
+// 1. COMPONENTE PRINCIPAL: LeadsFechados
+// ===============================================
 
 const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdateDetalhes, fetchLeadsFechadosFromSheet, isAdmin, scrollContainerRef }) => {
-    // --- ESTADOS INICIAIS ---
+    // --- ESTADOS ---
     const [fechadosFiltradosInterno, setFechadosFiltradosInterno] = useState([]);
     const [paginaAtual, setPaginaAtual] = useState(1);
     const leadsPorPagina = 10;
@@ -16,18 +20,18 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         const hoje = new Date();
         const ano = hoje.getFullYear();
         const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-        return `${ano}-${mes}`;
+        return `${ano}-${mes}`; // Formato: AAAA-MM
     };
-    
     const [dataInput, setDataInput] = useState(getMesAnoAtual());
     const [filtroNome, setFiltroNome] = useState('');
     const [filtroData, setFiltroData] = useState(getMesAnoAtual());
     const [premioLiquidoInputDisplay, setPremioLiquidoInputDisplay] = useState({});
-    
-    // --- FUNÇÕES DE LÓGICA (CORRIGIDAS) ---
 
+    // --- FUNÇÕES DE LÓGICA (CORRIGIDA) ---
+    
     /**
-     * CORREÇÃO DE FUSO HORÁRIO: Converte DD/MM/AAAA para AAAA-MM-DD usando apenas strings.
+     * GARANTIA DE FORMATO: Converte DD/MM/AAAA para AAAA-MM-DD sem depender de new Date().
+     * ESSA CORREÇÃO GARANTE QUE O DIA 01 NÃO É INTERPRETADO ERRADO.
      * @param {string} dataStr - Data de entrada (espera DD/MM/AAAA)
      * @returns {string} Data formatada (AAAA-MM-DD)
      */
@@ -37,7 +41,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
         const parts = dataStr.split('/');
         
-        // Trata o formato DD/MM/AAAA e converte para AAAA-MM-DD (padrão ISO)
+        // Trata o formato DD/MM/AAAA
         if (parts.length === 3) {
             const [dia, mes, ano] = parts;
             // Verifica se são números e garante a padronização
@@ -75,7 +79,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         return nomeNormalizado.includes(filtroNormalizado);
     };
 
-    // --- FUNÇÕES DE FILTRO E ATUALIZAÇÃO ---
+    const scrollToTop = () => {
+        if (scrollContainerRef && scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
 
     const aplicarFiltroNome = () => {
         const filtroLimpo = nomeInput.trim();
@@ -83,9 +91,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         setFiltroData('');
         setDataInput('');
         setPaginaAtual(1);
-        if (scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+        scrollToTop();
     };
 
     const aplicarFiltroData = () => {
@@ -93,9 +99,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         setFiltroNome('');
         setNomeInput('');
         setPaginaAtual(1);
-        if (scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+        scrollToTop();
     };
 
     const handleRefresh = async () => {
@@ -114,20 +118,23 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         handleRefresh();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
+    
     // --- EFEITO DE FILTRAGEM E SINCRONIZAÇÃO DE ESTADOS ---
     useEffect(() => {
         const fechadosAtuais = leads.filter(lead => lead.Status === 'Fechado');
 
-        // Sincronização de estados (Valores, Vigência, Display) - Mantida
+        // --------------------------------------------------------------------------------
+        // Sincronização de estados (Mantido da versão anterior)
+        // --------------------------------------------------------------------------------
         setValores(prevValores => {
             const novosValores = { ...prevValores };
             fechadosAtuais.forEach(lead => {
                 const rawPremioFromApi = String(lead.PremioLiquido || '');
-                const premioFromApi = parseFloat(rawPremioFromApi.replace('.', '').replace(',', '.'));
+                // Adaptação: Se o valor da API for string, assume que é com ponto decimal e tira a vírgula para parsear.
+                const premioFromApi = parseFloat(rawPremioFromApi.replace('.', '').replace(',', '.')); 
                 const premioInCents = isNaN(premioFromApi) || rawPremioFromApi === '' ? null : Math.round(premioFromApi * 100);
 
-                const apiComissao = lead.Comissao ? String(lead.Comissao).replace('.', ',') : '';
+                const apiComissao = lead.Comissao ? String(lead.Comissao).replace('.', ',') : ''; // Mantém formato PT-BR para input
                 const apiParcelamento = lead.Parcelamento || '';
                 const apiInsurer = lead.Seguradora || '';
 
@@ -158,7 +165,9 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             fechadosAtuais.forEach(lead => {
                 const currentPremio = String(lead.PremioLiquido || '');
                 if (currentPremio !== '') {
-                    const premioFloat = parseFloat(currentPremio.replace(',', '.'));
+                    // Tenta parsear para float (usando o ponto como separador, se a API for padrão americano ou numérico)
+                    const premioFloat = parseFloat(currentPremio.replace(',', '.')); 
+                    // Formata para PT-BR (vírgula como decimal) para exibição no input
                     newDisplay[lead.ID] = isNaN(premioFloat) ? '' : premioFloat.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 } else if (prevDisplay[lead.ID] === undefined) {
                     newDisplay[lead.ID] = '';
@@ -188,10 +197,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             });
             return novasVigencias;
         });
-        
-        // ORDENAÇÃO: Adiciona 'T00:00:00' na string para forçar interpretação correta do fuso horário durante a ordenação
+        // --------------------------------------------------------------------------------
+
+        // ORDENAÇÃO: Ainda precisa de new Date() para ordenar corretamente
         const fechadosOrdenados = [...fechadosAtuais].sort((a, b) => {
-            // Usa a função corrigida para obter AAAA-MM-DD e anexa 'T00:00:00' para ordenação segura
+            // Adiciona 'T00:00:00' para mitigar o fuso horário durante a ORDENAÇÃO
             const dataA = new Date(getDataParaComparacao(a.Data) + 'T00:00:00');
             const dataB = new Date(getDataParaComparacao(b.Data) + 'T00:00:00');
             return dataB.getTime() - dataA.getTime();
@@ -221,7 +231,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         setFechadosFiltradosInterno(leadsFiltrados);
     }, [leads, filtroNome, filtroData]);
 
-    // --- HANDLERS E FUNÇÕES AUXILIARES (MANTIDAS) ---
+
+    // --- FUNÇÕES DE HANDLER (Mantidas) ---
 
     const formatarMoeda = (valorCentavos) => {
         if (valorCentavos === null || isNaN(valorCentavos)) return '';
@@ -232,10 +243,12 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         let cleanedValue = valor.replace(/[^\d,\.]/g, '');
         const commaParts = cleanedValue.split(',');
         if (commaParts.length > 2) {
+            // Caso tenha mais de uma vírgula, considera apenas a primeira para o decimal
             cleanedValue = commaParts[0] + ',' + commaParts.slice(1).join('');
         }
         
         if (commaParts.length > 1 && commaParts[1].length > 2) {
+            // Limita a duas casas decimais após a vírgula
             cleanedValue = commaParts[0] + ',' + commaParts[1].slice(0, 2);
         }
         
@@ -244,7 +257,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             [`${id}`]: cleanedValue,
         }));
 
-        const valorParaParse = cleanedValue.replace(/\./g, '').replace(',', '.');
+        const valorParaParse = cleanedValue.replace(/\./g, '').replace(',', '.'); // Remove ponto e troca vírgula por ponto para parse
         const valorEmReais = parseFloat(valorParaParse);
         const valorParaEstado = isNaN(valorEmReais) || cleanedValue === '' ? null : Math.round(valorEmReais * 100);
 
@@ -265,11 +278,13 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             valorReais = valorCentavos / 100;
         }
 
+        // Formata o valor de volta para o display no formato PT-BR (R$ 1.000,00)
         setPremioLiquidoInputDisplay(prev => ({
             ...prev,
             [`${id}`]: valorCentavos !== null && !isNaN(valorCentavos) ? formatarMoeda(valorCentavos) : '',
         }));
 
+        // Envia para a função de atualização o valor em Reais (com ponto como decimal, se necessário)
         onUpdateDetalhes(id, 'PremioLiquido', valorReais);
     };
 
@@ -287,13 +302,22 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             ...prev,
             [`${id}`]: {
                 ...prev[`${id}`],
-                Comissao: cleanedValue,
+                Comissao: cleanedValue, // Mantém a string com vírgula para o estado interno/input
             },
         }));
 
+        // Converte para float (com ponto decimal) antes de enviar a atualização
         const valorFloat = parseFloat(cleanedValue.replace(',', '.'));
         onUpdateDetalhes(id, 'Comissao', isNaN(valorFloat) ? '' : valorFloat);
     };
+    
+    // Atualiza o estado interno e chama a função de atualização
+    const handleComissaoBlur = (id) => {
+        const comissaoInput = valores[`${id}`]?.Comissao || '';
+        const comissaoFloat = parseFloat(comissaoInput.replace(',', '.'));
+        onUpdateDetalhes(id, 'Comissao', isNaN(comissaoFloat) ? '' : comissaoFloat);
+    };
+
 
     const handleParcelamentoChange = (id, valor) => {
         setValores(prev => ({
@@ -314,12 +338,19 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 insurer: valor,
             },
         }));
+        // Não chama onUpdateDetalhes aqui, pois a Seguradora só é confirmada no botão.
+    };
+    
+    const handleInsurerBlur = (id) => {
+        const insurerValue = valores[`${id}`]?.insurer;
+        // Atualiza a seguradora na planilha/API imediatamente ao sair do foco, se houver alteração
+        onUpdateDetalhes(id, 'Seguradora', insurerValue);
     };
 
     const handleVigenciaInicioChange = (id, dataString) => {
         let dataFinal = '';
         if (dataString) {
-            // Usa 'T00:00:00' para evitar problemas com fuso horário ao criar o objeto Date APENAS para cálculo.
+            // Usa 'T00:00:00' para evitar problemas com fuso horário ao criar a data
             const dataInicioObj = new Date(dataString + 'T00:00:00'); 
             if (!isNaN(dataInicioObj.getTime())) {
                 const anoInicio = dataInicioObj.getFullYear();
@@ -327,7 +358,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 const diaInicio = String(dataInicioObj.getDate()).padStart(2, '0');
 
                 const anoFinal = anoInicio + 1;
-                dataFinal = `${anoFinal}-${mesInicio}-${diaInicio}`;
+                dataFinal = `${anoFinal}-${mesInicio}-${diaInicio}`; // AAAA-MM-DD
             }
         }
 
@@ -339,10 +370,14 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 final: dataFinal,
             },
         }));
+        
+        // Atualiza a planilha/API com as datas
+        onUpdateDetalhes(id, 'VigenciaInicial', dataString);
+        onUpdateDetalhes(id, 'VigenciaFinal', dataFinal);
     };
 
-    // --- PAGINAÇÃO E ESTILOS (MANTIDOS) ---
 
+    // --- LÓGICA DE PAGINAÇÃO (Mantida) ---
     const totalPaginas = Math.max(1, Math.ceil(fechadosFiltradosInterno.length / leadsPorPagina));
     const paginaCorrigida = Math.min(paginaAtual, totalPaginas); 
     const inicio = (paginaCorrigida - 1) * leadsPorPagina;
@@ -351,115 +386,100 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
     const handlePaginaAnterior = () => {
         setPaginaAtual(prev => Math.max(prev - 1, 1));
-        if (scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+        scrollToTop();
     };
 
     const handlePaginaProxima = () => {
         setPaginaAtual(prev => Math.min(prev + 1, totalPaginas));
-        if (scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+        scrollToTop();
     };
-    
-    // --- CLASSES TAILWIND ---
-    
-    // Classes para inputs com prefixo (R$ ou %)
-    const inputWithPrefixClasses = "pl-9 pr-2 w-full border border-gray-300 rounded-md h-9 box-border text-right focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed";
-    
-    // Classes para inputs sem prefixo (Select, Date)
-    const inputNoPrefixClasses = "px-2 py-1 w-full border border-gray-300 rounded-md h-9 box-border text-left focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed";
-    
-    // Wrapper para input com prefixo
-    const inputWrapperClasses = "relative w-full mb-2";
-
-    // Estilo do Prefixo (R$ ou %)
-    const prefixClasses = "absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold pointer-events-none select-none text-sm";
-
 
     // --- RENDERIZAÇÃO ---
-
     return (
-        <div id="leads-container" className="p-5 relative min-h-[calc(100vh-100px)]">
+        <div className="p-4 md:p-6 lg:p-8 relative min-h-screen bg-gray-100 font-sans">
+
             {/* Overlay de Loading */}
             {isLoading && (
                 <div className="absolute inset-0 bg-white bg-opacity-80 flex justify-center items-center z-50">
-                    <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
-                    <p className="ml-4 text-lg text-gray-700">Carregando LEADS FECHADOS...</p>
-                </div>
-            )}
-
-            {/* Cabeçalho e Botão de Atualização */}
-            <div className="flex items-center gap-3 mb-4">
-                <h1 className="text-2xl font-semibold m-0">Leads Fechados</h1>
-                <button 
-                    title='Clique para atualizar os dados'
-                    onClick={handleRefresh}
-                    disabled={isLoading}
-                    className="p-1.5 rounded-full border border-gray-300 bg-white shadow hover:bg-gray-50 disabled:cursor-not-allowed transition duration-150"
-                >
-                    {isLoading ? (
-                        <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <div className="flex flex-col items-center">
+                        <svg className="animate-spin h-10 w-10 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                    ) : (
-                        <RefreshCcw size={20} className="text-blue-600" />
-                    )}
-                </button>
-            </div>
+                        <p className="ml-4 text-xl font-semibold text-gray-700 mt-3">Carregando Leads Concluídos...</p>
+                    </div>
+                </div>
+            )}
 
-            {/* Controles de Filtro */}
-            <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
+            {/* Cabeçalho Principal (Moderno) */}
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4 mb-4">
+                    <h1 className="text-4xl font-extrabold text-gray-900 flex items-center">
+                        <CheckCircle size={32} className="text-green-500 mr-3" />
+                        Renovados
+                    </h1>
+                    
+                    <button
+                        title="Atualizar dados"
+                        onClick={handleRefresh}
+                        disabled={isLoading}
+                        className={`p-3 rounded-full transition duration-300 ${isLoading ? 'text-gray-400 cursor-not-allowed' : 'text-green-600 hover:bg-green-100 shadow-sm'}`}
+                    >
+                        <RefreshCcw size={24} className={isLoading ? '' : 'hover:rotate-180'} />
+                    </button>
+                </div>
                 
-                {/* Filtro por Nome */}
-                <div className="flex items-center gap-2 flex-1 justify-start min-w-[280px]">
-                    <button
-                        onClick={aplicarFiltroNome}
-                        className="bg-blue-600 text-white border-none rounded-md px-4 py-2 cursor-pointer whitespace-nowrap h-9 text-sm hover:bg-blue-700 transition duration-200"
-                    >
-                        Filtrar Nome
-                    </button>
-                    <input
-                        type="text"
-                        placeholder="Filtrar por nome"
-                        value={nomeInput}
-                        onChange={(e) => setNomeInput(e.target.value)}
-                        className="p-2 rounded-md border border-gray-300 w-56 max-w-full h-9 text-sm focus:ring-blue-500 focus:border-blue-500"
-                        title="Filtrar leads pelo nome (contém)"
-                    />
-                </div>
+                {/* Controles de Filtro (Inline) */}
+                <div className="flex flex-col md:flex-row gap-4 justify-between items-stretch">
+                    {/* Filtro de Nome */}
+                    <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                        <input
+                            type="text"
+                            placeholder="Buscar por nome..."
+                            value={nomeInput}
+                            onChange={(e) => setNomeInput(e.target.value)}
+                            className="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 text-sm"
+                        />
+                        <button 
+                            onClick={aplicarFiltroNome}
+                            className="p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition duration-200 shadow-md"
+                        >
+                            <Search size={20} />
+                        </button>
+                    </div>
 
-                {/* Filtro por Data */}
-                <div className="flex items-center gap-2 min-w-[230px] justify-end">
-                    <button
-                        onClick={aplicarFiltroData}
-                        className="bg-blue-600 text-white border-none rounded-md px-4 py-2 cursor-pointer whitespace-nowrap h-9 text-sm hover:bg-blue-700 transition duration-200"
-                    >
-                        Filtrar Data
-                    </button>
-                    <input
-                        type="month"
-                        value={dataInput}
-                        onChange={(e) => setDataInput(e.target.value)}
-                        className="p-2 rounded-md border border-gray-300 cursor-pointer h-9 text-sm focus:ring-blue-500 focus:border-blue-500"
-                        title="Filtrar leads pelo mês e ano de criação"
-                    />
+                    {/* Filtro de Data */}
+                    <div className="flex items-center gap-2 flex-1 min-w-[200px] justify-end">
+                        <input
+                            type="month"
+                            value={dataInput}
+                            onChange={(e) => setDataInput(e.target.value)}
+                            className="p-3 border border-gray-300 rounded-lg cursor-pointer text-sm"
+                            title="Filtrar por Mês/Ano de Criação"
+                        />
+                        <button 
+                            onClick={aplicarFiltroData}
+                            className="p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition duration-200 shadow-md whitespace-nowrap"
+                        >
+                            Filtrar Data
+                        </button>
+                    </div>
                 </div>
             </div>
-
-            {/* Lista de Leads */}
-            {fechadosFiltradosInterno.length === 0 && !isLoading ? (
-                <p className="text-center p-5 bg-white rounded-lg shadow-md">
-                    Não há leads fechados que correspondam ao filtro aplicado.
-                </p>
-            ) : (
-                <>
-                    {leadsPagina.map((lead) => {
-                        const responsavel = usuarios.find((u) => u.nome === lead.Responsavel && isAdmin);
-                        const isSeguradoraPreenchida = !!lead.Seguradora;
-
+            
+            {/* Lista de Cards de Leads */}
+            <div className="space-y-5">
+                {fechadosFiltradosInterno.length === 0 && !isLoading ? (
+                    <div className="text-center p-12 bg-white rounded-xl shadow-md text-gray-600 text-lg">
+                        <p> Você não tem nenhum cliente renovado no período filtrado. </p>
+                    </div>
+                ) : (
+                    leadsPagina.map((lead) => {
+                        const responsavel = usuarios.find((u) => u.nome === lead.Responsavel);
+                        // Verifica se a seguradora *no lead original* foi preenchida, indicando confirmação
+                        const isSeguradoraPreenchida = !!lead.Seguradora; 
+                        
+                        // Lógica de desativação do botão de confirmação
                         const isButtonDisabled =
                             !valores[`${lead.ID}`]?.insurer ||
                             valores[`${lead.ID}`]?.PremioLiquido === null ||
@@ -473,112 +493,136 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
                         return (
                             <div 
-                                key={lead.ID} 
-                                className={`flex flex-wrap gap-5 items-start justify-between p-4 mb-4 rounded-lg shadow-lg transition duration-300 
-                                    ${isSeguradoraPreenchida 
-                                        ? 'bg-green-50 border-2 border-green-500' 
-                                        : 'bg-white border border-gray-200 hover:shadow-xl'
-                                    }`}
+                                key={lead.ID}
+                                className={`bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative border-t-4 ${isSeguradoraPreenchida ? 'border-green-600' : 'border-amber-500'}`}
                             >
-                                {/* Seção de Detalhes do Lead */}
-                                <div className="flex-1 min-w-[250px] pr-4 border-r border-gray-200">
-                                    <h3 className="m-0 mb-1 text-lg font-bold text-gray-800">{lead.name}</h3>
-                                    <p className="m-0 text-sm text-gray-600"><strong>Data do Fechamento:</strong> {lead.Data}</p>
-                                    <div className="mt-2 space-y-1 text-sm text-gray-700">
-                                        <p className="m-0"><strong>Modelo:</strong> {lead.vehicleModel}</p>
-                                        <p className="m-0"><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
-                                        <p className="m-0"><strong>Cidade:</strong> {lead.city}</p>
-                                        <p className="m-0"><strong>Telefone:</strong> {lead.phone}</p>
-                                        <p className="m-0"><strong>Tipo de Seguro:</strong> {lead.insuranceType}</p>
+                                {/* COLUNA 1: Informações do Lead */}
+                                <div className="col-span-1 border-b pb-4 lg:border-r lg:pb-0 lg:pr-6">
+                                    <h3 className="text-xl font-bold text-gray-900 mb-2">{lead.name}</h3>
+                                    
+                                    <div className="space-y-1 text-sm text-gray-700">
+                                        <p><strong>Modelo:</strong> {lead.vehicleModel}</p>
+                                        <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
+                                        <p><strong>Cidade:</strong> {lead.city}</p>
+                                        <p><strong>Telefone:</strong> {lead.phone}</p>
+                                        <p><strong>Data de Criação:</strong> {lead.Data}</p>
                                     </div>
 
-                                    {responsavel && (
-                                        <p className="mt-3 text-sm text-blue-600 font-bold">
-                                            Transferido para <strong>{responsavel.nome}</strong>
+                                    {responsavel && isAdmin && (
+                                        <p className="mt-4 text-sm font-semibold text-green-600 bg-green-50 p-2 rounded-lg">
+                                            Transferido para: <strong>{responsavel.nome}</strong>
                                         </p>
                                     )}
                                 </div>
 
-                                {/* Seção de Inputs de Fechamento */}
-                                <div className="flex flex-col items-start min-w-[280px] w-full max-w-sm">
+                                {/* COLUNA 2: Detalhes do Fechamento */}
+                                <div className="col-span-1 border-b pb-4 lg:border-r lg:pb-0 lg:px-6">
+                                    <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
+                                        <DollarSign size={18} className="mr-2 text-green-500" />
+                                        Detalhes do Fechamento
+                                    </h3>
                                     
-                                    {/* Seguradora */}
-                                    <select
-                                        value={valores[`${lead.ID}`]?.insurer || ''}
-                                        onChange={(e) => handleInsurerChange(lead.ID, e.target.value)}
-                                        disabled={isSeguradoraPreenchida || isLoading}
-                                        className={inputNoPrefixClasses}
-                                    >
-                                        <option value="">Selecione a seguradora</option>
-                                        <option value="Porto Seguro">Porto Seguro</option>
-                                        <option value="Azul Seguros">Azul Seguros</option>
-                                        <option value="Itau Seguros">Itau Seguros</option>
-                                        <option value="Demais Seguradoras">Demais Seguradoras</option>
-                                    </select>
-
-                                    {/* Prêmio Líquido */}
-                                    <div className={inputWrapperClasses}>
-                                        <span className={prefixClasses}>R$</span>
-                                        <input
-                                            type="text"
-                                            placeholder="Prêmio Líquido"
-                                            value={premioLiquidoInputDisplay[`${lead.ID}`] || ''}
-                                            onChange={(e) => handlePremioLiquidoChange(lead.ID, e.target.value)}
-                                            onBlur={() => handlePremioLiquidoBlur(lead.ID)}
-                                            disabled={isSeguradoraPreenchida || isLoading}
-                                            className={inputWithPrefixClasses}
-                                        />
+                                    {/* Seguradora (Select) */}
+                                    <div className="mb-4">
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Seguradora</label>
+                                        <select
+                                            value={valores[`${lead.ID}`]?.insurer || ''}
+                                            onChange={(e) => handleInsurerChange(lead.ID, e.target.value)}
+                                            onBlur={() => handleInsurerBlur(lead.ID)} // Atualiza no blur
+                                            disabled={isSeguradoraPreenchida}
+                                            className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
+                                        >
+                                            <option value="">Selecione a seguradora</option>
+                                            <option value="Porto Seguro">Porto Seguro</option>
+                                            <option value="Azul Seguros">Azul Seguros</option>
+                                            <option value="Itau Seguros">Itau Seguros</option>
+                                            <option value="Demais Seguradoras">Demais Seguradoras</option>
+                                        </select>
                                     </div>
 
-                                    {/* Comissão */}
-                                    <div className={inputWrapperClasses}>
-                                        <span className={prefixClasses}>%</span>
-                                        <input
-                                            type="text"
-                                            placeholder="Comissão (%)"
-                                            value={valores[`${lead.ID}`]?.Comissao || ''}
-                                            onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
-                                            disabled={isSeguradoraPreenchida || isLoading}
-                                            className={inputWithPrefixClasses}
-                                        />
-                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {/* Prêmio Líquido (Input) */}
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Prêmio Líquido</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-sm">R$</span>
+                                                <input
+                                                    type="text"
+                                                    placeholder="0,00"
+                                                    value={premioLiquidoInputDisplay[`${lead.ID}`] || ''}
+                                                    onChange={(e) => handlePremioLiquidoChange(lead.ID, e.target.value)}
+                                                    onBlur={() => handlePremioLiquidoBlur(lead.ID)}
+                                                    disabled={isSeguradoraPreenchida}
+                                                    className="w-full p-2 pl-8 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500 text-right"
+                                                />
+                                            </div>
+                                        </div>
 
-                                    {/* Parcelamento */}
-                                    <select
-                                        value={valores[`${lead.ID}`]?.Parcelamento || ''}
-                                        onChange={(e) => handleParcelamentoChange(lead.ID, e.target.value)}
-                                        disabled={isSeguradoraPreenchida || isLoading}
-                                        className={inputNoPrefixClasses}
-                                    >
-                                        <option value="">Parcelamento</option>
-                                        {[...Array(12)].map((_, i) => (
-                                            <option key={i + 1} value={`${i + 1}x`}>{i + 1}x</option>
-                                        ))}
-                                    </select>
-                                    
+                                        {/* Comissão (Input) */}
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Comissão (%)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-sm">%</span>
+                                                <input
+                                                    type="text"
+                                                    placeholder="0,00"
+                                                    value={valores[`${lead.ID}`]?.Comissao || ''}
+                                                    onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
+                                                    onBlur={() => handleComissaoBlur(lead.ID)}
+                                                    disabled={isSeguradoraPreenchida}
+                                                    className="w-full p-2 pl-8 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500 text-right"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Parcelamento (Select) */}
+                                        <div className="col-span-2">
+                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Parcelamento</label>
+                                            <select
+                                                value={valores[`${lead.ID}`]?.Parcelamento || ''}
+                                                onChange={(e) => handleParcelamentoChange(lead.ID, e.target.value)}
+                                                disabled={isSeguradoraPreenchida}
+                                                className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
+                                            >
+                                                <option value="">Selecione o Parcelamento</option>
+                                                {[...Array(12)].map((_, i) => (
+                                                    <option key={i + 1} value={`${i + 1}x`}>{i + 1}x</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* COLUNA 3: Vigência e Ação de Confirmação */}
+                                <div className="col-span-1 lg:pl-6">
+                                    <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
+                                        <Calendar size={18} className="mr-2 text-green-500" />
+                                        Vigência
+                                    </h3>
+
                                     {/* Vigência Início */}
-                                    <div className={inputWrapperClasses}>
-                                        <label htmlFor={`vigencia-inicio-${lead.ID}`} className="text-xs text-gray-600 block mb-1 font-medium">Vigência Início:</label>
+                                    <div className="mb-4">
+                                        <label htmlFor={`vigencia-inicio-${lead.ID}`} className="text-xs font-semibold text-gray-600 block mb-1">Início</label>
                                         <input
                                             id={`vigencia-inicio-${lead.ID}`}
                                             type="date"
                                             value={vigencia[`${lead.ID}`]?.inicio || ''}
                                             onChange={(e) => handleVigenciaInicioChange(lead.ID, e.target.value)}
-                                            disabled={isSeguradoraPreenchida || isLoading}
-                                            className={`${inputNoPrefixClasses} mb-2`}
+                                            disabled={isSeguradoraPreenchida}
+                                            className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
                                         />
                                     </div>
 
-                                    {/* Vigência Final */}
-                                    <div className={inputWrapperClasses}>
-                                        <label htmlFor={`vigencia-final-${lead.ID}`} className="text-xs text-gray-600 block mb-1 font-medium">Vigência Final:</label>
+                                    {/* Vigência Final (Readonly) */}
+                                    <div className="mb-6">
+                                        <label htmlFor={`vigencia-final-${lead.ID}`} className="text-xs font-semibold text-gray-600 block mb-1">Término (Automático)</label>
                                         <input
                                             id={`vigencia-final-${lead.ID}`}
                                             type="date"
                                             value={vigencia[`${lead.ID}`]?.final || ''}
                                             readOnly
                                             disabled={true}
-                                            className={`${inputNoPrefixClasses} bg-gray-100 cursor-not-allowed mb-2`}
+                                            className="w-full p-2 border border-gray-200 rounded-lg text-sm bg-gray-100 cursor-not-allowed"
                                         />
                                     </div>
 
@@ -592,65 +636,59 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                                     valores[`${lead.ID}`]?.insurer,
                                                     parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')),
                                                     valores[`${lead.ID}`]?.Parcelamento,
-                                                    vigencia[`${lead.ID}`]?.final,
-                                                    vigencia[`${lead.ID}`]?.inicio
+                                                    vigencia[`${lead.ID}`]?.inicio,
+                                                    vigencia[`${lead.ID}`]?.final
                                                 );
-                                                // Note: Atualiza os dados após a confirmação para refletir o status
-                                                await fetchLeadsFechadosFromSheet(); 
                                             }}
-                                            disabled={isButtonDisabled || isLoading}
-                                            className={`py-2 px-4 rounded-md text-white font-semibold w-full transition duration-200 mt-2
-                                                ${(isButtonDisabled || isLoading) 
-                                                    ? 'bg-gray-400 cursor-not-allowed' 
-                                                    : 'bg-green-600 hover:bg-green-700 cursor-pointer'
-                                                }`}
+                                            disabled={isButtonDisabled}
+                                            title={isButtonDisabled ? 'Preencha todos os campos para confirmar.' : 'Confirmar e finalizar renovação.'}
+                                            className={`w-full py-3 rounded-xl font-bold transition duration-300 shadow-lg flex items-center justify-center ${
+                                                isButtonDisabled
+                                                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                            }`}
                                         >
-                                            Confirmar Seguradora
+                                            <CheckCircle size={20} className="mr-2" />
+                                            Confirmar Renovação
                                         </button>
                                     ) : (
-                                        <span className="mt-2 text-sm text-green-700 font-bold p-2 bg-green-200 rounded-md block text-center w-full">
-                                            Status Confirmado
-                                        </span>
+                                        <div className="w-full py-3 px-4 rounded-xl font-bold bg-green-100 text-green-700 flex items-center justify-center border border-green-300">
+                                            <CheckCircle size={20} className="mr-2" />
+                                            Renovação Concluída
+                                        </div>
                                     )}
                                 </div>
                             </div>
                         );
-                    })}
+                    })
+                )}
+            </div>
 
-                    {/* Paginação */}
-                    {fechadosFiltradosInterno.length > leadsPorPagina && (
-                        <div
-                            className="flex justify-center items-center gap-4 mt-5 p-3 bg-white rounded-lg shadow-md"
-                        >
-                            <button
-                                onClick={handlePaginaAnterior}
-                                disabled={paginaCorrigida <= 1 || isLoading}
-                                className={`px-4 py-2 rounded-md border text-sm transition duration-200
-                                    ${(paginaCorrigida <= 1 || isLoading) 
-                                        ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
-                                        : 'bg-white text-blue-600 border-blue-600 hover:bg-blue-50 cursor-pointer'
-                                    }`}
-                            >
-                                Anterior
-                            </button>
-                            <span className="font-bold text-gray-700">
-                                Página {paginaCorrigida} de {totalPaginas}
-                            </span>
-                            <button
-                                onClick={handlePaginaProxima}
-                                disabled={paginaCorrigida >= totalPaginas || isLoading}
-                                className={`px-4 py-2 rounded-md border text-sm transition duration-200
-                                    ${(paginaCorrigida >= totalPaginas || isLoading) 
-                                        ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
-                                        : 'bg-white text-blue-600 border-blue-600 hover:bg-blue-50 cursor-pointer'
-                                    }`}
-                            >
-                                Próxima
-                            </button>
-                        </div>
-                    )}
-                </>
-            )}
+            {/* Rodapé e Paginação */}
+            <div className="mt-8 flex justify-between items-center bg-white p-4 rounded-xl shadow-lg">
+                <span className="text-sm text-gray-600">
+                    Mostrando {inicio + 1} - {Math.min(fim, fechadosFiltradosInterno.length)} de {fechadosFiltradosInterno.length} renovados
+                </span>
+                <div className="flex items-center space-x-2">
+                    <button
+                        onClick={handlePaginaAnterior}
+                        disabled={paginaCorrigida === 1 || isLoading}
+                        className="p-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                        <ChevronLeft size={20} />
+                    </button>
+                    <span className="text-sm font-semibold text-gray-700">
+                        Página {paginaCorrigida} de {totalPaginas}
+                    </span>
+                    <button
+                        onClick={handlePaginaProxima}
+                        disabled={paginaCorrigida === totalPaginas || isLoading}
+                        className="p-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                        <ChevronRight size={20} />
+                    </button>
+                </div>
+            </div>
         </div>
     );
 };
