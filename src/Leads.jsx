@@ -303,11 +303,41 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       padding: '20px', 
       position: 'relative', 
       minHeight: 'calc(100vh - 100px)', 
-      backgroundColor: '#f8f9fa' // Cor de fundo suave
+      backgroundColor: '#f4f7f9' // Fundo mais claro
     }}>
+      {/* Estilo para a animação de loading */}
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+          .animate-spin { animation: spin 1s linear infinite; }
+          
+          @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+          }
+          .animate-pulse-bell { animation: pulse 1s infinite; }
+        `}
+      </style>
+
+      {/* Tela de Loading */}
       {isLoading && (
-        <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8, position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-          <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
+        <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ 
+          opacity: 0.9, 
+          position: 'fixed', // Fixed para cobrir tudo
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          bottom: 0 
+        }}>
+          <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500" style={{ 
+            animation: 'spin 1s linear infinite', 
+            borderColor: '#4f46e5', 
+            borderTopColor: 'transparent' 
+          }}></div>
           <p className="ml-4 text-lg text-gray-700" style={{ marginLeft: '16px', fontSize: '1.125rem', color: '#495057' }}>Carregando LEADS...</p>
         </div>
       )}
@@ -319,17 +349,18 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: '20px',
-          gap: '15px', // Aumentei o gap
+          gap: '15px',
           flexWrap: 'wrap',
-          backgroundColor: '#fff',
+          backgroundColor: '#ffffff',
           padding: '15px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+          borderRadius: '10px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.08)', // Sombra para o cabeçalho
+          border: '1px solid #e0e0e0'
         }}
       >
         {/* Título e Botão de Atualizar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <h1 style={{ margin: 0, color: '#343a40', fontSize: '1.5rem' }}>Gestão de Leads</h1>
+          <h1 style={{ margin: 0, color: '#333333', fontSize: '1.8rem' }}>Leads</h1>
           <button
             title='Clique para atualizar os dados'
             onClick={handleRefreshLeads}
@@ -343,18 +374,12 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
               alignItems: 'center',
               justifyContent: 'center',
               color: '#007bff',
-              transition: 'transform 0.2s',
+              transition: 'transform 0.5s',
               transform: isLoading ? 'rotate(360deg)' : 'rotate(0deg)',
+              opacity: isLoading ? 0.7 : 1,
             }}
           >
-            {isLoading ? (
-              <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style={{ animation: 'spin 1s linear infinite', height: '20px', width: '20px', color: '#4f46e5' }}>
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : (
-              <RefreshCcw size={22} />
-            )}
+            <RefreshCcw size={24} style={{ color: '#007bff' }}/>
           </button>
         </div>
 
@@ -375,7 +400,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
               padding: '8px 12px',
               borderRadius: '6px',
               border: '1px solid #ced4da',
-              width: '200px',
+              width: '180px',
               maxWidth: '100%',
               fontSize: '14px',
             }}
@@ -384,7 +409,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           <button
             onClick={aplicarFiltroNome}
             style={{
-              backgroundColor: '#007bff',
+              backgroundColor: '#343a40', // Cor escura para filtros
               color: 'white',
               border: 'none',
               borderRadius: '6px',
@@ -423,7 +448,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           <button
             onClick={aplicarFiltroData}
             style={{
-              backgroundColor: '#007bff',
+              backgroundColor: '#343a40', // Cor escura para filtros
               color: 'white',
               border: 'none',
               borderRadius: '6px',
@@ -445,37 +470,38 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
               display: 'flex',
               justifyContent: 'flex-end',
               alignItems: 'center',
-              flex: '1 1 auto', // Permite que ele cresça se houver espaço, mas fica alinhado à direita
-              minWidth: '100px',
+              flex: '1 1 auto',
+              minWidth: '60px',
             }}
           >
             <div
               style={{
                 position: 'relative',
                 cursor: 'pointer',
-                marginLeft: 'auto', // Empurra para a direita
+                marginLeft: 'auto',
+                padding: '5px',
               }}
               onClick={() => setShowNotification(!showNotification)}
               title="Você tem agendamentos para hoje!"
             >
-              <Bell size={32} color="#dc3545" style={{ filter: 'drop-shadow(0 0 5px rgba(220, 53, 69, 0.5))' }} />
+              <Bell size={28} color="#dc3545" />
               <div
+                className="animate-pulse-bell"
                 style={{
                   position: 'absolute',
-                  top: '-5px',
-                  right: '-5px',
+                  top: '-3px',
+                  right: '0px',
                   backgroundColor: '#dc3545',
                   color: 'white',
                   borderRadius: '50%',
-                  width: '20px',
-                  height: '20px',
+                  width: '18px',
+                  height: '18px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '12px',
+                  fontSize: '10px',
                   fontWeight: 'bold',
                   boxShadow: '0 0 5px rgba(0,0,0,0.2)',
-                  animation: 'pulse 1s infinite', // Adicionado animação
                 }}
               >
                 1
@@ -484,35 +510,23 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                 <div
                   style={{
                     position: 'absolute',
-                    top: '45px',
-                    right: '0', // Alinhado à direita do sino
-                    width: '280px', // Aumentei a largura
+                    top: '40px',
+                    right: '0',
+                    width: '250px',
                     backgroundColor: 'white',
-                    border: '1px solid #007bff', // Cor da borda azul
+                    border: '1px solid #007bff',
                     borderRadius: '8px',
                     padding: '15px',
-                    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.2)', // Sombra mais proeminente
-                    zIndex: 20, // ZIndex maior
+                    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.2)',
+                    zIndex: 20,
                     fontSize: '14px',
                   }}
                 >
-                  <p style={{ margin: 0, fontWeight: 'bold', color: '#007bff' }}>🔔 Atenção!</p>
-                  <p style={{ margin: '5px 0 0 0' }}>Você tem **agendamentos** de leads para hoje. Verifique a lista!</p>
+                  <p style={{ margin: 0, fontWeight: 'bold', color: '#dc3545' }}>🔔 Agendamentos Hoje!</p>
+                  <p style={{ margin: '5px 0 0 0' }}>Você tem **leads agendados** para hoje. Não se esqueça!</p>
                 </div>
               )}
             </div>
-            {/* Adicionar estilo para o efeito pulse (necessário CSS global ou styled-components, mas vou simular o que for possível com JS inline) */}
-            <style>
-              {`
-                @keyframes pulse {
-                  0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
-                  70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
-                  100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
-                }
-                .animate-spin { animation: spin 1s linear infinite; }
-                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-              `}
-            </style>
           </div>
         )}
       </div>
@@ -523,25 +537,29 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           display: 'flex',
           justifyContent: 'center',
           gap: '15px',
-          marginBottom: '20px',
-          padding: '10px 0',
+          marginBottom: '25px',
+          padding: '15px',
           flexWrap: 'wrap',
-          borderBottom: '1px solid #dee2e6', // Linha divisória
+          backgroundColor: '#ffffff',
+          borderRadius: '10px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+          border: '1px solid #e0e0e0'
         }}
       >
         <button
           onClick={() => aplicarFiltroStatus('Em Contato')}
           style={{
             padding: '10px 20px',
-            backgroundColor: filtroStatus === 'Em Contato' ? '#e67e22' : '#f39c12', // Laranja
+            backgroundColor: filtroStatus === 'Em Contato' ? '#e67e22' : '#f39c12',
             color: 'white',
             border: 'none',
-            borderRadius: '20px', // Mais arredondado
+            borderRadius: '25px',
             cursor: 'pointer',
             fontWeight: 'bold',
-            boxShadow: filtroStatus === 'Em Contato' ? '0 3px 5px rgba(0,0,0,0.2), inset 0 0 5px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
+            boxShadow: filtroStatus === 'Em Contato' ? 'inset 0 0 8px rgba(0,0,0,0.4)' : '0 2px 4px rgba(0,0,0,0.1)',
             transition: 'all 0.3s',
-            minWidth: '120px',
+            minWidth: '130px',
+            fontSize: '1rem',
           }}
           title="Ver leads em primeiro contato"
         >
@@ -552,15 +570,16 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           onClick={() => aplicarFiltroStatus('Sem Contato')}
           style={{
             padding: '10px 20px',
-            backgroundColor: filtroStatus === 'Sem Contato' ? '#7f8c8d' : '#95a5a6', // Cinza
+            backgroundColor: filtroStatus === 'Sem Contato' ? '#7f8c8d' : '#95a5a6',
             color: 'white',
             border: 'none',
-            borderRadius: '20px',
+            borderRadius: '25px',
             cursor: 'pointer',
             fontWeight: 'bold',
-            boxShadow: filtroStatus === 'Sem Contato' ? '0 3px 5px rgba(0,0,0,0.2), inset 0 0 5px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
+            boxShadow: filtroStatus === 'Sem Contato' ? 'inset 0 0 8px rgba(0,0,0,0.4)' : '0 2px 4px rgba(0,0,0,0.1)',
             transition: 'all 0.3s',
-            minWidth: '120px',
+            minWidth: '130px',
+            fontSize: '1rem',
           }}
           title="Ver leads sem sucesso no contato"
         >
@@ -572,19 +591,20 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
             onClick={() => aplicarFiltroStatus('Agendado')}
             style={{
               padding: '10px 20px',
-              backgroundColor: filtroStatus === 'Agendado' ? '#1a75b9' : '#3498db', // Azul
+              backgroundColor: filtroStatus === 'Agendado' ? '#1a75b9' : '#3498db',
               color: 'white',
               border: 'none',
-              borderRadius: '20px',
+              borderRadius: '25px',
               cursor: 'pointer',
               fontWeight: 'bold',
-              boxShadow: filtroStatus === 'Agendado' ? '0 3px 5px rgba(0,0,0,0.2), inset 0 0 5px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
+              boxShadow: filtroStatus === 'Agendado' ? 'inset 0 0 8px rgba(0,0,0,0.4)' : '0 2px 4px rgba(0,0,0,0.1)',
               transition: 'all 0.3s',
-              minWidth: '120px',
+              minWidth: '130px',
+              fontSize: '1rem',
             }}
             title="Ver leads agendados para hoje"
           >
-            Agendados
+            Agendados Hoje
           </button>
         )}
       </div>
@@ -593,8 +613,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       {isLoading ? (
         null
       ) : gerais.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '50px', backgroundColor: '#fff', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-          <p style={{ fontSize: '1.1rem', color: '#6c757d' }}>Não há leads pendentes para os filtros aplicados. 🎉</p>
+        <div style={{ textAlign: 'center', padding: '50px', backgroundColor: '#fff', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', border: '1px solid #e0e0e0' }}>
+          <p style={{ fontSize: '1.2rem', color: '#6c757d' }}>Não há leads pendentes para os filtros aplicados. 🎉</p>
         </div>
       ) : (
         <>
@@ -605,21 +625,21 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
               <div
                 key={lead.id}
                 style={{
-                  border: '1px solid #e9ecef',
+                  border: '1px solid #e0e0e0',
                   borderRadius: '10px',
-                  padding: '20px', // Aumentei o padding
-                  marginBottom: '20px', // Aumentei a margem
+                  padding: '20px',
+                  marginBottom: '15px',
                   position: 'relative',
                   display: 'flex',
                   gap: '20px',
                   alignItems: 'flex-start',
                   flexWrap: 'wrap',
-                  backgroundColor: '#fff',
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.08)', // Sombra leve para destaque
+                  backgroundColor: '#ffffff',
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
                 }}
               >
-                {/* Informações do Lead (Lead Component - Presume-se que o estilo está nele ou Tailwind) */}
-                <div style={{ flex: '1 1 55%', minWidth: '320px' }}>
+                {/* Informações do Lead (Lead Component) */}
+                <div style={{ flex: '1 1 50%', minWidth: '300px' }}>
                   <Lead
                     lead={lead}
                     onUpdateStatus={handleConfirmStatus}
@@ -627,13 +647,13 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   />
                 </div>
 
-                {/* Área de Observações e Transferência - Flex Container */}
-                <div style={{ flex: '1 1 40%', minWidth: '300px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                {/* Observações e Transferência - Flex Container */}
+                <div style={{ flex: '1 1 45%', minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
                   
                   {/* Observações */}
                   {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado')) && (
-                    <div style={{ padding: '10px', border: '1px solid #f0f0f0', borderRadius: '8px', backgroundColor: '#fcfcfc' }}>
-                      <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#007bff', fontSize: '1rem' }}>
+                    <div style={{ padding: '10px', border: '1px solid #f0f0f0', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
+                      <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#495057', fontSize: '0.9rem' }}>
                         ✍️ Observações:
                       </label>
                       <textarea
@@ -641,19 +661,18 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                         value={observacoes[lead.id] || ''}
                         onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
                         placeholder="Adicione suas observações aqui..."
-                        rows="4"
+                        rows="3"
                         disabled={!isEditingObservacao[lead.id]}
                         style={{
                           width: '100%',
-                          padding: '10px',
-                          borderRadius: '6px',
+                          padding: '8px',
+                          borderRadius: '4px',
                           border: `1px solid ${isEditingObservacao[lead.id] ? '#007bff' : '#ced4da'}`,
                           resize: 'vertical',
                           boxSizing: 'border-box',
-                          backgroundColor: isEditingObservacao[lead.id] ? '#e9f7ff' : '#f8f9fa',
+                          backgroundColor: isEditingObservacao[lead.id] ? '#ffffff' : '#f0f0f0',
                           cursor: isEditingObservacao[lead.id] ? 'text' : 'default',
-                          fontSize: '14px',
-                          transition: 'border-color 0.3s, background-color 0.3s',
+                          fontSize: '13px',
                         }}
                       ></textarea>
                       <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
@@ -662,15 +681,14 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                             onClick={() => handleSalvarObservacao(lead.id)}
                             disabled={isLoading}
                             style={{
-                              padding: '8px 16px',
-                              backgroundColor: '#28a745', // Verde de sucesso
+                              padding: '6px 14px',
+                              backgroundColor: '#28a745',
                               color: 'white',
                               border: 'none',
                               borderRadius: '4px',
                               cursor: isLoading ? 'not-allowed' : 'pointer',
-                              fontWeight: 'bold',
+                              fontWeight: '600',
                               transition: 'background-color 0.2s',
-                              opacity: isLoading ? 0.6 : 1,
                             }}
                           >
                             Salvar
@@ -679,13 +697,13 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                           <button
                             onClick={() => handleAlterarObservacao(lead.id)}
                             style={{
-                              padding: '8px 16px',
-                              backgroundColor: '#ffc107', // Amarelo de alerta
+                              padding: '6px 14px',
+                              backgroundColor: '#ffc107',
                               color: '#000',
                               border: 'none',
                               borderRadius: '4px',
                               cursor: 'pointer',
-                              fontWeight: 'bold',
+                              fontWeight: '600',
                               transition: 'background-color 0.2s',
                             }}
                           >
@@ -697,29 +715,30 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   )}
 
                   {/* Transferência de Lead */}
-                  <div style={{ padding: '10px', border: '1px solid #e9ecef', borderRadius: '8px', backgroundColor: '#fcfcfc' }}>
+                  <div style={{ padding: '10px', border: '1px solid #f0f0f0', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
                     {lead.responsavel && responsavel ? (
                       <div>
                         <p style={{ color: '#28a745', fontWeight: 'bold', margin: '5px 0' }}>
-                          ✅ Transferido para <strong>{responsavel.nome}</strong>
+                          ✅ Atribuído a <strong>{responsavel.nome}</strong>
                         </p>
                         {isAdmin && (
                           <button
                             onClick={() => handleAlterar(lead.id)}
                             style={{
                               marginTop: '8px',
-                              padding: '6px 14px',
-                              backgroundColor: '#dc3545', // Vermelho para Alterar/Remover
+                              padding: '6px 12px',
+                              backgroundColor: '#dc3545',
                               color: 'white',
                               border: 'none',
                               borderRadius: '4px',
                               cursor: 'pointer',
                               fontWeight: '600',
+                              fontSize: '0.8rem',
                               transition: 'background-color 0.2s',
                             }}
                             title="Remover atribuição do lead"
                           >
-                            Alterar/Remover Atribuição
+                            Alterar Atribuição
                           </button>
                         )}
                       </div>
@@ -757,7 +776,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                           disabled={!selecionados[lead.id] || isLoading}
                           style={{
                             padding: '8px 14px',
-                            backgroundColor: '#007bff', // Azul primário para Enviar
+                            backgroundColor: '#007bff',
                             color: 'white',
                             border: 'none',
                             borderRadius: '4px',
@@ -765,7 +784,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                             fontWeight: '600',
                             whiteSpace: 'nowrap',
                             transition: 'background-color 0.2s',
-                            opacity: (!selecionados[lead.id] || isLoading) ? 0.6 : 1,
+                            opacity: (!selecionados[lead.id] || isLoading) ? 0.8 : 1,
                           }}
                         >
                           Enviar
@@ -784,9 +803,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     fontSize: '11px',
                     color: '#888',
                     fontStyle: 'italic',
-                    backgroundColor: '#fff',
-                    padding: '2px 5px',
-                    borderRadius: '3px',
                   }}
                   title={`Criado em: ${formatarData(lead.createdAt)}`}
                 >
@@ -805,9 +821,10 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
               gap: '15px',
               marginTop: '20px',
               padding: '15px',
-              backgroundColor: '#fff',
-              borderRadius: '8px',
-              boxShadow: '0 -2px 4px rgba(0,0,0,0.05)',
+              backgroundColor: '#ffffff',
+              borderRadius: '10px',
+              boxShadow: '0 -2px 5px rgba(0,0,0,0.05)',
+              border: '1px solid #e0e0e0'
             }}
           >
             <button
@@ -821,7 +838,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                 backgroundColor: (paginaCorrigida <= 1 || isLoading) ? '#e9ecef' : '#f8f9fa',
                 color: '#495057',
                 fontWeight: '600',
-                transition: 'background-color 0.2s',
               }}
             >
               Anterior
@@ -840,7 +856,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                 backgroundColor: (paginaCorrigida >= totalPaginas || isLoading) ? '#e9ecef' : '#f8f9fa',
                 color: '#495057',
                 fontWeight: '600',
-                transition: 'background-color 0.2s',
               }}
             >
               Próxima
