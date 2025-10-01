@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Lead from './components/Lead';
 import { RefreshCcw, Bell } from 'lucide-react';
 
+// ... (Suas URLs de script e a lógica de Hooks permanecem as mesmas)
 const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
@@ -20,6 +21,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const [showNotification, setShowNotification] = useState(false);
   const [hasScheduledToday, setHasScheduledToday] = useState(false);
 
+  // ... (Sua lógica de useEffect, handleRefreshLeads, normalizarTexto, filtros e paginação permanece a mesma)
   useEffect(() => {
     const initialObservacoes = {};
     const initialIsEditingObservacao = {};
@@ -299,289 +301,107 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   return (
-    <div style={{ 
-      padding: '20px', 
-      position: 'relative', 
-      minHeight: 'calc(100vh - 100px)', 
-      backgroundColor: '#f4f7f9' // Fundo mais claro
-    }}>
-      {/* Estilo para a animação de loading */}
-      <style>
-        {`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-          .animate-spin { animation: spin 1s linear infinite; }
-          
-          @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
-          }
-          .animate-pulse-bell { animation: pulse 1s infinite; }
-        `}
-      </style>
-
-      {/* Tela de Loading */}
+    <div className="p-5 relative min-h-[calc(100vh-100px)]">
+      {/* Overlay de Carregamento */}
       {isLoading && (
-        <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ 
-          opacity: 0.9, 
-          position: 'fixed', // Fixed para cobrir tudo
-          top: 0, 
-          left: 0, 
-          right: 0, 
-          bottom: 0 
-        }}>
-          <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500" style={{ 
-            animation: 'spin 1s linear infinite', 
-            borderColor: '#4f46e5', 
-            borderTopColor: 'transparent' 
-          }}></div>
-          <p className="ml-4 text-lg text-gray-700" style={{ marginLeft: '16px', fontSize: '1.125rem', color: '#495057' }}>Carregando LEADS...</p>
+        <div className="absolute inset-0 bg-white flex justify-center items-center z-10 opacity-80">
+          <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
+          <p className="ml-4 text-lg text-gray-700">Carregando LEADS...</p>
         </div>
       )}
 
-      {/* --- Cabeçalho e Filtros Principais --- */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '20px',
-          gap: '15px',
-          flexWrap: 'wrap',
-          backgroundColor: '#ffffff',
-          padding: '15px',
-          borderRadius: '10px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.08)', // Sombra para o cabeçalho
-          border: '1px solid #e0e0e0'
-        }}
-      >
-        {/* Título e Botão de Atualizar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <h1 style={{ margin: 0, color: '#333333', fontSize: '1.8rem' }}>Leads</h1>
+      {/* Cabeçalho e Filtros (Flex Container) */}
+      <div className="flex justify-between items-center mb-4 gap-4 flex-wrap">
+        {/* Título e Botão de Refresh */}
+        <div className="flex items-center gap-3">
+          <h1 className="m-0 text-2xl font-bold text-gray-800">Leads</h1>
           <button
             title='Clique para atualizar os dados'
             onClick={handleRefreshLeads}
             disabled={isLoading}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              padding: '0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#007bff',
-              transition: 'transform 0.5s',
-              transform: isLoading ? 'rotate(360deg)' : 'rotate(0deg)',
-              opacity: isLoading ? 0.7 : 1,
-            }}
+            className={`p-0 flex items-center justify-center text-blue-600 hover:text-blue-800 transition ${isLoading ? 'cursor-not-allowed' : 'cursor-pointer'}`}
           >
-            <RefreshCcw size={24} style={{ color: '#007bff' }}/>
+            {isLoading ? (
+              <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              <RefreshCcw size={20} />
+            )}
           </button>
         </div>
 
         {/* Filtro por Nome */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
+        <div className="flex items-center gap-2">
+          <button
+            onClick={aplicarFiltroNome}
+            className="bg-blue-600 hover:bg-blue-700 text-white border-none rounded-md px-3 py-1.5 cursor-pointer whitespace-nowrap transition"
+          >
+            Filtrar
+          </button>
           <input
             type="text"
             placeholder="Filtrar por nome"
             value={nomeInput}
             onChange={(e) => setNomeInput(e.target.value)}
-            style={{
-              padding: '8px 12px',
-              borderRadius: '6px',
-              border: '1px solid #ced4da',
-              width: '180px',
-              maxWidth: '100%',
-              fontSize: '14px',
-            }}
+            className="px-2.5 py-1.5 rounded-md border border-gray-300 w-56 max-w-full focus:ring-blue-500 focus:border-blue-500"
             title="Filtrar leads pelo nome (contém)"
           />
+        </div>
+
+        {/* Notificação de Agendamentos (Sino) */}
+        {hasScheduledToday && (
+          <div className="relative cursor-pointer" onClick={() => setShowNotification(!showNotification)}>
+            <Bell size={32} color="#007bff" />
+            <div className="absolute top-[-5px] right-[-5px] bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold ring-2 ring-white">
+              1
+            </div>
+            {showNotification && (
+              <div className="absolute top-10 left-1/2 transform -translate-x-1/2 w-64 bg-white border border-gray-300 rounded-lg p-3 shadow-lg z-20 text-sm whitespace-nowrap">
+                <p className="font-semibold text-gray-800">Você tem agendamentos hoje!</p>
+                <p className="text-gray-600">Clique no botão "Agendados" para ver.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Filtro por Data (Mês/Ano) */}
+        <div className="flex items-center gap-2">
           <button
-            onClick={aplicarFiltroNome}
-            style={{
-              backgroundColor: '#343a40', // Cor escura para filtros
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '8px 14px',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              fontWeight: '600',
-              transition: 'background-color 0.2s',
-            }}
+            onClick={aplicarFiltroData}
+            className="bg-blue-600 hover:bg-blue-700 text-white border-none rounded-md px-3 py-1.5 cursor-pointer transition"
           >
             Filtrar
           </button>
-        </div>
-        
-        {/* Filtro por Data */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
           <input
             type="month"
             value={dataInput}
             onChange={(e) => setDataInput(e.target.value)}
-            style={{
-              padding: '8px 12px',
-              borderRadius: '6px',
-              border: '1px solid #ced4da',
-              cursor: 'pointer',
-              fontSize: '14px',
-            }}
+            className="px-2.5 py-1.5 rounded-md border border-gray-300 cursor-pointer focus:ring-blue-500 focus:border-blue-500"
             title="Filtrar leads pelo mês e ano de criação"
           />
-          <button
-            onClick={aplicarFiltroData}
-            style={{
-              backgroundColor: '#343a40', // Cor escura para filtros
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '8px 14px',
-              cursor: 'pointer',
-              fontWeight: '600',
-              whiteSpace: 'nowrap',
-              transition: 'background-color 0.2s',
-            }}
-          >
-            Filtrar
-          </button>
         </div>
-
-        {/* Notificação de Agendamento (Sino e Bolha) */}
-        {hasScheduledToday && (
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              alignItems: 'center',
-              flex: '1 1 auto',
-              minWidth: '60px',
-            }}
-          >
-            <div
-              style={{
-                position: 'relative',
-                cursor: 'pointer',
-                marginLeft: 'auto',
-                padding: '5px',
-              }}
-              onClick={() => setShowNotification(!showNotification)}
-              title="Você tem agendamentos para hoje!"
-            >
-              <Bell size={28} color="#dc3545" />
-              <div
-                className="animate-pulse-bell"
-                style={{
-                  position: 'absolute',
-                  top: '-3px',
-                  right: '0px',
-                  backgroundColor: '#dc3545',
-                  color: 'white',
-                  borderRadius: '50%',
-                  width: '18px',
-                  height: '18px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  boxShadow: '0 0 5px rgba(0,0,0,0.2)',
-                }}
-              >
-                1
-              </div>
-              {showNotification && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '40px',
-                    right: '0',
-                    width: '250px',
-                    backgroundColor: 'white',
-                    border: '1px solid #007bff',
-                    borderRadius: '8px',
-                    padding: '15px',
-                    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.2)',
-                    zIndex: 20,
-                    fontSize: '14px',
-                  }}
-                >
-                  <p style={{ margin: 0, fontWeight: 'bold', color: '#dc3545' }}>🔔 Agendamentos Hoje!</p>
-                  <p style={{ margin: '5px 0 0 0' }}>Você tem **leads agendados** para hoje. Não se esqueça!</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
-      
-      {/* --- Botões de Status (Filtros Rápidos) --- */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '15px',
-          marginBottom: '25px',
-          padding: '15px',
-          flexWrap: 'wrap',
-          backgroundColor: '#ffffff',
-          borderRadius: '10px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-          border: '1px solid #e0e0e0'
-        }}
-      >
+
+      {/* --- Linha de Status de Filtros --- */}
+
+      {/* Botões de Filtro de Status */}
+      <div className="flex justify-center gap-4 mb-5 flex-wrap">
         <button
           onClick={() => aplicarFiltroStatus('Em Contato')}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: filtroStatus === 'Em Contato' ? '#e67e22' : '#f39c12',
-            color: 'white',
-            border: 'none',
-            borderRadius: '25px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            boxShadow: filtroStatus === 'Em Contato' ? 'inset 0 0 8px rgba(0,0,0,0.4)' : '0 2px 4px rgba(0,0,0,0.1)',
-            transition: 'all 0.3s',
-            minWidth: '130px',
-            fontSize: '1rem',
-          }}
-          title="Ver leads em primeiro contato"
+          className={`px-4 py-2 text-white border-none rounded-lg cursor-pointer font-bold transition shadow-md ${
+            filtroStatus === 'Em Contato' ? 'bg-orange-700 ring-2 ring-orange-500' : 'bg-orange-500 hover:bg-orange-600'
+          }`}
         >
           Em Contato
         </button>
 
         <button
           onClick={() => aplicarFiltroStatus('Sem Contato')}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: filtroStatus === 'Sem Contato' ? '#7f8c8d' : '#95a5a6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '25px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            boxShadow: filtroStatus === 'Sem Contato' ? 'inset 0 0 8px rgba(0,0,0,0.4)' : '0 2px 4px rgba(0,0,0,0.1)',
-            transition: 'all 0.3s',
-            minWidth: '130px',
-            fontSize: '1rem',
-          }}
-          title="Ver leads sem sucesso no contato"
+          className={`px-4 py-2 text-white border-none rounded-lg cursor-pointer font-bold transition shadow-md ${
+            filtroStatus === 'Sem Contato' ? 'bg-gray-700 ring-2 ring-gray-500' : 'bg-gray-500 hover:bg-gray-600'
+          }`}
         >
           Sem Contato
         </button>
@@ -589,57 +409,34 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         {hasScheduledToday && (
           <button
             onClick={() => aplicarFiltroStatus('Agendado')}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: filtroStatus === 'Agendado' ? '#1a75b9' : '#3498db',
-              color: 'white',
-              border: 'none',
-              borderRadius: '25px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              boxShadow: filtroStatus === 'Agendado' ? 'inset 0 0 8px rgba(0,0,0,0.4)' : '0 2px 4px rgba(0,0,0,0.1)',
-              transition: 'all 0.3s',
-              minWidth: '130px',
-              fontSize: '1rem',
-            }}
-            title="Ver leads agendados para hoje"
+            className={`px-4 py-2 text-white border-none rounded-lg cursor-pointer font-bold transition shadow-md ${
+              filtroStatus === 'Agendado' ? 'bg-sky-700 ring-2 ring-sky-500' : 'bg-sky-500 hover:bg-sky-600'
+            }`}
           >
             Agendados Hoje
           </button>
         )}
       </div>
 
-      {/* --- Lista de Leads --- */}
+      {/* --- Conteúdo Principal (Lista de Leads) --- */}
+
       {isLoading ? (
         null
       ) : gerais.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '50px', backgroundColor: '#fff', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', border: '1px solid #e0e0e0' }}>
-          <p style={{ fontSize: '1.2rem', color: '#6c757d' }}>Não há leads pendentes para os filtros aplicados. 🎉</p>
-        </div>
+        <p className="text-center text-lg text-gray-500 mt-10">Não há leads pendentes para os filtros aplicados. 😢</p>
       ) : (
         <>
           {leadsPagina.map((lead) => {
             const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
+            const isLeadActive = lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado');
 
             return (
               <div
                 key={lead.id}
-                style={{
-                  border: '1px solid #e0e0e0',
-                  borderRadius: '10px',
-                  padding: '20px',
-                  marginBottom: '15px',
-                  position: 'relative',
-                  display: 'flex',
-                  gap: '20px',
-                  alignItems: 'flex-start',
-                  flexWrap: 'wrap',
-                  backgroundColor: '#ffffff',
-                  boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
-                }}
+                className="bg-white border border-gray-200 rounded-lg p-4 mb-4 relative flex flex-wrap gap-4 items-start shadow-sm hover:shadow-md transition"
               >
-                {/* Informações do Lead (Lead Component) */}
-                <div style={{ flex: '1 1 50%', minWidth: '300px' }}>
+                {/* 1. Detalhes Principais do Lead (Lead Component) */}
+                <div className={`flex-1 min-w-[300px] ${isLeadActive ? 'lg:border-r lg:border-dashed lg:border-gray-300 lg:pr-4' : ''}`}>
                   <Lead
                     lead={lead}
                     onUpdateStatus={handleConfirmStatus}
@@ -647,163 +444,91 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                   />
                 </div>
 
-                {/* Observações e Transferência - Flex Container */}
-                <div style={{ flex: '1 1 45%', minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                  
-                  {/* Observações */}
-                  {(lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado')) && (
-                    <div style={{ padding: '10px', border: '1px solid #f0f0f0', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
-                      <label htmlFor={`observacao-${lead.id}`} style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#495057', fontSize: '0.9rem' }}>
-                        ✍️ Observações:
-                      </label>
-                      <textarea
-                        id={`observacao-${lead.id}`}
-                        value={observacoes[lead.id] || ''}
-                        onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
-                        placeholder="Adicione suas observações aqui..."
-                        rows="3"
-                        disabled={!isEditingObservacao[lead.id]}
-                        style={{
-                          width: '100%',
-                          padding: '8px',
-                          borderRadius: '4px',
-                          border: `1px solid ${isEditingObservacao[lead.id] ? '#007bff' : '#ced4da'}`,
-                          resize: 'vertical',
-                          boxSizing: 'border-box',
-                          backgroundColor: isEditingObservacao[lead.id] ? '#ffffff' : '#f0f0f0',
-                          cursor: isEditingObservacao[lead.id] ? 'text' : 'default',
-                          fontSize: '13px',
-                        }}
-                      ></textarea>
-                      <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
-                        {isEditingObservacao[lead.id] ? (
-                          <button
-                            onClick={() => handleSalvarObservacao(lead.id)}
-                            disabled={isLoading}
-                            style={{
-                              padding: '6px 14px',
-                              backgroundColor: '#28a745',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: isLoading ? 'not-allowed' : 'pointer',
-                              fontWeight: '600',
-                              transition: 'background-color 0.2s',
-                            }}
-                          >
-                            Salvar
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleAlterarObservacao(lead.id)}
-                            style={{
-                              padding: '6px 14px',
-                              backgroundColor: '#ffc107',
-                              color: '#000',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontWeight: '600',
-                              transition: 'background-color 0.2s',
-                            }}
-                          >
-                            Alterar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Transferência de Lead */}
-                  <div style={{ padding: '10px', border: '1px solid #f0f0f0', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
-                    {lead.responsavel && responsavel ? (
-                      <div>
-                        <p style={{ color: '#28a745', fontWeight: 'bold', margin: '5px 0' }}>
-                          ✅ Atribuído a <strong>{responsavel.nome}</strong>
-                        </p>
-                        {isAdmin && (
-                          <button
-                            onClick={() => handleAlterar(lead.id)}
-                            style={{
-                              marginTop: '8px',
-                              padding: '6px 12px',
-                              backgroundColor: '#dc3545',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontWeight: '600',
-                              fontSize: '0.8rem',
-                              transition: 'background-color 0.2s',
-                            }}
-                            title="Remover atribuição do lead"
-                          >
-                            Alterar Atribuição
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: '10px',
-                          alignItems: 'center',
-                          flexWrap: 'wrap',
-                        }}
+                {/* 2. Observações (Visível para Em Contato/Sem Contato/Agendado) */}
+                {isLeadActive && (
+                  <div className="flex-1 min-w-[280px] pt-4 lg:pt-0">
+                    <label htmlFor={`observacao-${lead.id}`} className="block mb-1.5 font-bold text-gray-700 text-sm">
+                      Observações:
+                    </label>
+                    <textarea
+                      id={`observacao-${lead.id}`}
+                      value={observacoes[lead.id] || ''}
+                      onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
+                      placeholder="Adicione suas observações aqui..."
+                      rows="3"
+                      disabled={!isEditingObservacao[lead.id]}
+                      className={`w-full p-2 rounded-md border transition resize-y text-sm ${
+                        isEditingObservacao[lead.id]
+                          ? 'border-blue-400 bg-white focus:ring-blue-500 focus:border-blue-500'
+                          : 'border-gray-300 bg-gray-50 cursor-default'
+                      }`}
+                    ></textarea>
+                    {isEditingObservacao[lead.id] ? (
+                      <button
+                        onClick={() => handleSalvarObservacao(lead.id)}
+                        className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white border-none rounded-md cursor-pointer font-semibold text-sm transition"
                       >
-                        <select
-                          value={selecionados[lead.id] || ''}
-                          onChange={(e) => handleSelect(lead.id, e.target.value)}
-                          style={{
-                            padding: '8px',
-                            borderRadius: '4px',
-                            border: '1px solid #ced4da',
-                            flex: '1 1 auto',
-                            minWidth: '150px',
-                            fontSize: '14px',
-                          }}
-                          title="Selecione o usuário para transferir o lead"
-                        >
-                          <option value="">Selecione usuário ativo</option>
-                          {usuariosAtivos.map((u) => (
-                            <option key={u.id} value={u.id}>
-                              {u.nome}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => handleEnviar(lead.id)}
-                          disabled={!selecionados[lead.id] || isLoading}
-                          style={{
-                            padding: '8px 14px',
-                            backgroundColor: '#007bff',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: (!selecionados[lead.id] || isLoading) ? 'not-allowed' : 'pointer',
-                            fontWeight: '600',
-                            whiteSpace: 'nowrap',
-                            transition: 'background-color 0.2s',
-                            opacity: (!selecionados[lead.id] || isLoading) ? 0.8 : 1,
-                          }}
-                        >
-                          Enviar
-                        </button>
-                      </div>
+                        Salvar Observação
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleAlterarObservacao(lead.id)}
+                        className="mt-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 border-none rounded-md cursor-pointer font-semibold text-sm transition"
+                      >
+                        Alterar Observação
+                      </button>
                     )}
                   </div>
+                )}
+
+                {/* 3. Atribuição de Usuário */}
+                <div className="w-full mt-2">
+                  {lead.responsavel && responsavel ? (
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 bg-green-50 rounded-md border border-green-200">
+                      <p className="text-green-700 font-medium mb-1 sm:mb-0">
+                        Transferido para <strong>{responsavel.nome}</strong>
+                      </p>
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleAlterar(lead.id)}
+                          className="px-3 py-1 bg-yellow-400 hover:bg-yellow-500 text-gray-900 border-none rounded-md cursor-pointer text-sm font-medium transition"
+                        >
+                          Alterar Atribuição
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex gap-3 items-center p-2 bg-gray-50 rounded-md border border-gray-200">
+                      <select
+                        value={selecionados[lead.id] || ''}
+                        onChange={(e) => handleSelect(lead.id, e.target.value)}
+                        className="p-1.5 rounded-md border border-gray-300 text-sm focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Selecione usuário ativo</option>
+                        {usuariosAtivos.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.nome}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => handleEnviar(lead.id)}
+                        disabled={!selecionados[lead.id]}
+                        className={`px-3 py-1.5 text-white border-none rounded-md cursor-pointer text-sm font-semibold transition ${
+                          selecionados[lead.id]
+                            ? 'bg-green-600 hover:bg-green-700'
+                            : 'bg-green-300 cursor-not-allowed'
+                        }`}
+                      >
+                        Enviar Lead
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {/* Data de Criação - Canto Inferior Direito */}
+                {/* Data de Criação (Rodapé do Card) */}
                 <div
-                  style={{
-                    position: 'absolute',
-                    bottom: '10px',
-                    right: '20px',
-                    fontSize: '11px',
-                    color: '#888',
-                    fontStyle: 'italic',
-                  }}
+                  className="absolute bottom-2 right-4 text-xs text-gray-500 italic"
                   title={`Criado em: ${formatarData(lead.createdAt)}`}
                 >
                   Criado em: {formatarData(lead.createdAt)}
@@ -813,52 +538,31 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           })}
 
           {/* --- Paginação --- */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: '15px',
-              marginTop: '20px',
-              padding: '15px',
-              backgroundColor: '#ffffff',
-              borderRadius: '10px',
-              boxShadow: '0 -2px 5px rgba(0,0,0,0.05)',
-              border: '1px solid #e0e0e0'
-            }}
-          >
+          <div className="flex justify-center gap-4 mt-6 pb-4">
             <button
               onClick={handlePaginaAnterior}
               disabled={paginaCorrigida <= 1 || isLoading}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '6px',
-                border: '1px solid #ced4da',
-                cursor: (paginaCorrigida <= 1 || isLoading) ? 'not-allowed' : 'pointer',
-                backgroundColor: (paginaCorrigida <= 1 || isLoading) ? '#e9ecef' : '#f8f9fa',
-                color: '#495057',
-                fontWeight: '600',
-              }}
+              className={`px-4 py-2 rounded-md border border-gray-300 text-sm font-medium transition ${
+                (paginaCorrigida <= 1 || isLoading)
+                  ? 'cursor-not-allowed bg-gray-100 text-gray-400'
+                  : 'cursor-pointer bg-white hover:bg-gray-100 text-gray-700'
+              }`}
             >
-              Anterior
+              &larr; Anterior
             </button>
-            <span style={{ alignSelf: 'center', fontSize: '1rem', color: '#343a40' }}>
-              Página <strong style={{ color: '#007bff' }}>{paginaCorrigida}</strong> de <strong style={{ color: '#007bff' }}>{totalPaginas}</strong>
+            <span className="self-center text-gray-700 font-medium">
+              Página <strong className="text-blue-600">{paginaCorrigida}</strong> de {totalPaginas}
             </span>
             <button
               onClick={handlePaginaProxima}
               disabled={paginaCorrigida >= totalPaginas || isLoading}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '6px',
-                border: '1px solid #ced4da',
-                cursor: (paginaCorrigida >= totalPaginas || isLoading) ? 'not-allowed' : 'pointer',
-                backgroundColor: (paginaCorrigida >= totalPaginas || isLoading) ? '#e9ecef' : '#f8f9fa',
-                color: '#495057',
-                fontWeight: '600',
-              }}
+              className={`px-4 py-2 rounded-md border border-gray-300 text-sm font-medium transition ${
+                (paginaCorrigida >= totalPaginas || isLoading)
+                  ? 'cursor-not-allowed bg-gray-100 text-gray-400'
+                  : 'cursor-pointer bg-white hover:bg-gray-100 text-gray-700'
+              }`}
             >
-              Próxima
+              Próxima &rarr;
             </button>
           </div>
         </>
