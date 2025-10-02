@@ -665,43 +665,47 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             </div>
 
             {/* Rodapé e Paginação */}
-            <div className="mt-8 flex justify-between items-center bg-white p-4 rounded-xl shadow-lg">
-                <span className="text-sm text-gray-600">
-                    Mostrando {inicio + 1} - {Math.min(fim, fechadosFiltradosInterno.length)} de {fechadosFiltradosInterno.length} fechados
-                </span>
-                <div className="flex justify-center items-center gap-4 mt-8 pb-8">
-              <button
-                onClick={handlePaginaAnterior}
-                disabled={paginaCorrigida <= 1 || isLoading}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium transition duration-150 shadow-md ${
-                  (paginaCorrigida <= 1 || isLoading) 
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                  : 'bg-white border-indigo-500 text-indigo-600 hover:bg-indigo-50'
-                }`}
-              >
-                Anterior
-              </button>
-              
-              <span className="text-gray-700 font-semibold">
-                Página {paginaCorrigida} de {totalPaginas}
-              </span>
-              
-              <button
-                onClick={handlePaginaProxima}
-                disabled={paginaCorrigida >= totalPaginas || isLoading}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium transition duration-150 shadow-md ${
-                  (paginaCorrigida >= totalPaginas || isLoading) 
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                  : 'bg-white border-indigo-500 text-indigo-600 hover:bg-indigo-50'
-                }`}
-              >
-                Próxima
-              </button>
+            {fechadosFiltradosInterno.length > 0 && ( // Adicionado o condicional para exibir apenas se houver leads
+                <div className="mt-8 flex justify-between items-center bg-white p-4 rounded-xl shadow-lg">
+                    <span className="text-sm text-gray-600">
+                        Mostrando {inicio + 1} - {Math.min(fim, fechadosFiltradosInterno.length)} de {fechadosFiltradosInterno.length} fechados
+                    </span>
+                    
+                    {/* INÍCIO DO CÓDIGO DE PAGINAÇÃO INTEGRADO */}
+                    <div className="flex justify-center items-center gap-4"> 
+                        <button
+                            onClick={handlePaginaAnterior}
+                            disabled={paginaCorrigida <= 1 || isLoading}
+                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition duration-150 shadow-md ${
+                                (paginaCorrigida <= 1 || isLoading) 
+                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                                : 'bg-white border-indigo-500 text-indigo-600 hover:bg-indigo-50'
+                            }`}
+                        >
+                            <ChevronLeft size={20} /> Anterior
+                        </button>
+                        
+                        <span className="text-gray-700 font-semibold">
+                            Página {paginaCorrigida} de {totalPaginas}
+                        </span>
+                        
+                        <button
+                            onClick={handlePaginaProxima}
+                            disabled={paginaCorrigida >= totalPaginas || isLoading}
+                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition duration-150 shadow-md ${
+                                (paginaCorrigida >= totalPaginas || isLoading) 
+                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                                : 'bg-white border-indigo-500 text-indigo-600 hover:bg-indigo-50'
+                            }`}
+                        >
+                            Próxima <ChevronRight size={20} />
+                        </button>
+                    </div>
+                    {/* FIM DO CÓDIGO DE PAGINAÇÃO INTEGRADO */}
                 </div>
-              </div> 
             )}
         </div>
-  );
+    );
 };
 
-export default Leads;
+export default LeadsFechados;
