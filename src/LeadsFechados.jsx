@@ -701,7 +701,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
           </>
         )}
       </div>
-    </div>
   );
 };
 
