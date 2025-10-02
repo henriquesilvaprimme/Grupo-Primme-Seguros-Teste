@@ -696,7 +696,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 }`}
               >
                 Próxima
-                699|                  </button>
+              </button>
                 </div>
               </div> 
             )}
