@@ -663,6 +663,12 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                     })
                 )}
             </div>
+
+            {/* Rodapé e Paginação */}
+            {fechadosFiltradosInterno.length > 0 && ( // Adicionado o condicional para exibir apenas se houver leads
+                <div className="mt-8 flex justify-between items-center bg-white p-4 rounded-xl shadow-lg">
+                    {/* Espaço vazio para manter o layout justify-between */}
+                    <span className="text-sm text-gray-600 hidden sm:block"></span>
                     
                     {/* PAGINAÇÃO EXATA SOLICITADA */}
                     <div className="flex justify-center items-center gap-4 mt-8 pb-8"> 
