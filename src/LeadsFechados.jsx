@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RefreshCcw, Search, ChevronLeft, ChevronRight, CheckCircle, DollarSign, Calendar } from 'lucide-react';
+import { RefreshCcw, Search, CheckCircle, DollarSign, Calendar } from 'lucide-react';
 
 // ===============================================
 // 1. COMPONENTE PRINCIPAL: LeadsFechados
@@ -671,8 +671,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                         Mostrando {inicio + 1} - {Math.min(fim, fechadosFiltradosInterno.length)} de {fechadosFiltradosInterno.length} fechados
                     </span>
                     
-                    {/* INÍCIO DO CÓDIGO DE PAGINAÇÃO INTEGRADO */}
-                    <div className="flex justify-center items-center gap-4"> 
+                    {/* PAGINAÇÃO EXATA SOLICITADA */}
+                    <div className="flex justify-center items-center gap-4 mt-8 pb-8"> 
                         <button
                             onClick={handlePaginaAnterior}
                             disabled={paginaCorrigida <= 1 || isLoading}
@@ -682,7 +682,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                 : 'bg-white border-indigo-500 text-indigo-600 hover:bg-indigo-50'
                             }`}
                         >
-                            <ChevronLeft size={20} /> Anterior
+                            Anterior
                         </button>
                         
                         <span className="text-gray-700 font-semibold">
@@ -698,10 +698,10 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                 : 'bg-white border-indigo-500 text-indigo-600 hover:bg-indigo-50'
                             }`}
                         >
-                            Próxima <ChevronRight size={20} />
+                            Próxima
                         </button>
                     </div>
-                    {/* FIM DO CÓDIGO DE PAGINAÇÃO INTEGRADO */}
+                    {/* FIM DA PAGINAÇÃO EXATA */}
                 </div>
             )}
         </div>
