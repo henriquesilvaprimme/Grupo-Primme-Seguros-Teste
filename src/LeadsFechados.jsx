@@ -696,11 +696,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 }`}
               >
                 Próxima
-              </button>
-            </div>
-          </>
-        )}
-      </div>
+                </button>
+              </div>
+            </div> // <--- Corrigido de </> para </div>
+          )}
+        </div>
   );
 };
 
