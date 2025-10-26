@@ -554,13 +554,12 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                         Detalhes do Fechamento
                                     </h3>
 
-                                    {/* Seguradora (Select) */}
+                                    {/* 1. Seguradora (Select) */}
                                     <div className="mb-4">
                                         <label className="text-xs font-semibold text-gray-600 block mb-1">Seguradora</label>
                                         <select
                                             value={valores[`${lead.ID}`]?.insurer || ''}
                                             onChange={(e) => handleInsurerChange(lead.ID, e.target.value)}
-                                            // onBlur removido! A seguradora só será atualizada no backend ao clicar no botão!
                                             disabled={isSeguradoraPreenchida}
                                             className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
                                         >
@@ -572,7 +571,42 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                         </select>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-3">
+                                    {/* 2. Meio de Pagamento (Select) - RELOCADO */}
+                                    <div className="mb-4">
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Meio de Pagamento</label>
+                                        <select
+                                            value={valores[`${lead.ID}`]?.MeioPagamento || ''}
+                                            onChange={(e) => handleMeioPagamentoChange(lead.ID, e.target.value)}
+                                            disabled={isSeguradoraPreenchida}
+                                            className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
+                                        >
+                                            <option value=""> </option>
+                                            <option value="CP">CP</option>
+                                            <option value="CC">CC</option>
+                                            <option value="Debito">Debito</option>
+                                            <option value="Boleto">Boleto</option>
+                                        </select>
+                                    </div>
+                                    
+                                    {/* 3. Cartão Porto Seguro Novo? (Select) - CONDICIONAL E RELOCADO */}
+                                    {showCartaoPortoNovo && (
+                                        <div className="mb-4">
+                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Cartão Porto Seguro Novo?</label>
+                                            <select
+                                                value={valores[`${lead.ID}`]?.CartaoPortoNovo || ''}
+                                                onChange={(e) => handleCartaoPortoChange(lead.ID, e.target.value)}
+                                                disabled={isSeguradoraPreenchida}
+                                                className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
+                                            >
+                                                <option value=""> </option>
+                                                <option value="Sim">Sim</option>
+                                                <option value="Não">Não</option>
+                                            </select>
+                                        </div>
+                                    )}
+                                    
+                                    {/* 4., 5., 6. Demais campos (Prêmio, Comissão, Parcelamento) */}
+                                    <div className="grid grid-cols-2 gap-3 mt-4"> {/* Adicionado mt-4 para espaçamento após os novos campos */}
                                         {/* Prêmio Líquido (Input) */}
                                         <div>
                                             <label className="text-xs font-semibold text-gray-600 block mb-1">Prêmio Líquido</label>
@@ -623,40 +657,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                             </select>
                                         </div>
                                         
-                                        {/* >>> NOVO CAMPO: Meio de Pagamento (Select) <<< */}
-                                        <div className="col-span-2">
-                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Meio de Pagamento</label>
-                                            <select
-                                                value={valores[`${lead.ID}`]?.MeioPagamento || ''}
-                                                onChange={(e) => handleMeioPagamentoChange(lead.ID, e.target.value)}
-                                                disabled={isSeguradoraPreenchida}
-                                                className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
-                                            >
-                                                <option value=""> </option>
-                                                <option value="CP">CP</option>
-                                                <option value="CC">CC</option>
-                                                <option value="Debito">Debito</option>
-                                                <option value="Boleto">Boleto</option>
-                                            </select>
-                                        </div>
-                                        
-                                        {/* >>> CAMPO CONDICIONAL ATUALIZADO: Cartão Porto Seguro Novo? (Select) <<< */}
-                                        {showCartaoPortoNovo && (
-                                            <div className="col-span-2">
-                                                <label className="text-xs font-semibold text-gray-600 block mb-1">Cartão Porto Seguro Novo?</label>
-                                                <select
-                                                    value={valores[`${lead.ID}`]?.CartaoPortoNovo || ''}
-                                                    onChange={(e) => handleCartaoPortoChange(lead.ID, e.target.value)}
-                                                    disabled={isSeguradoraPreenchida}
-                                                    className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
-                                                >
-                                                    <option value=""> </option>
-                                                    <option value="Sim">Sim</option>
-                                                    <option value="Não">Não</option>
-                                                </select>
-                                            </div>
-                                        )}
-                                        
                                     </div>
                                 </div>
 
@@ -705,7 +705,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                                     valores[`${lead.ID}`]?.Parcelamento,
                                                     vigencia[`${lead.ID}`]?.inicio,
                                                     vigencia[`${lead.ID}`]?.final,
-                                                    // >>> NOVO: Meio de Pagamento e Cartão Porto Novo na Confirmação <<<
+                                                    // Meio de Pagamento e Cartão Porto Novo na Confirmação 
                                                     valores[`${lead.ID}`]?.MeioPagamento || '',
                                                     valores[`${lead.ID}`]?.CartaoPortoNovo || ''
                                                 );
