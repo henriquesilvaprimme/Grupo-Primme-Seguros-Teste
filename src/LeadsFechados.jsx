@@ -309,13 +309,25 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     // NOVO HANDLER: Meio de Pagamento
     // ************************************************************
     const handleMeioPagamentoChange = (id, valor) => {
-        setValores(prev => ({
-            ...prev,
-            [`${id}`]: {
-                ...prev[`${id}`],
-                MeioPagamento: valor,
-            },
-        }));
+        setValores(prev => {
+            const newState = {
+                ...prev,
+                [`${id}`]: {
+                    ...prev[`${id}`],
+                    MeioPagamento: valor,
+                },
+            };
+            
+            // Lógica de limpeza: Se o novo Meio de Pagamento não for 'CP',
+            // limpe o campo 'CartaoPortoNovo' se ele estiver preenchido.
+            if (valor !== 'CP' && newState[`${id}`]?.CartaoPortoNovo) {
+                newState[`${id}`].CartaoPortoNovo = '';
+                onUpdateDetalhes(id, 'CartaoPortoNovo', ''); // Limpa na API também
+            }
+            
+            return newState;
+        });
+
         onUpdateDetalhes(id, 'MeioPagamento', valor);
     };
 
@@ -337,23 +349,22 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     // Handler para Seguradora (Atualizado para se integrar aos novos campos)
     // ************************************************************
     const handleInsurerChange = (id, valor) => {
+        const portoSeguradoras = ['Porto Seguro', 'Azul Seguros', 'Itau Seguros'];
+        
         setValores(prev => {
             const newState = {
                 ...prev,
                 [`${id}`]: {
                     ...prev[`${id}`],
                     insurer: valor,
-                    // Ao mudar a seguradora, se ela não for Porto, Azul ou Itaú,
-                    // limpe o campo 'CartaoPortoNovo' para evitar inconsistência.
-                    CartaoPortoNovo: ['Porto Seguro', 'Azul Seguros', 'Itau Seguros'].includes(valor) 
-                        ? (prev[`${id}`]?.CartaoPortoNovo || '') 
-                        : '',
                 },
             };
             
-            // Se o campo CartaoPortoNovo foi limpo, atualize a API (com um valor vazio)
-            if (!['Porto Seguro', 'Azul Seguros', 'Itau Seguros'].includes(valor) && prev[`${id}`]?.CartaoPortoNovo) {
-                 onUpdateDetalhes(id, 'CartaoPortoNovo', '');
+            // Lógica de limpeza: Se a nova seguradora não for Porto/Azul/Itaú,
+            // limpe o campo 'CartaoPortoNovo' se ele estiver preenchido.
+            if (!portoSeguradoras.includes(valor) && newState[`${id}`]?.CartaoPortoNovo) {
+                newState[`${id}`].CartaoPortoNovo = '';
+                onUpdateDetalhes(id, 'CartaoPortoNovo', ''); // Limpa na API também
             }
 
             return newState;
@@ -490,13 +501,19 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                         const responsavel = usuarios.find((u) => u.nome === lead.Responsavel);
                         const isSeguradoraPreenchida = !!lead.Seguradora;
 
-                        // Verifica se a seguradora atual é Porto, Azul ou Itaú (para o campo condicional)
+                        // Variáveis de estado para a lógica condicional
                         const currentInsurer = valores[`${lead.ID}`]?.insurer || '';
-                        const showCartaoPortoNovo = ['Porto Seguro', 'Azul Seguros', 'Itau Seguros'].includes(currentInsurer);
+                        const currentMeioPagamento = valores[`${lead.ID}`]?.MeioPagamento || '';
+                        const isPortoInsurer = ['Porto Seguro', 'Azul Seguros', 'Itau Seguros'].includes(currentInsurer);
+                        const isCPPayment = currentMeioPagamento === 'CP';
 
-                        // Lógica de desativação do botão de confirmação (sem mudar o requisito original)
+                        // Lógica de exibição do Cartão Porto Novo:
+                        // Somente se a seguradora for Porto/Azul/Itaú E o meio de pagamento for CP.
+                        const showCartaoPortoNovo = isPortoInsurer && isCPPayment;
+
+                        // Lógica de desativação do botão de confirmação
                         const isButtonDisabled =
-                            !valores[`${lead.ID}`]?.insurer || // Seguradora está no estado local, não na API
+                            !valores[`${lead.ID}`]?.insurer ||
                             valores[`${lead.ID}`]?.PremioLiquido === null ||
                             valores[`${lead.ID}`]?.PremioLiquido === undefined ||
                             !valores[`${lead.ID}`]?.Comissao ||
@@ -623,7 +640,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                             </select>
                                         </div>
                                         
-                                        {/* >>> NOVO CAMPO CONDICIONAL: Cartão Porto Seguro Novo? (Select) <<< */}
+                                        {/* >>> CAMPO CONDICIONAL ATUALIZADO: Cartão Porto Seguro Novo? (Select) <<< */}
                                         {showCartaoPortoNovo && (
                                             <div className="col-span-2">
                                                 <label className="text-xs font-semibold text-gray-600 block mb-1">Cartão Porto Seguro Novo?</label>
