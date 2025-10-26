@@ -133,7 +133,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 // >>> NOVO: Meio de Pagamento <<<
                 const apiMeioPagamento = lead.MeioPagamento || '';
                 // >>> NOVO: Cartao Porto Seguro Novo? <<<
-                const apiCartaoPortoNovo = lead.CartaoPortoSeguroNovo || '';
+                const apiCartaoPortoNovo = lead.CartaoPortoNovo || '';
 
                 if (!novosValores[lead.ID] ||
                     (novosValores[lead.ID].PremioLiquido === undefined && premioInCents !== null) ||
@@ -330,7 +330,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 CartaoPortoNovo: valor,
             },
         }));
-        onUpdateDetalhes(id, 'CartaoPortoSeguroNovo', valor);
+        onUpdateDetalhes(id, 'CartaoPortoNovo', valor);
     };
 
     // ************************************************************
@@ -353,7 +353,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             
             // Se o campo CartaoPortoNovo foi limpo, atualize a API (com um valor vazio)
             if (!['Porto Seguro', 'Azul Seguros', 'Itau Seguros'].includes(valor) && prev[`${id}`]?.CartaoPortoNovo) {
-                 onUpdateDetalhes(id, 'CartaoPortoSeguroNovo', '');
+                 onUpdateDetalhes(id, 'CartaoPortoNovo', '');
             }
 
             return newState;
