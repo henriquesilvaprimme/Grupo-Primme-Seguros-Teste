@@ -201,7 +201,7 @@ function App() {
         insuranceType: item.insuranceType || '',
         // NOVOS CAMPOS
         MeioPagamento: item.MeioPagamento || '',
-        CartaoPortoSeguroNovo: item.CartaoPortoSeguroNovo || '',
+        CartaoPortoNovo: item.CartaoPortoNovo || '',
       }));
       setLeadsFechados(formattedData);
 
@@ -289,7 +289,7 @@ function App() {
               VigenciaFinal: leadParaAdicionar.VigenciaFinal || "",
               VigenciaInicial: leadParaAdicionar.VigenciaInicial || "",
               MeioPagamento: leadParaAdicionar.MeioPagamento || "", // NOVO
-              CartaoPortoSeguroNovo: leadParaAdicionar.CartaoPortoSeguroNovo || "", // NOVO
+              CartaoPortoNovo: leadParaAdicionar.CartaoPortoNovo || "", // NOVO
               id: leadParaAdicionar.id || null,
               usuario: leadParaAdicionar.usuario || "",
               nome: leadParaAdicionar.nome || "",
@@ -351,7 +351,7 @@ function App() {
   })
 
   // FUNÇÃO ATUALIZADA COM NOVOS PARÂMETROS
-  const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal, vigenciaInicial, meioPagamento, cartaoPortoSeguroNovo) => {
+  const confirmarSeguradoraLead = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal, vigenciaInicial, meioPagamento, cartaoPortoNovo) => {
     const lead = leadsFechados.find((lead) => lead.ID == id);
 
     if (!lead) {
@@ -367,7 +367,7 @@ function App() {
     lead.VigenciaInicial = vigenciaInicial || '';
     // ATUALIZAÇÃO DOS NOVOS CAMPOS NO OBJETO LEAD
     lead.MeioPagamento = meioPagamento || '';
-    lead.CartaoPortoSeguroNovo = cartaoPortoSeguroNovo || '';
+    lead.CartaoPortoNovo = cartaoPortoNovo || '';
 
     setLeadsFechados((prev) => {
       const atualizados = prev.map((l) =>
@@ -382,7 +382,7 @@ function App() {
           VigenciaInicial: vigenciaInicial || '',
           // ATUALIZAÇÃO DOS NOVOS CAMPOS NO ESTADO
           MeioPagamento: meioPagamento || '',
-          CartaoPortoSeguroNovo: cartaoPortoSeguroNovo || ''
+          CartaoPortoNovo: cartaoPortoNovo || ''
         } : l
       );
       return atualizados;
