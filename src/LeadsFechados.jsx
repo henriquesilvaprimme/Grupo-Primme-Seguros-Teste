@@ -615,7 +615,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                                 disabled={isSeguradoraPreenchida}
                                                 className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
                                             >
-                                                <option value="">Em Branco</option>
+                                                <option value=""> </option>
                                                 <option value="CP">CP</option>
                                                 <option value="CC">CC</option>
                                                 <option value="Debito">Debito</option>
@@ -633,7 +633,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                                     disabled={isSeguradoraPreenchida}
                                                     className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
                                                 >
-                                                    <option value="">Em branco</option>
+                                                    <option value=""> </option>
                                                     <option value="Sim">Sim</option>
                                                     <option value="Não">Não</option>
                                                 </select>
