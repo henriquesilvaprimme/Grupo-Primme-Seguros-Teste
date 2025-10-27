@@ -127,12 +127,17 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 const premioFromApi = parseFloat(rawPremioFromApi.replace('.', '').replace(',', '.'));
                 const premioInCents = isNaN(premioFromApi) || rawPremioFromApi === '' ? null : Math.round(premioFromApi * 100);
 
-                const apiComissao = lead.Comissao ? String(lead.Comissao).replace('.', ',') : '';
+                // >> MUDANÇA AQUI: LER O VALOR DA COMISSÃO DIRETAMENTE COMO STRING (15,00%)
+                // Se a API retornar "15.00", ainda usamos replace para "15,00". Se retornar "15,00%", salvamos "15,00%".
+                const apiComissaoRaw = String(lead.Comissao || '');
+                let apiComissao = apiComissaoRaw;
+                if (!apiComissaoRaw.includes('%')) {
+                    apiComissao = apiComissaoRaw.replace('.', ','); // Trata o ponto decimal se vier sem %
+                }
+                
                 const apiParcelamento = lead.Parcelamento || '';
                 const apiInsurer = lead.Seguradora || '';
-                // >>> NOVO: Meio de Pagamento <<<
                 const apiMeioPagamento = lead.MeioPagamento || '';
-                // >>> NOVO: Cartao Porto Seguro Novo? <<<
                 const apiCartaoPortoNovo = lead.CartaoPortoNovo || '';
 
                 if (!novosValores[lead.ID] ||
@@ -140,17 +145,15 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                     (novosValores[lead.ID].Comissao === undefined && apiComissao !== '') ||
                     (novosValores[lead.ID].Parcelamento === undefined && apiParcelamento !== '') ||
                     (novosValores[lead.ID].insurer === undefined && apiInsurer !== '') ||
-                    // >>> NOVO: Inicialização para Meio de Pagamento e Cartão Porto Novo <<<
                     (novosValores[lead.ID].MeioPagamento === undefined && apiMeioPagamento !== '') ||
                     (novosValores[lead.ID].CartaoPortoNovo === undefined && apiCartaoPortoNovo !== '')
                 ) {
                     novosValores[lead.ID] = {
                         ...novosValores[lead.ID],
                         PremioLiquido: premioInCents,
-                        Comissao: apiComissao,
+                        Comissao: apiComissao, // << Comissao salva como "15,00%"
                         Parcelamento: apiParcelamento,
                         insurer: apiInsurer,
-                        // >>> NOVO: Meio de Pagamento e Cartão Porto Novo no estado <<<
                         MeioPagamento: apiMeioPagamento,
                         CartaoPortoNovo: apiCartaoPortoNovo,
                     };
@@ -267,29 +270,61 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         onUpdateDetalhes(id, 'PremioLiquido', valorReais);
     };
 
+    // >> FUNÇÃO CORRIGIDA: Lida com a entrada do usuário e mantém apenas números e vírgulas
     const handleComissaoChange = (id, valor) => {
-        let cleanedValue = valor.replace(/[^\d,]/g, '');
-        const parts = cleanedValue.split(',');
+        // Remove tudo que não for número, vírgula ou ponto, e remove o '%' para o usuário editar
+        let cleanedValue = valor.replace(/[^\d,.]/g, '');
+        // Garante que só haja uma vírgula (ou ponto) para o decimal
+        const parts = cleanedValue.split(/[,.]/);
         if (parts.length > 2) {
-            cleanedValue = parts[0] + ',' + parts.slice(1).join('');
+            // Se tiver mais de um separador, considera o primeiro como a parte inteira e os centavos (limitando a 2)
+            cleanedValue = parts[0] + ',' + parts.slice(1).join('').substring(0, 2);
+        } else if (parts.length === 2 && parts[1].length > 2) {
+            // Se tiver um separador, limita os centavos a 2 casas
+            cleanedValue = parts[0] + ',' + parts[1].substring(0, 2);
         }
-        if (parts.length > 1 && parts[1].length > 2) {
-            cleanedValue = parts[0] + ',' + parts[1].slice(0, 2);
-        }
+        // Se vier com ponto, troca para vírgula para manter o padrão brasileiro
+        cleanedValue = cleanedValue.replace('.', ',');
 
         setValores(prev => ({
             ...prev,
             [`${id}`]: {
                 ...prev[`${id}`],
-                Comissao: cleanedValue,
+                Comissao: cleanedValue, // Salva o valor puro (sem %) enquanto o usuário digita
             },
         }));
     };
 
-    // Converte para float (com ponto decimal) antes de enviar a atualização
+    // >> FUNÇÃO CORRIGIDA: Adiciona o '%' na tela e envia o valor formatado para a API
     const handleComissaoBlur = (id) => {
         const comissaoInput = valores[`${id}`]?.Comissao || '';
-        const comissaoFloat = parseFloat(comissaoInput.replace(',', '.'));
+        let comissaoParaApi = comissaoInput.replace(',', '.'); // Troca a vírgula para ponto para o backend
+
+        // Limpa o '%' do valor a ser enviado, caso o usuário o tenha inserido
+        comissaoParaApi = comissaoParaApi.replace('%', '');
+        
+        const comissaoFloat = parseFloat(comissaoParaApi);
+
+        // Atualiza o estado para adicionar o "%" para visualização na tela
+        setValores(prev => {
+            let valorExibicao = comissaoInput;
+            if (valorExibicao && !valorExibicao.endsWith('%')) {
+                // Adiciona o %, mas primeiro formata para 2 casas se for um número válido
+                const floatValue = parseFloat(comissaoParaApi);
+                if (!isNaN(floatValue)) {
+                    valorExibicao = floatValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+                }
+            }
+            return {
+                ...prev,
+                [`${id}`]: {
+                    ...prev[`${id}`],
+                    Comissao: valorExibicao, // Valor final formatado para exibição (15,00%)
+                },
+            }
+        });
+
+        // Envia o valor numérico (15.00) para a API, como você estava fazendo antes (ponto decimal)
         onUpdateDetalhes(id, 'Comissao', isNaN(comissaoFloat) ? '' : comissaoFloat);
     };
 
@@ -517,7 +552,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                             valores[`${lead.ID}`]?.PremioLiquido === null ||
                             valores[`${lead.ID}`]?.PremioLiquido === undefined ||
                             !valores[`${lead.ID}`]?.Comissao ||
-                            parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')) === 0 ||
+                            // Verifica se o valor da comissão é 0, removendo o % e trocando vírgula por ponto para a checagem
+                            parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace('%', '').replace(',', '.')) === 0 ||
                             !valores[`${lead.ID}`]?.Parcelamento ||
                             valores[`${lead.ID}`]?.Parcelamento === '' ||
                             !vigencia[`${lead.ID}`]?.inicio ||
@@ -624,19 +660,21 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                             </div>
                                         </div>
 
-                                        {/* Comissão (Input) */}
+                                        {/* Comissão (Input) - CAMPO AJUSTADO */}
                                         <div>
                                             <label className="text-xs font-semibold text-gray-600 block mb-1">Comissão (%)</label>
                                             <div className="relative">
-                                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-sm">%</span>
+                                                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-sm">%</span>
                                                 <input
                                                     type="text"
                                                     placeholder="0,00"
+                                                    // >> MUDANÇA AQUI: Renderiza o valor do estado, que agora contém o "%"
                                                     value={valores[`${lead.ID}`]?.Comissao || ''}
                                                     onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
                                                     onBlur={() => handleComissaoBlur(lead.ID)}
                                                     disabled={isSeguradoraPreenchida}
-                                                    className="w-full p-2 pl-8 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500 text-right"
+                                                    // >> MUDANÇA AQUI: Usa o padding à direita para o % fixo
+                                                    className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500 text-right"
                                                 />
                                             </div>
                                         </div>
@@ -697,11 +735,14 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                     {!isSeguradoraPreenchida ? (
                                         <button
                                             onClick={async () => {
+                                                // Prepara o valor da comissão removendo o '%' e convertendo a vírgula para ponto
+                                                const comissaoParaEnvio = parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace('%', '').replace(',', '.'));
+
                                                 await onConfirmInsurer(
                                                     lead.ID,
                                                     valores[`${lead.ID}`]?.PremioLiquido === null ? null : valores[`${lead.ID}`]?.PremioLiquido / 100,
                                                     valores[`${lead.ID}`]?.insurer, // Valor da seguradora local
-                                                    parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')),
+                                                    isNaN(comissaoParaEnvio) ? 0 : comissaoParaEnvio, // Envia o valor numérico (e.g., 15.00)
                                                     valores[`${lead.ID}`]?.Parcelamento,
                                                     vigencia[`${lead.ID}`]?.inicio,
                                                     vigencia[`${lead.ID}`]?.final,
