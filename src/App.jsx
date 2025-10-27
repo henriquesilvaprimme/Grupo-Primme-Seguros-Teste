@@ -286,8 +286,8 @@ function App() {
               PremioLiquido: leadParaAdicionar.premioLiquido || "",
               Comissao: leadParaAdicionar.Comissao || "",
               Parcelamento: leadParaAdicionar.Parcelamento || "",
-              VigenciaFinal: leadParaAdicionar.VigenciaFinal || "",
               VigenciaInicial: leadParaAdicionar.VigenciaInicial || "",
+              VigenciaFinal: leadParaAdicionar.VigenciaFinal || "",
               MeioPagamento: leadParaAdicionar.MeioPagamento || "", // NOVO
               CartaoPortoNovo: leadParaAdicionar.CartaoPortoNovo || "", // NOVO
               id: leadParaAdicionar.id || null,
