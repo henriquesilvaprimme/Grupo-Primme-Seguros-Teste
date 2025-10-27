@@ -267,33 +267,14 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         onUpdateDetalhes(id, 'PremioLiquido', valorReais);
     };
 
-    // FUNÇÃO MODIFICADA PARA TRATAMENTO DE PORCENTAGEM
     const handleComissaoChange = (id, valor) => {
-        // 1. Permite apenas dígitos (0-9) e vírgula (,)
         let cleanedValue = valor.replace(/[^\d,]/g, '');
-
-        // 2. Garante apenas uma vírgula
         const parts = cleanedValue.split(',');
         if (parts.length > 2) {
-            // Se houver mais de uma vírgula, usa a primeira e descarta as outras
             cleanedValue = parts[0] + ',' + parts.slice(1).join('');
         }
-
-        // 3. Limita a duas casas decimais após a vírgula
         if (parts.length > 1 && parts[1].length > 2) {
             cleanedValue = parts[0] + ',' + parts[1].slice(0, 2);
-        }
-
-        // 4. Se a entrada começar com zero e não tiver vírgula, remove o zero inicial (exceção: '0,')
-        if (cleanedValue.length > 1 && cleanedValue.startsWith('0') && !cleanedValue.includes(',')) {
-            cleanedValue = cleanedValue.slice(1);
-        }
-        if (cleanedValue === '00') cleanedValue = '0';
-        if (cleanedValue === '0' && valor !== '0') cleanedValue = ''; // Limpa se for apenas "0" (opcional, mas garante que não há zero inútil)
-        
-        // Trata o caso de começar com vírgula
-        if (cleanedValue.startsWith(',')) {
-             cleanedValue = '0' + cleanedValue;
         }
 
         setValores(prev => ({
@@ -659,38 +640,36 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                                 />
                                             </div>
                                         </div>
-                                    </div>
 
-                                    {/* Parcelamento (Select) */}
-                                    <div className="mt-4">
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Parcelamento</label>
-                                        <select
-                                            value={valores[`${lead.ID}`]?.Parcelamento || ''}
-                                            onChange={(e) => handleParcelamentoChange(lead.ID, e.target.value)}
-                                            disabled={isSeguradoraPreenchida}
-                                            className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
-                                        >
-                                            <option value="">Selecione o parcelamento</option>
-                                            {[...Array(12).keys()].map(i => (
-                                                <option key={i + 1} value={i + 1}>
-                                                    {i + 1}x
-                                                </option>
-                                            ))}
-                                        </select>
+                                        {/* Parcelamento (Select) */}
+                                        <div className="col-span-2">
+                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Parcelamento</label>
+                                            <select
+                                                value={valores[`${lead.ID}`]?.Parcelamento || ''}
+                                                onChange={(e) => handleParcelamentoChange(lead.ID, e.target.value)}
+                                                disabled={isSeguradoraPreenchida}
+                                                className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
+                                            >
+                                                <option value="">Selecione o Parcelamento</option>
+                                                {[...Array(12)].map((_, i) => (
+                                                    <option key={i + 1} value={`${i + 1}`}>{i + 1}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        
                                     </div>
-
                                 </div>
 
-                                {/* COLUNA 3: Vigência e Ação */}
+                                {/* COLUNA 3: Vigência e Ação de Confirmação */}
                                 <div className="col-span-1 lg:pl-6">
                                     <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
                                         <Calendar size={18} className="mr-2 text-green-500" />
                                         Vigência
                                     </h3>
 
-                                    {/* Vigência Inicial (Input Date) */}
+                                    {/* Vigência Início */}
                                     <div className="mb-4">
-                                        <label htmlFor={`vigencia-inicio-${lead.ID}`} className="text-xs font-semibold text-gray-600 block mb-1">Início da Vigência</label>
+                                        <label htmlFor={`vigencia-inicio-${lead.ID}`} className="text-xs font-semibold text-gray-600 block mb-1">Início</label>
                                         <input
                                             id={`vigencia-inicio-${lead.ID}`}
                                             type="date"
