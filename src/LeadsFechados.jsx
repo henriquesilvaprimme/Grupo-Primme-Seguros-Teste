@@ -16,8 +16,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     const [isLoading, setIsLoading] = useState(false);
     const [nomeInput, setNomeInput] = useState('');
 
-    // O estado 'editingNameId' e 'temporaryName' não é mais necessário para manter o campo sempre aberto, 
-    // mas vamos substituí-lo por 'editandoNomes' para gerenciar o valor da digitação em tempo real.
+    // Estado para gerenciar a edição do nome em tempo real (sempre aberto)
     const [editandoNomes, setEditandoNomes] = useState({}); // { leadId: 'Novo Nome' }
     
     // ------------------------------------------
@@ -134,7 +133,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 const premioInCents = isNaN(premioFromApi) || rawPremioFromApi === '' ? null : Math.round(premioFromApi * 100);
 
                 // >> MUDANÇA AQUI: LER O VALOR DA COMISSÃO DIRETAMENTE COMO STRING (15,00%)
-                // Se a API retornar "15.00", ainda usamos replace para "15,00". Se retornar "15,00%", salvamos "15,00%".
                 const apiComissaoRaw = String(lead.Comissao || '');
                 let apiComissao = apiComissaoRaw;
                 if (!apiComissaoRaw.includes('%')) {
@@ -575,6 +573,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 ) : (
                     leadsPagina.map((lead) => {
                         const responsavel = usuarios.find((u) => u.nome === lead.Responsavel);
+                        // Determina se o lead foi confirmado/fechado
                         const isSeguradoraPreenchida = !!lead.Seguradora;
 
                         // Variáveis de estado para a lógica condicional
@@ -584,7 +583,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                         const isCPPayment = currentMeioPagamento === 'CP';
 
                         // Lógica de exibição do Cartão Porto Novo:
-                        // Somente se a seguradora for Porto/Azul/Itaú E o meio de pagamento for CP.
                         const showCartaoPortoNovo = isPortoInsurer && isCPPayment;
 
                         // Lógica de desativação do botão de confirmação
@@ -624,7 +622,9 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                                     e.currentTarget.blur(); // Tira o foco para forçar o onBlur e salvar
                                                 }
                                             }}
-                                            className="text-xl font-bold text-gray-900 border border-indigo-300 rounded-lg p-1 w-full focus:ring-indigo-500 focus:border-indigo-500"
+                                            // BLOQUEIA A EDIÇÃO SE JÁ TIVER SIDO CONCLUÍDO
+                                            disabled={isSeguradoraPreenchida} 
+                                            className={`text-xl font-bold text-gray-900 border border-indigo-300 rounded-lg p-1 w-full focus:ring-indigo-500 focus:border-indigo-500 ${isSeguradoraPreenchida ? 'bg-gray-100 cursor-not-allowed border-gray-200' : ''}`}
                                             title="Nome do Cliente (Editável)"
                                         />
                                     </div>
