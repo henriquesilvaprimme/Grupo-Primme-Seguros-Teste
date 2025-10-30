@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RefreshCcw, Search, CheckCircle, DollarSign, Calendar, Edit, Save } from 'lucide-react';
+import { RefreshCcw, Search, CheckCircle, DollarSign, Calendar, Edit, X } from 'lucide-react';
 
 // ===============================================
 // 1. COMPONENTE PRINCIPAL: LeadsFechados
@@ -16,10 +16,9 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     const [isLoading, setIsLoading] = useState(false);
     const [nomeInput, setNomeInput] = useState('');
 
-    // Estado para gerenciar a edição do nome em tempo real (sempre aberto)
-    const [editandoNomes, setEditandoNomes] = useState({}); // { leadId: 'Novo Nome' }
-    
-    // ------------------------------------------
+    // >>> NOVO ESTADO: Controle de edição de nome <<<
+    const [nomeEditando, setNomeEditando] = useState(null); // ID do lead que está sendo editado
+    const [nomeTemporario, setNomeTemporario] = useState({}); // Mapeia ID para o texto temporário no input
 
     const getMesAnoAtual = () => {
         const hoje = new Date();
@@ -132,16 +131,12 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 const premioFromApi = parseFloat(rawPremioFromApi.replace('.', '').replace(',', '.'));
                 const premioInCents = isNaN(premioFromApi) || rawPremioFromApi === '' ? null : Math.round(premioFromApi * 100);
 
-                // >> MUDANÇA AQUI: LER O VALOR DA COMISSÃO DIRETAMENTE COMO STRING (15,00%)
-                const apiComissaoRaw = String(lead.Comissao || '');
-                let apiComissao = apiComissaoRaw;
-                if (!apiComissaoRaw.includes('%')) {
-                    apiComissao = apiComissaoRaw.replace('.', ','); // Trata o ponto decimal se vier sem %
-                }
-                
+                const apiComissao = lead.Comissao ? String(lead.Comissao).replace('.', ',') : '';
                 const apiParcelamento = lead.Parcelamento || '';
                 const apiInsurer = lead.Seguradora || '';
+                // >>> NOVO: Meio de Pagamento <<<
                 const apiMeioPagamento = lead.MeioPagamento || '';
+                // >>> NOVO: Cartao Porto Seguro Novo? <<<
                 const apiCartaoPortoNovo = lead.CartaoPortoNovo || '';
 
                 if (!novosValores[lead.ID] ||
@@ -149,15 +144,17 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                     (novosValores[lead.ID].Comissao === undefined && apiComissao !== '') ||
                     (novosValores[lead.ID].Parcelamento === undefined && apiParcelamento !== '') ||
                     (novosValores[lead.ID].insurer === undefined && apiInsurer !== '') ||
+                    // >>> NOVO: Inicialização para Meio de Pagamento e Cartão Porto Novo <<<
                     (novosValores[lead.ID].MeioPagamento === undefined && apiMeioPagamento !== '') ||
                     (novosValores[lead.ID].CartaoPortoNovo === undefined && apiCartaoPortoNovo !== '')
                 ) {
                     novosValores[lead.ID] = {
                         ...novosValores[lead.ID],
                         PremioLiquido: premioInCents,
-                        Comissao: apiComissao, // << Comissao salva como "15,00%"
+                        Comissao: apiComissao,
                         Parcelamento: apiParcelamento,
                         insurer: apiInsurer,
+                        // >>> NOVO: Meio de Pagamento e Cartão Porto Novo no estado <<<
                         MeioPagamento: apiMeioPagamento,
                         CartaoPortoNovo: apiCartaoPortoNovo,
                     };
@@ -165,6 +162,19 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             });
             return novosValores;
         });
+
+        // >>> NOVO: Sincronização do estado de Nome Temporário <<<
+        setNomeTemporario(prevNomes => {
+            const novosNomes = { ...prevNomes };
+            fechadosAtuais.forEach(lead => {
+                if (novosNomes[lead.ID] === undefined) {
+                    novosNomes[lead.ID] = lead.name || '';
+                }
+            });
+            return novosNomes;
+        });
+        // <<< FIM NOVO ESTADO NOME TEMPORÁRIO >>>
+
 
         setPremioLiquidoInputDisplay(prevDisplay => {
             const newDisplay = { ...prevDisplay };
@@ -195,18 +205,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             });
             return novasVigencias;
         });
-        
-        // Sincroniza o estado de edição de nome com os nomes atuais dos leads.
-        setEditandoNomes(prevNomes => {
-            const novosNomes = { ...prevNomes };
-            fechadosAtuais.forEach(lead => {
-                if (novosNomes[lead.ID] === undefined) {
-                    novosNomes[lead.ID] = lead.name;
-                }
-            });
-            return novosNomes;
-        });
-
 
         // ORDENAÇÃO
         const fechadosOrdenados = [...fechadosAtuais].sort((a, b) => {
@@ -237,33 +235,37 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
     // --- FUNÇÕES DE HANDLER (NOVAS E EXISTENTES) ---
 
-    // ************************************************************
-    // NOVOS HANDLERS PARA EDIÇÃO DE NOME (SEMPRE ABERTA)
-    // ************************************************************
-    const handleNameChange = (leadId, valor) => {
-        setEditandoNomes(prev => ({
-            ...prev,
-            [leadId]: valor,
-        }));
-    };
-
-    const handleNameSave = (leadId) => {
-        const newName = editandoNomes[leadId] ? editandoNomes[leadId].trim() : '';
-        const originalName = leads.find(l => l.ID === leadId)?.name;
-
-        if (newName && newName !== originalName) {
-            // Chama a função de atualização para salvar o novo nome na planilha/API
-            onUpdateDetalhes(leadId, 'name', newName);
-        }
-    };
-    // ************************************************************
-    // FIM DOS NOVOS HANDLERS DE NOME
-    // ************************************************************
-
     const formatarMoeda = (valorCentavos) => {
         if (valorCentavos === null || isNaN(valorCentavos)) return '';
         return (valorCentavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
+
+    // >>> NOVO HANDLER: Lógica para editar o nome do lead <<<
+    const handleNomeBlur = (id, novoNome) => {
+        const nomeAtualizado = novoNome.trim();
+        setNomeEditando(null); // Sai do modo de edição
+        
+        // Verifica se o nome realmente mudou para evitar chamadas desnecessárias à API
+        const lead = leads.find(l => l.ID === id);
+        if (lead && lead.name !== nomeAtualizado) {
+            if (nomeAtualizado) {
+                // 1. Atualiza o estado local temporário (que é exibido no card)
+                setNomeTemporario(prev => ({
+                    ...prev,
+                    [`${id}`]: nomeAtualizado,
+                }));
+                // 2. Chama a função de atualização da prop, enviando 'name' para o Sheets
+                onUpdateDetalhes(id, 'name', nomeAtualizado);
+            } else {
+                // Se o campo ficou vazio, reverte para o nome original (ou deixa a lógica de validação na API)
+                setNomeTemporario(prev => ({
+                    ...prev,
+                    [`${id}`]: lead.name,
+                }));
+            }
+        }
+    };
+    // <<< FIM NOVO HANDLER >>>
 
     const handlePremioLiquidoChange = (id, valor) => {
         let cleanedValue = valor.replace(/[^\d,\.]/g, '');
@@ -309,61 +311,29 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         onUpdateDetalhes(id, 'PremioLiquido', valorReais);
     };
 
-    // >> FUNÇÃO CORRIGIDA: Lida com a entrada do usuário e mantém apenas números e vírgulas
     const handleComissaoChange = (id, valor) => {
-        // Remove tudo que não for número, vírgula ou ponto, e remove o '%' para o usuário editar
-        let cleanedValue = valor.replace(/[^\d,.]/g, '');
-        // Garante que só haja uma vírgula (ou ponto) para o decimal
-        const parts = cleanedValue.split(/[,.]/);
+        let cleanedValue = valor.replace(/[^\d,]/g, '');
+        const parts = cleanedValue.split(',');
         if (parts.length > 2) {
-            // Se tiver mais de um separador, considera o primeiro como a parte inteira e os centavos (limitando a 2)
-            cleanedValue = parts[0] + ',' + parts.slice(1).join('').substring(0, 2);
-        } else if (parts.length === 2 && parts[1].length > 2) {
-            // Se tiver um separador, limita os centavos a 2 casas
-            cleanedValue = parts[0] + ',' + parts[1].substring(0, 2);
+            cleanedValue = parts[0] + ',' + parts.slice(1).join('');
         }
-        // Se vier com ponto, troca para vírgula para manter o padrão brasileiro
-        cleanedValue = cleanedValue.replace('.', ',');
+        if (parts.length > 1 && parts[1].length > 2) {
+            cleanedValue = parts[0] + ',' + parts[1].slice(0, 2);
+        }
 
         setValores(prev => ({
             ...prev,
             [`${id}`]: {
                 ...prev[`${id}`],
-                Comissao: cleanedValue, // Salva o valor puro (sem %) enquanto o usuário digita
+                Comissao: cleanedValue,
             },
         }));
     };
 
-    // >> FUNÇÃO CORRIGIDA: Adiciona o '%' na tela e envia o valor formatado para a API
+    // Converte para float (com ponto decimal) antes de enviar a atualização
     const handleComissaoBlur = (id) => {
         const comissaoInput = valores[`${id}`]?.Comissao || '';
-        let comissaoParaApi = comissaoInput.replace(',', '.'); // Troca a vírgula para ponto para o backend
-
-        // Limpa o '%' do valor a ser enviado, caso o usuário o tenha inserido
-        comissaoParaApi = comissaoParaApi.replace('%', '');
-        
-        const comissaoFloat = parseFloat(comissaoParaApi);
-
-        // Atualiza o estado para adicionar o "%" para visualização na tela
-        setValores(prev => {
-            let valorExibicao = comissaoInput;
-            if (valorExibicao && !valorExibicao.endsWith('%')) {
-                // Adiciona o %, mas primeiro formata para 2 casas se for um número válido
-                const floatValue = parseFloat(comissaoParaApi);
-                if (!isNaN(floatValue)) {
-                    valorExibicao = floatValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
-                }
-            }
-            return {
-                ...prev,
-                [`${id}`]: {
-                    ...prev[`${id}`],
-                    Comissao: valorExibicao, // Valor final formatado para exibição (15,00%)
-                },
-            }
-        });
-
-        // Envia o valor numérico (15.00) para a API, como você estava fazendo antes (ponto decimal)
+        const comissaoFloat = parseFloat(comissaoInput.replace(',', '.'));
         onUpdateDetalhes(id, 'Comissao', isNaN(comissaoFloat) ? '' : comissaoFloat);
     };
 
@@ -573,7 +543,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 ) : (
                     leadsPagina.map((lead) => {
                         const responsavel = usuarios.find((u) => u.nome === lead.Responsavel);
-                        // Determina se o lead foi confirmado/fechado
                         const isSeguradoraPreenchida = !!lead.Seguradora;
 
                         // Variáveis de estado para a lógica condicional
@@ -583,6 +552,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                         const isCPPayment = currentMeioPagamento === 'CP';
 
                         // Lógica de exibição do Cartão Porto Novo:
+                        // Somente se a seguradora for Porto/Azul/Itaú E o meio de pagamento for CP.
                         const showCartaoPortoNovo = isPortoInsurer && isCPPayment;
 
                         // Lógica de desativação do botão de confirmação
@@ -591,8 +561,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                             valores[`${lead.ID}`]?.PremioLiquido === null ||
                             valores[`${lead.ID}`]?.PremioLiquido === undefined ||
                             !valores[`${lead.ID}`]?.Comissao ||
-                            // Verifica se o valor da comissão é 0, removendo o % e trocando vírgula por ponto para a checagem
-                            parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace('%', '').replace(',', '.')) === 0 ||
+                            parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')) === 0 ||
                             !valores[`${lead.ID}`]?.Parcelamento ||
                             valores[`${lead.ID}`]?.Parcelamento === '' ||
                             !vigencia[`${lead.ID}`]?.inicio ||
@@ -606,29 +575,44 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                 {/* COLUNA 1: Informações do Lead */}
                                 <div className="col-span-1 border-b pb-4 lg:border-r lg:pb-0 lg:pr-6">
                                     
-                                    {/* LÓGICA DE EDIÇÃO DO NOME (SEMPRE ABERTA) */}
-                                    <div className="mb-2 flex items-center gap-2">
-                                        <input
-                                            type="text"
-                                            // Usa o estado de edição para manter o valor em tempo real
-                                            value={editandoNomes[lead.ID] || ''}
-                                            // Atualiza o estado de edição enquanto o usuário digita
-                                            onChange={(e) => handleNameChange(lead.ID, e.target.value)}
-                                            // Salva na API quando o usuário sai do campo
-                                            onBlur={() => handleNameSave(lead.ID)}
-                                            // Salva na API quando o usuário pressiona Enter
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.currentTarget.blur(); // Tira o foco para forçar o onBlur e salvar
-                                                }
-                                            }}
-                                            // BLOQUEIA A EDIÇÃO SE JÁ TIVER SIDO CONCLUÍDO
-                                            disabled={isSeguradoraPreenchida} 
-                                            className={`text-xl font-bold text-gray-900 border border-indigo-300 rounded-lg p-1 w-full focus:ring-indigo-500 focus:border-indigo-500 ${isSeguradoraPreenchida ? 'bg-gray-100 cursor-not-allowed border-gray-200' : ''}`}
-                                            title="Nome do Cliente (Editável)"
-                                        />
+                                    {/* >>> NOVO: Lógica de Edição de Nome do Lead <<< */}
+                                    <div className="flex items-center gap-2 mb-2">
+                                        {nomeEditando === lead.ID && !isSeguradoraPreenchida ? (
+                                            <div className="flex flex-col w-full">
+                                                <input
+                                                    type="text"
+                                                    value={nomeTemporario[lead.ID] || ''}
+                                                    onChange={(e) => setNomeTemporario(prev => ({ ...prev, [lead.ID]: e.target.value }))}
+                                                    onBlur={(e) => handleNomeBlur(lead.ID, e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.currentTarget.blur();
+                                                        } else if (e.key === 'Escape') {
+                                                            setNomeEditando(null); // Cancela a edição
+                                                            setNomeTemporario(prev => ({ ...prev, [lead.ID]: lead.name })); // Reverte o valor
+                                                        }
+                                                    }}
+                                                    className="text-xl font-bold text-gray-900 border border-indigo-300 rounded-lg p-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    autoFocus
+                                                />
+                                                <span className='text-xs text-gray-500 mt-1'>Clique fora ou Enter para salvar</span>
+                                            </div>
+                                        ) : (
+                                            <h3 className="text-xl font-bold text-gray-900">{nomeTemporario[lead.ID] || lead.name}</h3>
+                                        )}
+                                        
+                                        {!isSeguradoraPreenchida && nomeEditando !== lead.ID && (
+                                            <button
+                                                onClick={() => setNomeEditando(lead.ID)}
+                                                className="p-1 text-gray-500 hover:text-indigo-600 rounded-full transition duration-150"
+                                                title="Editar Nome do Cliente"
+                                            >
+                                                <Edit size={16} />
+                                            </button>
+                                        )}
                                     </div>
-                                    {/* FIM DA LÓGICA DE EDIÇÃO DO NOME */}
+                                    {/* <<< FIM NOVO: Lógica de Edição de Nome do Lead >>> */}
+
 
                                     <div className="space-y-1 text-sm text-gray-700">
                                         <p><strong>Modelo:</strong> {lead.vehicleModel}</p>
@@ -666,16 +650,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                             <option value="Azul Seguros">Azul Seguros</option>
                                             <option value="Itau Seguros">Itau Seguros</option>
                                             <option value="Demais Seguradoras">Demais Seguradoras</option>
-                                            <option value="Tokio">Tokio</option>
-                                            <option value="Yelum">Yelum</option>
-                                            <option value="Bradesco">Bradesco</option>
-                                            <option value="Allianz">Allianz</option>
-                                            <option value="Suhai">Suhai</option>
-                                            <option value="Hdi">Hdi</option>
-                                            <option value="Zurich">Zurich</option>
-                                            <option value="Mitsui">Mitsui</option>
-                                            <option value="Mapfre">Mapfre</option>
-                                            <option value="Alfa">Alfa</option>
                                         </select>
                                     </div>
 
@@ -707,75 +681,77 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                                 className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
                                             >
                                                 <option value=""> </option>
-                                                <option value="SIM">SIM</option>
-                                                <option value="NAO">NAO</option>
+                                                <option value="Sim">Sim</option>
+                                                <option value="Não">Não</option>
                                             </select>
                                         </div>
                                     )}
-
-                                    {/* 4. Prêmio Líquido (Input Formatado) */}
-                                    <div className="mb-4">
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Prêmio Líquido</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-semibold">R$</span>
-                                            <input
-                                                type="text"
-                                                placeholder="0,00"
-                                                value={premioLiquidoInputDisplay[`${lead.ID}`] || ''}
-                                                onChange={(e) => handlePremioLiquidoChange(lead.ID, e.target.value)}
-                                                onBlur={() => handlePremioLiquidoBlur(lead.ID)}
-                                                disabled={isSeguradoraPreenchida}
-                                                className="w-full p-2 pl-9 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed text-right focus:ring-green-500 focus:border-green-500"
-                                            />
-                                        </div>
-                                    </div>
                                     
-                                    {/* 5. Comissão (Input Formatado) */}
-                                    <div className="mb-4">
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Comissão (%)</label>
-                                        <div className="relative">
-                                            <input
-                                                type="text"
-                                                placeholder="0,00"
-                                                value={valores[`${lead.ID}`]?.Comissao || ''}
-                                                onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
-                                                onBlur={() => handleComissaoBlur(lead.ID)}
-                                                disabled={isSeguradoraPreenchida}
-                                                className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed text-right focus:ring-green-500 focus:border-green-500"
-                                            />
-                                            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-semibold">
-                                                {valores[`${lead.ID}`]?.Comissao && !valores[`${lead.ID}`]?.Comissao.endsWith('%') ? '%' : ''}
-                                            </span>
+                                    {/* 4., 5., 6. Demais campos (Prêmio, Comissão, Parcelamento) */}
+                                    <div className="grid grid-cols-2 gap-3 mt-4"> {/* Adicionado mt-4 para espaçamento após os novos campos */}
+                                        {/* Prêmio Líquido (Input) */}
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Prêmio Líquido</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-sm">R$</span>
+                                                <input
+                                                    type="text"
+                                                    placeholder="0,00"
+                                                    value={premioLiquidoInputDisplay[`${lead.ID}`] || ''}
+                                                    onChange={(e) => handlePremioLiquidoChange(lead.ID, e.target.value)}
+                                                    onBlur={() => handlePremioLiquidoBlur(lead.ID)}
+                                                    disabled={isSeguradoraPreenchida}
+                                                    className="w-full p-2 pl-8 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500 text-right"
+                                                />
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    {/* 6. Parcelamento (Select) */}
-                                    <div className="mb-4">
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Parcelamento</label>
-                                        <select
-                                            value={valores[`${lead.ID}`]?.Parcelamento || ''}
-                                            onChange={(e) => handleParcelamentoChange(lead.ID, e.target.value)}
-                                            disabled={isSeguradoraPreenchida}
-                                            className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
-                                        >
-                                            <option value="">Selecione as parcelas</option>
-                                            {Array.from({ length: 12 }, (_, i) => i + 1).map(p => (
-                                                <option key={p} value={p}>{p}x</option>
-                                            ))}
-                                        </select>
+                                        {/* Comissão (Input) */}
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Comissão (%)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-sm">%</span>
+                                                <input
+                                                    type="text"
+                                                    placeholder="0,00"
+                                                    value={valores[`${lead.ID}`]?.Comissao || ''}
+                                                    onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
+                                                    onBlur={() => handleComissaoBlur(lead.ID)}
+                                                    disabled={isSeguradoraPreenchida}
+                                                    className="w-full p-2 pl-8 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500 text-right"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Parcelamento (Select) */}
+                                        <div className="col-span-2">
+                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Parcelamento</label>
+                                            <select
+                                                value={valores[`${lead.ID}`]?.Parcelamento || ''}
+                                                onChange={(e) => handleParcelamentoChange(lead.ID, e.target.value)}
+                                                disabled={isSeguradoraPreenchida}
+                                                className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
+                                            >
+                                                <option value="">Selecione o Parcelamento</option>
+                                                {[...Array(12)].map((_, i) => (
+                                                    <option key={i + 1} value={`${i + 1}`}>{i + 1}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        
                                     </div>
                                 </div>
 
-                                {/* COLUNA 3: Vigência e Ação */}
-                                <div className="col-span-1 lg:pl-6 pt-4 lg:pt-0">
+                                {/* COLUNA 3: Vigência e Ação de Confirmação */}
+                                <div className="col-span-1 lg:pl-6">
                                     <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
                                         <Calendar size={18} className="mr-2 text-green-500" />
-                                        Período de Vigência
+                                        Vigência
                                     </h3>
 
-                                    {/* Vigência Inicial (Input Date) */}
+                                    {/* Vigência Início */}
                                     <div className="mb-4">
-                                        <label htmlFor={`vigencia-inicio-${lead.ID}`} className="text-xs font-semibold text-gray-600 block mb-1">Início da Vigência</label>
+                                        <label htmlFor={`vigencia-inicio-${lead.ID}`} className="text-xs font-semibold text-gray-600 block mb-1">Início</label>
                                         <input
                                             id={`vigencia-inicio-${lead.ID}`}
                                             type="date"
@@ -803,14 +779,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                     {!isSeguradoraPreenchida ? (
                                         <button
                                             onClick={async () => {
-                                                // Prepara o valor da comissão removendo o '%' e convertendo a vírgula para ponto
-                                                const comissaoParaEnvio = parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace('%', '').replace(',', '.'));
-
                                                 await onConfirmInsurer(
                                                     lead.ID,
                                                     valores[`${lead.ID}`]?.PremioLiquido === null ? null : valores[`${lead.ID}`]?.PremioLiquido / 100,
                                                     valores[`${lead.ID}`]?.insurer, // Valor da seguradora local
-                                                    isNaN(comissaoParaEnvio) ? 0 : comissaoParaEnvio, // Envia o valor numérico (e.g., 15.00)
+                                                    parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')),
                                                     valores[`${lead.ID}`]?.Parcelamento,
                                                     vigencia[`${lead.ID}`]?.inicio,
                                                     vigencia[`${lead.ID}`]?.final,
