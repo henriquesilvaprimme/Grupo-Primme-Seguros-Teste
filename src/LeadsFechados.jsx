@@ -17,7 +17,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     const [nomeInput, setNomeInput] = useState('');
 
     // >>> NOVO ESTADO: Controle de edição de nome <<<
-    const [nomeEditando, setNomeEditando] = useState(null); // ID do lead que está sendo editado
+    // O estado nomeEditando foi removido para que a edição fique sempre aberta.
     const [nomeTemporario, setNomeTemporario] = useState({}); // Mapeia ID para o texto temporário no input
 
     const getMesAnoAtual = () => {
@@ -243,7 +243,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     // >>> NOVO HANDLER: Lógica para editar o nome do lead <<<
     const handleNomeBlur = (id, novoNome) => {
         const nomeAtualizado = novoNome.trim();
-        setNomeEditando(null); // Sai do modo de edição
+        // setNomeEditando(null); // REMOVIDO: O campo não precisa sair do modo de edição
         
         // Verifica se o nome realmente mudou para evitar chamadas desnecessárias à API
         const lead = leads.find(l => l.ID === id);
@@ -575,9 +575,13 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                 {/* COLUNA 1: Informações do Lead */}
                                 <div className="col-span-1 border-b pb-4 lg:border-r lg:pb-0 lg:pr-6">
                                     
-                                    {/* >>> NOVO: Lógica de Edição de Nome do Lead <<< */}
+                                    {/* >>> NOVO: Lógica de Edição de Nome do Lead (SEMPRE ABERTO OU BLOQUEADO) <<< */}
                                     <div className="flex items-center gap-2 mb-2">
-                                        {nomeEditando === lead.ID && !isSeguradoraPreenchida ? (
+                                        {isSeguradoraPreenchida ? (
+                                            // BLOQUEADO: Se a seguradora estiver preenchida
+                                            <h3 className="text-xl font-bold text-gray-900">{nomeTemporario[lead.ID] || lead.name}</h3>
+                                        ) : (
+                                            // SEMPRE ABERTO: Se a seguradora NÃO estiver preenchida
                                             <div className="flex flex-col w-full">
                                                 <input
                                                     type="text"
@@ -587,29 +591,16 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter') {
                                                             e.currentTarget.blur();
-                                                        } else if (e.key === 'Escape') {
-                                                            setNomeEditando(null); // Cancela a edição
-                                                            setNomeTemporario(prev => ({ ...prev, [lead.ID]: lead.name })); // Reverte o valor
                                                         }
+                                                        // A lógica de 'Escape' foi removida, o campo fica sempre aberto até o blur.
                                                     }}
                                                     className="text-xl font-bold text-gray-900 border border-indigo-300 rounded-lg p-1 focus:ring-indigo-500 focus:border-indigo-500"
-                                                    autoFocus
+                                                    // autoFocus removido para evitar problemas de foco em múltiplos componentes
                                                 />
                                                 <span className='text-xs text-gray-500 mt-1'>Clique fora ou Enter para salvar</span>
                                             </div>
-                                        ) : (
-                                            <h3 className="text-xl font-bold text-gray-900">{nomeTemporario[lead.ID] || lead.name}</h3>
                                         )}
-                                        
-                                        {!isSeguradoraPreenchida && nomeEditando !== lead.ID && (
-                                            <button
-                                                onClick={() => setNomeEditando(lead.ID)}
-                                                className="p-1 text-gray-500 hover:text-indigo-600 rounded-full transition duration-150"
-                                                title="Editar Nome do Cliente"
-                                            >
-                                                <Edit size={16} />
-                                            </button>
-                                        )}
+                                        {/* O botão de edição foi removido */}
                                     </div>
                                     {/* <<< FIM NOVO: Lógica de Edição de Nome do Lead >>> */}
 
