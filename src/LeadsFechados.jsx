@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+// Ícone Edit estava faltando no import anterior, impedindo a renderização dos botões.
 import { RefreshCcw, Search, CheckCircle, DollarSign, Calendar, Edit, Save } from 'lucide-react';
 
 // ===============================================
