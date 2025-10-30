@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-// Ícone Edit estava faltando no import anterior, impedindo a renderização dos botões.
 import { RefreshCcw, Search, CheckCircle, DollarSign, Calendar, Edit, Save } from 'lucide-react';
 
 // ===============================================
@@ -17,9 +16,10 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     const [isLoading, setIsLoading] = useState(false);
     const [nomeInput, setNomeInput] = useState('');
 
-    // --- NOVOS ESTADOS PARA EDIÇÃO DE NOME ---
-    const [editingNameId, setEditingNameId] = useState(null);
-    const [temporaryName, setTemporaryName] = useState('');
+    // O estado 'editingNameId' e 'temporaryName' não é mais necessário para manter o campo sempre aberto, 
+    // mas vamos substituí-lo por 'editandoNomes' para gerenciar o valor da digitação em tempo real.
+    const [editandoNomes, setEditandoNomes] = useState({}); // { leadId: 'Novo Nome' }
+    
     // ------------------------------------------
 
     const getMesAnoAtual = () => {
@@ -197,6 +197,18 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             });
             return novasVigencias;
         });
+        
+        // Sincroniza o estado de edição de nome com os nomes atuais dos leads.
+        setEditandoNomes(prevNomes => {
+            const novosNomes = { ...prevNomes };
+            fechadosAtuais.forEach(lead => {
+                if (novosNomes[lead.ID] === undefined) {
+                    novosNomes[lead.ID] = lead.name;
+                }
+            });
+            return novosNomes;
+        });
+
 
         // ORDENAÇÃO
         const fechadosOrdenados = [...fechadosAtuais].sort((a, b) => {
@@ -228,25 +240,23 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     // --- FUNÇÕES DE HANDLER (NOVAS E EXISTENTES) ---
 
     // ************************************************************
-    // NOVOS HANDLERS PARA EDIÇÃO DE NOME
+    // NOVOS HANDLERS PARA EDIÇÃO DE NOME (SEMPRE ABERTA)
     // ************************************************************
-    const handleNameEdit = (leadId, currentName) => {
-        setEditingNameId(leadId);
-        setTemporaryName(currentName);
-    };
-
-    const handleNameChange = (valor) => {
-        setTemporaryName(valor);
+    const handleNameChange = (leadId, valor) => {
+        setEditandoNomes(prev => ({
+            ...prev,
+            [leadId]: valor,
+        }));
     };
 
     const handleNameSave = (leadId) => {
-        const newName = temporaryName.trim();
-        if (newName && newName !== leads.find(l => l.ID === leadId)?.name) {
+        const newName = editandoNomes[leadId] ? editandoNomes[leadId].trim() : '';
+        const originalName = leads.find(l => l.ID === leadId)?.name;
+
+        if (newName && newName !== originalName) {
             // Chama a função de atualização para salvar o novo nome na planilha/API
             onUpdateDetalhes(leadId, 'name', newName);
         }
-        setEditingNameId(null);
-        setTemporaryName('');
     };
     // ************************************************************
     // FIM DOS NOVOS HANDLERS DE NOME
@@ -598,41 +608,25 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                 {/* COLUNA 1: Informações do Lead */}
                                 <div className="col-span-1 border-b pb-4 lg:border-r lg:pb-0 lg:pr-6">
                                     
-                                    {/* LÓGICA DE EDIÇÃO DO NOME AQUI */}
+                                    {/* LÓGICA DE EDIÇÃO DO NOME (SEMPRE ABERTA) */}
                                     <div className="mb-2 flex items-center gap-2">
-                                        {editingNameId === lead.ID ? (
-                                            <>
-                                                <input
-                                                    type="text"
-                                                    value={temporaryName}
-                                                    onChange={(e) => handleNameChange(e.target.value)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') handleNameSave(lead.ID);
-                                                    }}
-                                                    className="text-xl font-bold text-gray-900 border border-indigo-300 rounded-lg p-1 w-full focus:ring-indigo-500 focus:border-indigo-500"
-                                                    autoFocus
-                                                />
-                                                <button
-                                                    onClick={() => handleNameSave(lead.ID)}
-                                                    className="p-2 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 transition duration-150 shadow-md disabled:bg-gray-400"
-                                                    disabled={!temporaryName.trim()}
-                                                    title="Salvar Nome"
-                                                >
-                                                    <Save size={18} />
-                                                </button>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <h3 className="text-xl font-bold text-gray-900 flex-1">{lead.name}</h3>
-                                                <button
-                                                    onClick={() => handleNameEdit(lead.ID, lead.name)}
-                                                    className="p-1 text-gray-500 hover:text-indigo-600 transition duration-150"
-                                                    title="Editar Nome do Lead"
-                                                >
-                                                    <Edit size={18} />
-                                                </button>
-                                            </>
-                                        )}
+                                        <input
+                                            type="text"
+                                            // Usa o estado de edição para manter o valor em tempo real
+                                            value={editandoNomes[lead.ID] || ''}
+                                            // Atualiza o estado de edição enquanto o usuário digita
+                                            onChange={(e) => handleNameChange(lead.ID, e.target.value)}
+                                            // Salva na API quando o usuário sai do campo
+                                            onBlur={() => handleNameSave(lead.ID)}
+                                            // Salva na API quando o usuário pressiona Enter
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.currentTarget.blur(); // Tira o foco para forçar o onBlur e salvar
+                                                }
+                                            }}
+                                            className="text-xl font-bold text-gray-900 border border-indigo-300 rounded-lg p-1 w-full focus:ring-indigo-500 focus:border-indigo-500"
+                                            title="Nome do Cliente (Editável)"
+                                        />
                                     </div>
                                     {/* FIM DA LÓGICA DE EDIÇÃO DO NOME */}
 
