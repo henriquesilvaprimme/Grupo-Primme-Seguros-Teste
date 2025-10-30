@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RefreshCcw, Search, CheckCircle, DollarSign, Calendar } from 'lucide-react';
+import { RefreshCcw, Search, CheckCircle, DollarSign, Calendar, Edit, Save } from 'lucide-react';
 
 // ===============================================
 // 1. COMPONENTE PRINCIPAL: LeadsFechados
@@ -15,6 +15,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     const [vigencia, setVigencia] = useState({});
     const [isLoading, setIsLoading] = useState(false);
     const [nomeInput, setNomeInput] = useState('');
+
+    // --- NOVOS ESTADOS PARA EDIÇÃO DE NOME ---
+    const [editingNameId, setEditingNameId] = useState(null);
+    const [temporaryName, setTemporaryName] = useState('');
+    // ------------------------------------------
 
     const getMesAnoAtual = () => {
         const hoje = new Date();
@@ -220,6 +225,31 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
 
 
     // --- FUNÇÕES DE HANDLER (NOVAS E EXISTENTES) ---
+
+    // ************************************************************
+    // NOVOS HANDLERS PARA EDIÇÃO DE NOME
+    // ************************************************************
+    const handleNameEdit = (leadId, currentName) => {
+        setEditingNameId(leadId);
+        setTemporaryName(currentName);
+    };
+
+    const handleNameChange = (valor) => {
+        setTemporaryName(valor);
+    };
+
+    const handleNameSave = (leadId) => {
+        const newName = temporaryName.trim();
+        if (newName && newName !== leads.find(l => l.ID === leadId)?.name) {
+            // Chama a função de atualização para salvar o novo nome na planilha/API
+            onUpdateDetalhes(leadId, 'name', newName);
+        }
+        setEditingNameId(null);
+        setTemporaryName('');
+    };
+    // ************************************************************
+    // FIM DOS NOVOS HANDLERS DE NOME
+    // ************************************************************
 
     const formatarMoeda = (valorCentavos) => {
         if (valorCentavos === null || isNaN(valorCentavos)) return '';
@@ -566,7 +596,44 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                             >
                                 {/* COLUNA 1: Informações do Lead */}
                                 <div className="col-span-1 border-b pb-4 lg:border-r lg:pb-0 lg:pr-6">
-                                    <h3 className="text-xl font-bold text-gray-900 mb-2">{lead.name}</h3>
+                                    
+                                    {/* LÓGICA DE EDIÇÃO DO NOME AQUI */}
+                                    <div className="mb-2 flex items-center gap-2">
+                                        {editingNameId === lead.ID ? (
+                                            <>
+                                                <input
+                                                    type="text"
+                                                    value={temporaryName}
+                                                    onChange={(e) => handleNameChange(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') handleNameSave(lead.ID);
+                                                    }}
+                                                    className="text-xl font-bold text-gray-900 border border-indigo-300 rounded-lg p-1 w-full focus:ring-indigo-500 focus:border-indigo-500"
+                                                    autoFocus
+                                                />
+                                                <button
+                                                    onClick={() => handleNameSave(lead.ID)}
+                                                    className="p-2 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 transition duration-150 shadow-md disabled:bg-gray-400"
+                                                    disabled={!temporaryName.trim()}
+                                                    title="Salvar Nome"
+                                                >
+                                                    <Save size={18} />
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <h3 className="text-xl font-bold text-gray-900 flex-1">{lead.name}</h3>
+                                                <button
+                                                    onClick={() => handleNameEdit(lead.ID, lead.name)}
+                                                    className="p-1 text-gray-500 hover:text-indigo-600 transition duration-150"
+                                                    title="Editar Nome do Lead"
+                                                >
+                                                    <Edit size={18} />
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                    {/* FIM DA LÓGICA DE EDIÇÃO DO NOME */}
 
                                     <div className="space-y-1 text-sm text-gray-700">
                                         <p><strong>Modelo:</strong> {lead.vehicleModel}</p>
@@ -645,79 +712,75 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                                 className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
                                             >
                                                 <option value=""> </option>
-                                                <option value="Sim">Sim</option>
-                                                <option value="Não">Não</option>
+                                                <option value="SIM">SIM</option>
+                                                <option value="NAO">NAO</option>
                                             </select>
                                         </div>
                                     )}
-                                    
-                                    {/* 4., 5., 6. Demais campos (Prêmio, Comissão, Parcelamento) */}
-                                    <div className="grid grid-cols-2 gap-3 mt-4"> {/* Adicionado mt-4 para espaçamento após os novos campos */}
-                                        {/* Prêmio Líquido (Input) */}
-                                        <div>
-                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Prêmio Líquido</label>
-                                            <div className="relative">
-                                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-sm">R$</span>
-                                                <input
-                                                    type="text"
-                                                    placeholder="0,00"
-                                                    value={premioLiquidoInputDisplay[`${lead.ID}`] || ''}
-                                                    onChange={(e) => handlePremioLiquidoChange(lead.ID, e.target.value)}
-                                                    onBlur={() => handlePremioLiquidoBlur(lead.ID)}
-                                                    disabled={isSeguradoraPreenchida}
-                                                    className="w-full p-2 pl-8 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500 text-right"
-                                                />
-                                            </div>
-                                        </div>
 
-                                        {/* Comissão (Input) - CAMPO AJUSTADO */}
-                                        <div>
-                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Comissão (%)</label>
-                                            <div className="relative">
-                                                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-sm">%</span>
-                                                <input
-                                                    type="text"
-                                                    placeholder="0,00"
-                                                    // >> MUDANÇA AQUI: Renderiza o valor do estado, que agora contém o "%"
-                                                    value={valores[`${lead.ID}`]?.Comissao || ''}
-                                                    onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
-                                                    onBlur={() => handleComissaoBlur(lead.ID)}
-                                                    disabled={isSeguradoraPreenchida}
-                                                    // >> MUDANÇA AQUI: Usa o padding à direita para o % fixo
-                                                    className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500 text-right"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* Parcelamento (Select) */}
-                                        <div className="col-span-2">
-                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Parcelamento</label>
-                                            <select
-                                                value={valores[`${lead.ID}`]?.Parcelamento || ''}
-                                                onChange={(e) => handleParcelamentoChange(lead.ID, e.target.value)}
+                                    {/* 4. Prêmio Líquido (Input Formatado) */}
+                                    <div className="mb-4">
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Prêmio Líquido</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-semibold">R$</span>
+                                            <input
+                                                type="text"
+                                                placeholder="0,00"
+                                                value={premioLiquidoInputDisplay[`${lead.ID}`] || ''}
+                                                onChange={(e) => handlePremioLiquidoChange(lead.ID, e.target.value)}
+                                                onBlur={() => handlePremioLiquidoBlur(lead.ID)}
                                                 disabled={isSeguradoraPreenchida}
-                                                className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
-                                            >
-                                                <option value="">Selecione o Parcelamento</option>
-                                                {[...Array(12)].map((_, i) => (
-                                                    <option key={i + 1} value={`${i + 1}`}>{i + 1}</option>
-                                                ))}
-                                            </select>
+                                                className="w-full p-2 pl-9 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed text-right focus:ring-green-500 focus:border-green-500"
+                                            />
                                         </div>
-                                        
+                                    </div>
+                                    
+                                    {/* 5. Comissão (Input Formatado) */}
+                                    <div className="mb-4">
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Comissão (%)</label>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                placeholder="0,00"
+                                                value={valores[`${lead.ID}`]?.Comissao || ''}
+                                                onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
+                                                onBlur={() => handleComissaoBlur(lead.ID)}
+                                                disabled={isSeguradoraPreenchida}
+                                                className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed text-right focus:ring-green-500 focus:border-green-500"
+                                            />
+                                            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-semibold">
+                                                {valores[`${lead.ID}`]?.Comissao && !valores[`${lead.ID}`]?.Comissao.endsWith('%') ? '%' : ''}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* 6. Parcelamento (Select) */}
+                                    <div className="mb-4">
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Parcelamento</label>
+                                        <select
+                                            value={valores[`${lead.ID}`]?.Parcelamento || ''}
+                                            onChange={(e) => handleParcelamentoChange(lead.ID, e.target.value)}
+                                            disabled={isSeguradoraPreenchida}
+                                            className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
+                                        >
+                                            <option value="">Selecione as parcelas</option>
+                                            {Array.from({ length: 12 }, (_, i) => i + 1).map(p => (
+                                                <option key={p} value={p}>{p}x</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
 
-                                {/* COLUNA 3: Vigência e Ação de Confirmação */}
-                                <div className="col-span-1 lg:pl-6">
+                                {/* COLUNA 3: Vigência e Ação */}
+                                <div className="col-span-1 lg:pl-6 pt-4 lg:pt-0">
                                     <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
                                         <Calendar size={18} className="mr-2 text-green-500" />
-                                        Vigência
+                                        Período de Vigência
                                     </h3>
 
-                                    {/* Vigência Início */}
+                                    {/* Vigência Inicial (Input Date) */}
                                     <div className="mb-4">
-                                        <label htmlFor={`vigencia-inicio-${lead.ID}`} className="text-xs font-semibold text-gray-600 block mb-1">Início</label>
+                                        <label htmlFor={`vigencia-inicio-${lead.ID}`} className="text-xs font-semibold text-gray-600 block mb-1">Início da Vigência</label>
                                         <input
                                             id={`vigencia-inicio-${lead.ID}`}
                                             type="date"
