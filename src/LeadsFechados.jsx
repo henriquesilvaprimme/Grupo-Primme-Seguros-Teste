@@ -637,9 +637,19 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                             className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
                                         >
                                             <option value="">Selecione a seguradora</option>
-                                            <option value="Porto Seguro">Porto Seguro</option>
-                                            <option value="Azul Seguros">Azul Seguros</option>
-                                            <option value="Itau Seguros">Itau Seguros</option>
+                                            <option value="Porto Seguro">Porto Seguro</option>
+                                            <option value="Azul Seguros">Azul Seguros</option>
+                                            <option value="Itau Seguros">Itau Seguros</option>
+                                            <option value="Tokio">Tokio</option>
+                                            <option value="Yelum">Yelum</option>
+                                            <option value="Bradesco">Bradesco</option>
+                                            <option value="Allianz">Allianz</option>
+                                            <option value="Suhai">Suhai</option>
+                                            <option value="Hdi">Hdi</option>
+                                            <option value="Zurich">Zurich</option>
+                                            <option value="Mitsui">Mitsui</option>
+                                            <option value="Mapfre">Mapfre</option>
+                                            <option value="Alfa">Alfa</option>
                                             <option value="Demais Seguradoras">Demais Seguradoras</option>
                                         </select>
                                     </div>
