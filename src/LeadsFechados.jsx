@@ -597,7 +597,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                                     className="text-xl font-bold text-gray-900 border border-indigo-300 rounded-lg p-1 focus:ring-indigo-500 focus:border-indigo-500"
                                                     // autoFocus removido para evitar problemas de foco em múltiplos componentes
                                                 />
-                                                <span className='text-xs text-gray-500 mt-1'>Clique fora ou Enter para salvar</span>
+                                                <span className='text-xs text-gray-500 mt-1'>Atualize o nome com o mesmo da proposta.</span>
                                             </div>
                                         )}
                                         {/* O botão de edição foi removido */}
