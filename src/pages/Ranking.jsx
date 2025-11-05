@@ -30,6 +30,26 @@ const Ranking = ({ usuarios }) => {
     return dataStr.slice(0, 7);
   };
 
+  // Normalização helper para o campo Seguradora (trim + lowercase)
+  const getSegNormalized = (seg) => {
+    return (seg || '').toString().trim().toLowerCase();
+  };
+
+  // Lista de seguradoras que devem ser contadas como "Demais Seguradoras"
+  const demaisSeguradorasLista = [
+    'tokio',
+    'yelum',
+    'suhai',
+    'allianz',
+    'bradesco',
+    'hdi',
+    'zurich',
+    'alfa',
+    'mitsui',
+    'mapfre',
+    'demais seguradoras', // inclui explicitamente o rótulo "Demais Seguradoras"
+  ];
+
   // Nova função para buscar dados e controlar o loader
   const handleRefresh = async () => {
     setIsLoading(true); // Ativa o loader
@@ -107,27 +127,15 @@ const Ranking = ({ usuarios }) => {
       return responsavelOk && statusOk && seguradoraOk && dataOk;
     });
 
-    // Lista de seguradoras que devem ser contadas como "Demais Seguradoras"
-  const demaisSeguradorasLista = [
-    'tokio',
-    'yelum',
-    'suhai',
-    'allianz',
-    'bradesco',
-    'hdi',
-    'zurich',
-    'alfa',
-    'mitsui',
-    'mapfre',
-    'demais seguradoras' // inclui explicitamente o rótulo "Demais Seguradoras"
-  ];
+    // Contagens normalizadas por seguradora
+    const porto = leadsUsuario.filter((l) => getSegNormalized(l.Seguradora) === 'porto seguro').length;
+    const azul = leadsUsuario.filter((l) => getSegNormalized(l.Seguradora) === 'azul seguros').length;
+    const itau = leadsUsuario.filter((l) => getSegNormalized(l.Seguradora) === 'itau seguros').length;
 
-    const getCount = (seguradora) =>
-      leadsUsuario.filter((l) => l.Seguradora === seguradora).length;
-
-    const porto = getCount('Porto Seguro');
-    const azul = getCount('Azul Seguros');
-    const itau = getCount('Itau Seguros');
+    // 'demais' conta qualquer lead cuja seguradora esteja na lista acima (case-insensitive)
+    const demais = leadsUsuario.filter((l) =>
+      demaisSeguradorasLista.includes(getSegNormalized(l.Seguradora))
+    ).length;
 
     const vendas = porto + azul + itau + demais;
 
