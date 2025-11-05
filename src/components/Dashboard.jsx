@@ -90,8 +90,8 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const portoSeguro = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
   const azulSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
   const itauSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
-  const demais = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Demais Seguradoras + Tokio').length;
-  const demais = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Tokio').length;
+  const demais = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
+  const Tokio = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Tokio').length;
 
   // O campo Vendas soma os contadores das seguradoras
   const leadsFechadosCount = portoSeguro + azulSeguros + itauSeguros + demais + Tokio;
