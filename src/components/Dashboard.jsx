@@ -91,10 +91,10 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const azulSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
   const itauSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
   const demais = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
-  const demais = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Tokio').length;
+  const Tokio = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Tokio').length;
 
   // O campo Vendas soma os contadores das seguradoras
-  const leadsFechadosCount = portoSeguro + azulSeguros + itauSeguros + demais;
+  const leadsFechadosCount = portoSeguro + azulSeguros + itauSeguros + demais + Tokio;
 
   // Soma de prêmio líquido e média ponderada de comissão
   const totalPremioLiquido = leadsFiltradosClosed.reduce(
