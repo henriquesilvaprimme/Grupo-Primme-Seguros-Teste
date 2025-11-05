@@ -107,13 +107,27 @@ const Ranking = ({ usuarios }) => {
       return responsavelOk && statusOk && seguradoraOk && dataOk;
     });
 
+    // Lista de seguradoras que devem ser contadas como "Demais Seguradoras"
+  const demaisSeguradorasLista = [
+    'tokio',
+    'yelum',
+    'suhai',
+    'allianz',
+    'bradesco',
+    'hdi',
+    'zurich',
+    'alfa',
+    'mitsui',
+    'mapfre',
+    'demais seguradoras' // inclui explicitamente o rótulo "Demais Seguradoras"
+  ];
+
     const getCount = (seguradora) =>
       leadsUsuario.filter((l) => l.Seguradora === seguradora).length;
 
     const porto = getCount('Porto Seguro');
     const azul = getCount('Azul Seguros');
     const itau = getCount('Itau Seguros');
-    const demais = getCount('Demais Seguradoras');
 
     const vendas = porto + azul + itau + demais;
 
