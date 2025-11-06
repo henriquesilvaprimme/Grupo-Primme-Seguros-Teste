@@ -1,25 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCcw } from 'lucide-react'; // Importado para o ícone de refresh
 
-const Ranking = ({ usuarios, currentUser: propCurrentUser }) => {
-  // Tenta obter currentUser da prop ou do localStorage (fallback)
-  const storedUser = (() => {
-    try {
-      return (
-        JSON.parse(localStorage.getItem('currentUser')) ||
-        JSON.parse(localStorage.getItem('usuario')) ||
-        JSON.parse(localStorage.getItem('user')) ||
-        null
-      );
-    } catch {
-      return null;
-    }
-  })();
-  const currentUser = propCurrentUser || storedUser;
-
+const Ranking = ({ usuarios }) => {
+  // Renomeado para isLoading para consistência com o outro componente
   const [isLoading, setIsLoading] = useState(true);
   const [dadosLeads, setLeads] = useState([]);
 
+  // Estado para filtro por mês/ano (formato yyyy-mm)
   const [dataInput, setDataInput] = useState(() => {
     const hoje = new Date();
     const ano = hoje.getFullYear();
@@ -29,37 +16,23 @@ const Ranking = ({ usuarios, currentUser: propCurrentUser }) => {
 
   const [filtroData, setFiltroData] = useState(dataInput);
 
+  // Função para converter data no formato dd/mm/aaaa para yyyy-mm-dd
   const converterDataParaISO = (dataStr) => {
     if (!dataStr) return '';
     if (dataStr.includes('/')) {
       const partes = dataStr.split('/');
       if (partes.length === 3) {
+        // dd/mm/aaaa -> yyyy-mm-dd
         return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
       }
     }
+    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo yyyy-mm
     return dataStr.slice(0, 7);
   };
 
-  const getSegNormalized = (seg) => {
-    return (seg || '').toString().trim().toLowerCase();
-  };
-
-  const demaisSeguradorasLista = [
-    'tokio',
-    'yelum',
-    'suhai',
-    'allianz',
-    'bradesco',
-    'hdi',
-    'zurich',
-    'alfa',
-    'mitsui',
-    'mapfre',
-    'demais seguradoras',
-  ];
-
+  // Nova função para buscar dados e controlar o loader
   const handleRefresh = async () => {
-    setIsLoading(true);
+    setIsLoading(true); // Ativa o loader
     try {
       const respostaLeads = await fetch(
         'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
@@ -70,14 +43,16 @@ const Ranking = ({ usuarios, currentUser: propCurrentUser }) => {
       console.error('Erro ao buscar dados:', error);
       setLeads([]);
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Desativa o loader
     }
   };
 
+  // Chama handleRefresh automaticamente quando o componente é montado (ou a aba é acessada)
   useEffect(() => {
     handleRefresh();
-  }, []);
+  }, []); // O array vazio de dependências garante que isso só rode uma vez na montagem
 
+  // Loader de carregamento de página completa
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-50">
@@ -87,46 +62,17 @@ const Ranking = ({ usuarios, currentUser: propCurrentUser }) => {
     );
   }
 
+  // Se não estiver carregando e houver erro, exibe a mensagem de erro (mantido do seu código anterior)
   if (!Array.isArray(usuarios) || !Array.isArray(dadosLeads)) {
     return <div style={{ padding: 20 }}>Erro: dados não carregados corretamente.</div>;
   }
 
-  if (!currentUser) {
-    return (
-      <div style={{ padding: 20 }}>
-        Usuário não identificado. Passe a prop <code>currentUser</code> ou armazene o usuário no <code>localStorage</code>.
-      </div>
-    );
-  }
-
-  // Critério de admin: campo tipo === 'Admin' (coluna G no Sheets) ou email admin@admin.com
-  const isAdmin = (currentUser.tipo && currentUser.tipo === 'Admin') ||
-                  (currentUser.email && currentUser.email === 'admin@admin.com');
-
-  // Se for admin: mostrar todos os usuários do sheets. Se não for admin: mostrar apenas o usuário logado.
-  let ativos;
-  if (isAdmin) {
-    // Mostrar todos (ou filtrar apenas por linhas que representem usuários: tipo === 'Admin' || tipo === 'Usuario')
-    ativos = usuarios.filter((u) => u && (u.tipo === 'Admin' || u.tipo === 'Usuario'));
-  } else {
-    // Mostrar somente o usuário logado (comparando por email, id ou nome)
-    ativos = usuarios.filter((u) => {
-      if (!u) return false;
-      const matchEmail = currentUser.email && u.email === currentUser.email;
-      const matchId = currentUser.id && u.id === currentUser.id;
-      const matchNome = currentUser.nome && u.nome === currentUser.nome;
-      return matchEmail || matchId || matchNome;
-    });
-  }
-
-  // Se não encontrou nenhum usuário (por exemplo, email não bater), informa ao usuário
-  if (ativos.length === 0) {
-    return (
-      <div style={{ padding: 20 }}>
-        Nenhum usuário encontrado para o usuário logado. Verifique se o e-mail/nome/id do usuário está corretamente cadastrado na aba "Usuarios" do Sheets.
-      </div>
-    );
-  }
+  const ativos = usuarios.filter(
+    (u) =>
+      u.status === 'Ativo' &&
+      u.email !== 'admin@admin.com' &&
+      u.tipo !== 'Admin'
+  );
 
   const formatarMoeda = (valor) =>
     valor?.toLocaleString('pt-BR', {
@@ -151,6 +97,7 @@ const Ranking = ({ usuarios, currentUser: propCurrentUser }) => {
   };
 
   const usuariosComContagem = ativos.map((usuario) => {
+    // Filtrar leads fechados do usuário com status "Fechado", seguradora preenchida e data dentro do filtro (yyyy-mm)
     const leadsUsuario = dadosLeads.filter((l) => {
       const responsavelOk = l.Responsavel === usuario.nome;
       const statusOk = l.Status === 'Fechado';
@@ -160,17 +107,20 @@ const Ranking = ({ usuarios, currentUser: propCurrentUser }) => {
       return responsavelOk && statusOk && seguradoraOk && dataOk;
     });
 
-    const porto = leadsUsuario.filter((l) => getSegNormalized(l.Seguradora) === 'porto seguro').length;
-    const azul = leadsUsuario.filter((l) => getSegNormalized(l.Seguradora) === 'azul seguros').length;
-    const itau = leadsUsuario.filter((l) => getSegNormalized(l.Seguradora) === 'itau seguros').length;
+    const getCount = (seguradora) =>
+      leadsUsuario.filter((l) => l.Seguradora === seguradora).length;
 
-    const demais = leadsUsuario.filter((l) =>
-      demaisSeguradorasLista.includes(getSegNormalized(l.Seguradora))
-    ).length;
+    const porto = getCount('Porto Seguro');
+    const azul = getCount('Azul Seguros');
+    const itau = getCount('Itau Seguros');
+    const demais = getCount('Demais Seguradoras');
 
     const vendas = porto + azul + itau + demais;
 
-    const premioLiquido = leadsUsuario.reduce((acc, curr) => acc + (Number(curr.PremioLiquido) || 0), 0);
+    const premioLiquido = leadsUsuario.reduce(
+      (acc, curr) => acc + (Number(curr.PremioLiquido) || 0),
+      0
+    );
 
     const somaPonderadaComissao = leadsUsuario.reduce((acc, lead) => {
       const premio = Number(lead.PremioLiquido) || 0;
@@ -178,7 +128,8 @@ const Ranking = ({ usuarios, currentUser: propCurrentUser }) => {
       return acc + premio * (comissao / 100);
     }, 0);
 
-    const comissaoMedia = premioLiquido > 0 ? (somaPonderadaComissao / premioLiquido) * 100 : 0;
+    const comissaoMedia =
+      premioLiquido > 0 ? (somaPonderadaComissao / premioLiquido) * 100 : 0;
 
     const leadsParcelamento = leadsUsuario.filter((l) => l.Parcelamento);
     let parcelamentoMedio = 0;
@@ -220,6 +171,8 @@ const Ranking = ({ usuarios, currentUser: propCurrentUser }) => {
   };
 
   const aplicarFiltroData = () => {
+    // Isso vai recalcular o ranking com base no novo filtro de dataInput
+    // O loader de página completa não se aplica aqui, pois os dados brutos já foram carregados.
     setFiltroData(dataInput);
   };
 
@@ -230,9 +183,12 @@ const Ranking = ({ usuarios, currentUser: propCurrentUser }) => {
 
         <button
           title="Clique para atualizar os dados"
-          onClick={handleRefresh}
+          onClick={handleRefresh} // Chamando a nova função handleRefresh
+          // Aqui, o botão também pode mostrar um spinner se quiser, assim como em GerenciarUsuarios
+          // mas para manter 'igual ao anterior sem mudar nada', deixarei apenas o ícone.
         >
-          {isLoading ? (
+          {/* Implementando o RefreshCcw do lucide-react para consistência */}
+          {isLoading ? ( // Mostra o spinner se estiver carregando
             <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -243,6 +199,7 @@ const Ranking = ({ usuarios, currentUser: propCurrentUser }) => {
         </button>
       </div>
 
+      {/* Filtro data: canto direito */}
       <div
         style={{
           display: 'flex',
@@ -308,7 +265,7 @@ const Ranking = ({ usuarios, currentUser: propCurrentUser }) => {
 
             return (
               <div
-                key={usuario.id || usuario.email || usuario.nome}
+                key={usuario.id}
                 style={{
                   position: 'relative',
                   border: '1px solid #ccc',
