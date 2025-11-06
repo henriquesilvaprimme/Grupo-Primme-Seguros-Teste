@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { RefreshCcw } from 'lucide-react';
+import { RefreshCcw } from 'lucide-react'; // Importado para o ícone de refresh
 
-// Ranking recebe currentUser { nome, tipo, email, usuario, id } (pelo menos nome e tipo)
-const Ranking = ({ currentUser }) => {
+const Ranking = ({ usuarios }) => {
+  // Renomeado para isLoading para consistência com o outro componente
   const [isLoading, setIsLoading] = useState(true);
-  const [usuarios, setUsuarios] = useState([]);
   const [dadosLeads, setLeads] = useState([]);
 
   // Estado para filtro por mês/ano (formato yyyy-mm)
@@ -14,68 +13,46 @@ const Ranking = ({ currentUser }) => {
     const mes = String(hoje.getMonth() + 1).padStart(2, '0');
     return `${ano}-${mes}`;
   });
+
   const [filtroData, setFiltroData] = useState(dataInput);
 
-  // Variáveis para determinar o contexto do usuário logado
-  const isAdmin = currentUser?.tipo === 'Admin';
-  const currentUserName = currentUser?.nome;
-
-  // Converte dd/mm/yyyy (ou dd/mm) para yyyy-mm-dd (ou retorna prefixo)
+  // Função para converter data no formato dd/mm/aaaa para yyyy-mm-dd
   const converterDataParaISO = (dataStr) => {
     if (!dataStr) return '';
-    if (typeof dataStr !== 'string') return '';
     if (dataStr.includes('/')) {
       const partes = dataStr.split('/');
       if (partes.length === 3) {
+        // dd/mm/aaaa -> yyyy-mm-dd
         return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
       }
     }
-    return dataStr.slice(0, 10);
+    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo yyyy-mm
+    return dataStr.slice(0, 7);
   };
 
-  // Faz fetch de usuários (filtrados pelo servidor quando possível) e dos leads
+  // Nova função para buscar dados e controlar o loader
   const handleRefresh = async () => {
-    setIsLoading(true);
+    setIsLoading(true); // Ativa o loader
     try {
-      // Monta query para getUsuariosAtivos: se não admin, envia userNome para que o GAS retorne apenas o próprio registro
-      const baseUrl = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec';
-      const paramsUsuarios = new URLSearchParams();
-      paramsUsuarios.append('v', 'getUsuariosAtivos');
-
-      if (isAdmin) {
-        paramsUsuarios.append('isAdmin', 'true');
-      } else if (currentUserName) {
-        paramsUsuarios.append('userNome', currentUserName);
-      } else if (currentUser?.email) {
-        paramsUsuarios.append('userEmail', currentUser.email);
-      } else if (currentUser?.usuario) {
-        paramsUsuarios.append('userUsuario', currentUser.usuario);
-      }
-
-      // Busca usuários
-      const respostaUsuarios = await fetch(`${baseUrl}?${paramsUsuarios.toString()}`);
-      const usuariosJson = await respostaUsuarios.json();
-      setUsuarios(Array.isArray(usuariosJson) ? usuariosJson : []);
-
-      // Busca leads (pegar_clientes_fechados retorna todos os leads; filtragem por usuário será feita localmente)
-      const respostaLeads = await fetch(`${baseUrl}?v=pegar_clientes_fechados`);
-      const leadsJson = await respostaLeads.json();
-      setLeads(Array.isArray(leadsJson) ? leadsJson : []);
+      const respostaLeads = await fetch(
+        'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
+      );
+      const dados = await respostaLeads.json();
+      setLeads(dados);
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
-      setUsuarios([]);
       setLeads([]);
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Desativa o loader
     }
   };
 
-  // Monta dados no mount
+  // Chama handleRefresh automaticamente quando o componente é montado (ou a aba é acessada)
   useEffect(() => {
     handleRefresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser]);
+  }, []); // O array vazio de dependências garante que isso só rode uma vez na montagem
 
+  // Loader de carregamento de página completa
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-50">
@@ -85,21 +62,17 @@ const Ranking = ({ currentUser }) => {
     );
   }
 
+  // Se não estiver carregando e houver erro, exibe a mensagem de erro (mantido do seu código anterior)
   if (!Array.isArray(usuarios) || !Array.isArray(dadosLeads)) {
     return <div style={{ padding: 20 }}>Erro: dados não carregados corretamente.</div>;
   }
 
-  // Se não for admin, garantimos que a lista de usuários contenha apenas o próprio usuário (por segurança)
-  const usuariosFiltradosParaRanking = isAdmin
-    ? usuarios.filter(u => u.nome && (u.status === 'Ativo' || u.tipo === 'Admin' || true)) // Admin vê todos (mantive flexível)
-    : usuarios.filter(u => {
-        // Preferir checar pelo nome (coluna C) — se currentUserName estiver disponível usamos ela
-        if (currentUserName) return String(u.nome).trim() === String(currentUserName).trim();
-        // fallback por usuario/login/email/id
-        if (currentUser?.usuario) return String(u.usuario).trim() === String(currentUser.usuario).trim();
-        if (currentUser?.email) return String(u.email).trim().toLowerCase() === String(currentUser.email).trim().toLowerCase();
-        return false;
-      });
+  const ativos = usuarios.filter(
+    (u) =>
+      u.status === 'Ativo' &&
+      u.email !== 'admin@admin.com' &&
+      u.tipo !== 'Admin'
+  );
 
   const formatarMoeda = (valor) =>
     valor?.toLocaleString('pt-BR', {
@@ -123,51 +96,55 @@ const Ranking = ({ currentUser }) => {
     return `${num}x`;
   };
 
-  const usuariosComContagem = usuariosFiltradosParaRanking.map((usuario) => {
-    // Filtrar leads do usuário com status "Fechado", seguradora e dentro do filtro (yyyy-mm)
+  const usuariosComContagem = ativos.map((usuario) => {
+    // Filtrar leads fechados do usuário com status "Fechado", seguradora preenchida e data dentro do filtro (yyyy-mm)
     const leadsUsuario = dadosLeads.filter((l) => {
-      const responsavelOk = String(l.Responsavel || l.responsavel || l['Responsavel']).trim() === String(usuario.nome).trim();
-      const statusOk = String(l.Status || l.status || l['Status']).trim() === 'Fechado';
-      const seguradoraOk = (l.Seguradora || l.seguradora || l['Seguradora']);
-      const seguradoraFilled = seguradoraOk && String(seguradoraOk).trim() !== '';
-      const dataISO = converterDataParaISO(l.Data || l.data || l['Data']);
-      const dataOk = !filtroData || (dataISO && dataISO.startsWith(filtroData));
-      return responsavelOk && statusOk && seguradoraFilled && dataOk;
+      const responsavelOk = l.Responsavel === usuario.nome;
+      const statusOk = l.Status === 'Fechado';
+      const seguradoraOk = l.Seguradora && l.Seguradora.trim() !== '';
+      const dataISO = converterDataParaISO(l.Data);
+      const dataOk = !filtroData || dataISO.startsWith(filtroData);
+      return responsavelOk && statusOk && seguradoraOk && dataOk;
     });
 
+    // Lista das seguradoras que compõem o contador 'Demais Seguradoras', conforme solicitado
     const SEGURADORAS_DEMAIS = [
       'Tokio', 'Yelum', 'Allianz', 'Suhai', 'Bradesco', 'Hdi',
       'Alfa', 'Zurich', 'Mitsui', 'Mapfre'
     ];
 
-    const porto = leadsUsuario.filter(l => String(l.Seguradora || l.seguradora || '').trim() === 'Porto Seguro').length;
-    const azul = leadsUsuario.filter(l => String(l.Seguradora || l.seguradora || '').trim() === 'Azul Seguros').length;
-    const itau = leadsUsuario.filter(l => String(l.Seguradora || l.seguradora || '').trim() === 'Itau Seguros').length;
-    const demais = leadsUsuario.filter(l => SEGURADORAS_DEMAIS.includes(String(l.Seguradora || l.seguradora || '').trim())).length;
+    // Contagem individual para as seguradoras principais
+    const porto = leadsUsuario.filter(l => l.Seguradora === 'Porto Seguro').length;
+    const azul = leadsUsuario.filter(l => l.Seguradora === 'Azul Seguros').length;
+    const itau = leadsUsuario.filter(l => l.Seguradora === 'Itau Seguros').length;
+
+    // Contagem para 'Demais Seguradoras', verificando se a seguradora do lead está na nova lista
+    const demais = leadsUsuario.filter(l => SEGURADORAS_DEMAIS.includes(l.Seguradora)).length;
 
     const vendas = porto + azul + itau + demais;
 
     const premioLiquido = leadsUsuario.reduce(
-      (acc, curr) => acc + (Number(curr.PremioLiquido || curr.premioLiquido || 0) || 0),
+      (acc, curr) => acc + (Number(curr.PremioLiquido) || 0),
       0
     );
 
     const somaPonderadaComissao = leadsUsuario.reduce((acc, lead) => {
-      const premio = Number(lead.PremioLiquido || lead.premioLiquido || 0) || 0;
-      const comissao = Number(lead.Comissao || lead.comissao || 0) || 0;
+      const premio = Number(lead.PremioLiquido) || 0;
+      const comissao = Number(lead.Comissao) || 0;
       return acc + premio * (comissao / 100);
     }, 0);
 
-    const comissaoMedia = premioLiquido > 0 ? (somaPonderadaComissao / premioLiquido) * 100 : 0;
+    const comissaoMedia =
+      premioLiquido > 0 ? (somaPonderadaComissao / premioLiquido) * 100 : 0;
 
-    const leadsParcelamento = leadsUsuario.filter((l) => l.Parcelamento || l.parcelamento);
+    const leadsParcelamento = leadsUsuario.filter((l) => l.Parcelamento);
     let parcelamentoMedio = 0;
     if (leadsParcelamento.length > 0) {
       const somaParcelamento = leadsParcelamento.reduce((acc, curr) => {
         const val =
           typeof curr.Parcelamento === 'string'
             ? parseInt(curr.Parcelamento.replace('x', ''), 10)
-            : Number(curr.Parcelamento || curr.parcelamento) || 0;
+            : Number(curr.Parcelamento) || 0;
         return acc + val;
       }, 0);
       parcelamentoMedio = Math.round(somaParcelamento / leadsParcelamento.length);
@@ -186,7 +163,6 @@ const Ranking = ({ currentUser }) => {
     };
   });
 
-  // Ordenação do ranking completo (mesmo critério)
   const rankingOrdenado = usuariosComContagem.sort((a, b) => {
     if (b.vendas !== a.vendas) return b.vendas - a.vendas;
     if (b.porto !== a.porto) return b.porto - a.porto;
@@ -195,28 +171,25 @@ const Ranking = ({ currentUser }) => {
     return b.demais - a.demais;
   });
 
-  // Se o usuário não for admin, exibimos apenas seu registro (se existir)
-  const rankingParaExibir = isAdmin
-    ? rankingOrdenado
-    : rankingOrdenado.filter(u => String(u.nome).trim() === String(currentUserName).trim());
-
   const getMedalha = (posicao) => {
     const medalhas = ['🥇', '🥈', '🥉'];
     return medalhas[posicao] || `${posicao + 1}º`;
   };
 
   const aplicarFiltroData = () => {
+    // Isso vai recalcular o ranking com base no novo filtro de dataInput
+    // O loader de página completa não se aplica aqui, pois os dados brutos já foram carregados.
     setFiltroData(dataInput);
   };
 
   return (
     <div style={{ padding: 20, position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <h1 style={{ margin: 0 }}>Ranking de Usuários {isAdmin ? '(Visão Admin)' : ''}</h1>
+        <h1 style={{ margin: 0 }}>Ranking de Usuários</h1>
 
         <button
           title="Clique para atualizar os dados"
-          onClick={handleRefresh}
+          onClick={handleRefresh} // Chamando a nova função handleRefresh
           style={{
             background: 'none',
             border: 'none',
@@ -225,10 +198,11 @@ const Ranking = ({ currentUser }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#3b82f6',
+            color: '#3b82f6', // Cor azul para o ícone
           }}
         >
-          {isLoading ? (
+          {/* Implementando o RefreshCcw do lucide-react para consistência */}
+          {isLoading ? ( // Mostra o spinner se estiver carregando
             <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -239,18 +213,62 @@ const Ranking = ({ currentUser }) => {
         </button>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '230px', justifyContent: 'flex-end', marginTop: '8px', marginBottom: '24px' }}>
-        <button onClick={aplicarFiltroData} style={{ backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 14px', cursor: 'pointer', whiteSpace: 'nowrap', marginRight: '8px' }}>
+      {/* Filtro data: canto direito */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          minWidth: '230px',
+          justifyContent: 'flex-end',
+          marginTop: '8px',
+          marginBottom: '24px',
+        }}
+      >
+        <button
+          onClick={aplicarFiltroData}
+          style={{
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            padding: '6px 14px',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            marginRight: '8px',
+          }}
+        >
           Filtrar
         </button>
-        <input type="month" value={dataInput} onChange={(e) => setDataInput(e.target.value)} style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #ccc', cursor: 'pointer', minWidth: '140px' }} title="Filtrar leads pela data (mês/ano)" onKeyDown={(e) => { if (e.key === 'Enter') aplicarFiltroData(); }} />
+        <input
+          type="month"
+          value={dataInput}
+          onChange={(e) => setDataInput(e.target.value)}
+          style={{
+            padding: '6px 10px',
+            borderRadius: '6px',
+            border: '1px solid #ccc',
+            cursor: 'pointer',
+            minWidth: '140px',
+          }}
+          title="Filtrar leads pela data (mês/ano)"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') aplicarFiltroData();
+          }}
+        />
       </div>
 
-      {rankingParaExibir.length === 0 ? (
+      {rankingOrdenado.length === 0 ? (
         <p>Nenhum usuário ativo com leads fechados para o período selecionado.</p>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(600px, 1fr))', gap: '24px' }}>
-          {rankingParaExibir.map((usuario, index) => {
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(600px, 1fr))',
+            gap: '24px',
+          }}
+        >
+          {rankingOrdenado.map((usuario, index) => {
             const contadores = [
               { label: 'Vendas', count: usuario.vendas, color: '#000' },
               { label: 'Porto Seguro', count: usuario.porto, color: '#1E90FF' },
@@ -259,42 +277,134 @@ const Ranking = ({ currentUser }) => {
               { label: 'Demais Seguradoras', count: usuario.demais, color: '#2E8B57' },
             ];
 
-            const displayRankIndex = index; // já está filtrado por permissão
-
             return (
-              <div key={usuario.id || usuario.usuario || usuario.nome} style={{ position: 'relative', border: '1px solid #ccc', borderRadius: '12px', padding: '24px', backgroundColor: '#fff', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
-                <div style={{ position: 'absolute', top: '12px', right: '12px', backgroundColor: '#333', color: '#fff', borderRadius: '8px', padding: '4px 10px', fontSize: '1.1rem', fontWeight: 'bold' }}>
-                  {getMedalha(displayRankIndex)}
+              <div
+                key={usuario.id}
+                style={{
+                  position: 'relative',
+                  border: '1px solid #ccc',
+                  borderRadius: '12px',
+                  padding: '24px',
+                  backgroundColor: '#fff',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '12px',
+                    backgroundColor: '#333',
+                    color: '#fff',
+                    borderRadius: '8px',
+                    padding: '4px 10px',
+                    fontSize: '1.1rem',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  {getMedalha(index)}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px', gap: '20px' }}>
-                  <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', color: '#888', flexShrink: 0 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginBottom: '24px',
+                    gap: '20px',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      backgroundColor: '#f0f0f0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '32px',
+                      color: '#888',
+                      flexShrink: 0,
+                    }}
+                  >
                     {usuario.nome?.charAt(0)?.toUpperCase() || '?'}
                   </div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>{usuario.nome || 'Sem Nome'}</div>
+                  <div
+                    style={{
+                      fontSize: '1.4rem',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    {usuario.nome || 'Sem Nome'}
+                  </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${contadores.length}, 1fr)`, textAlign: 'center', borderTop: '1px solid #eee', borderBottom: '1px solid #eee' }}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${contadores.length}, 1fr)`,
+                    textAlign: 'center',
+                    borderTop: '1px solid #eee',
+                    borderBottom: '1px solid #eee',
+                  }}
+                >
                   {contadores.map((item, idx) => (
-                    <div key={item.label} style={{ padding: '12px 8px', borderLeft: idx === 0 ? 'none' : '1px solid #eee', whiteSpace: 'nowrap' }}>
-                      <div style={{ fontWeight: '600', fontSize: '0.9rem', color: item.color }}>{item.label}</div>
-                      <div style={{ fontSize: '1.3rem', marginTop: '6px', fontWeight: 'bold' }}>{item.count}</div>
+                    <div
+                      key={item.label}
+                      style={{
+                        padding: '12px 8px',
+                        borderLeft: idx === 0 ? 'none' : '1px solid #eee',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontWeight: '600',
+                          fontSize: '0.9rem',
+                          color: item.color,
+                        }}
+                      >
+                        {item.label}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '1.3rem',
+                          marginTop: '6px',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        {item.count}
+                      </div>
                     </div>
                   ))}
                 </div>
 
-                <div style={{ textAlign: 'center', borderTop: '1px solid #eee', paddingTop: '12px', color: '#555', fontWeight: '600' }}>
+                <div
+                  style={{
+                    textAlign: 'center',
+                    borderTop: '1px solid #eee',
+                    paddingTop: '12px',
+                    color: '#555',
+                    fontWeight: '600',
+                  }}
+                >
                   <div style={{ marginBottom: '8px' }}>
                     <span>Prêmio Líquido: </span>
-                    <span style={{ fontWeight: 'bold' }}>{formatarMoeda(usuario.premioLiquido)}</span>
+                    <span style={{ fontWeight: 'bold' }}>
+                      {formatarMoeda(usuario.premioLiquido)}
+                    </span>
                   </div>
                   <div style={{ marginBottom: '8px' }}>
                     <span>Comissão: </span>
-                    <span style={{ fontWeight: 'bold' }}>{formatarComissao(usuario.comissao)}</span>
+                    <span style={{ fontWeight: 'bold' }}>
+                      {formatarComissao(usuario.comissao)}
+                    </span>
                   </div>
                   <div>
                     <span>Parcelamento: </span>
-                    <span style={{ fontWeight: 'bold' }}>{formatarParcelamento(usuario.parcelamento)}</span>
+                    <span style={{ fontWeight: 'bold' }}>
+                      {formatarParcelamento(usuario.parcelamento)}
+                    </span>
                   </div>
                 </div>
               </div>
