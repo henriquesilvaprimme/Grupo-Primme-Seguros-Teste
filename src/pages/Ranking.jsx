@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCcw } from 'lucide-react'; // Importado para o ícone de refresh
 
-const Ranking = ({ usuarios }) => {
+const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
   // Renomeado para isLoading para consistência com o outro componente
   const [isLoading, setIsLoading] = useState(true);
   const [dadosLeads, setLeads] = useState([]);
@@ -15,6 +15,22 @@ const Ranking = ({ usuarios }) => {
   });
 
   const [filtroData, setFiltroData] = useState(dataInput);
+
+  // Determina o usuário corrente (prop > localStorage)
+  let parsedLocalUser = null;
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
+    parsedLocalUser = raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    parsedLocalUser = null;
+  }
+  const currentUser = currentUserProp || parsedLocalUser || null;
+
+  const isAdmin = !!(
+    (currentUser && (String(currentUser.tipo || currentUser.userTipo || '').toLowerCase() === 'admin')) ||
+    (currentUser && currentUser.email && currentUser.email.toLowerCase() === 'admin@admin.com') ||
+    false
+  );
 
   // Função para converter data no formato dd/mm/aaaa para yyyy-mm-dd
   const converterDataParaISO = (dataStr) => {
@@ -50,6 +66,7 @@ const Ranking = ({ usuarios }) => {
   // Chama handleRefresh automaticamente quando o componente é montado (ou a aba é acessada)
   useEffect(() => {
     handleRefresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // O array vazio de dependências garante que isso só rode uma vez na montagem
 
   // Loader de carregamento de página completa
@@ -67,12 +84,45 @@ const Ranking = ({ usuarios }) => {
     return <div style={{ padding: 20 }}>Erro: dados não carregados corretamente.</div>;
   }
 
-  const ativos = usuarios.filter(
-    (u) =>
-      u.status === 'Ativo' &&
-      u.email !== 'admin@admin.com' &&
-      u.tipo !== 'Admin'
-  );
+  // Filtragem de usuários ativos:
+  // - Se Admin: mantemos a lista de ativos conforme antes.
+  // - Se Usuário comum: retornamos somente o próprio usuário (se encontrado e ativo).
+  const usuariosAtivosBase = usuarios || [];
+
+  let ativos = [];
+  if (isAdmin) {
+    ativos = usuariosAtivosBase.filter(
+      (u) =>
+        u.status === 'Ativo' &&
+        (String(u.email || '').toLowerCase() !== 'admin@admin.com') && // opcional: evita mostrar o admin como usuário comum
+        String((u.tipo || '')).toLowerCase() !== 'admin'
+    );
+  } else if (currentUser) {
+    // tenta encontrar por email, por id ou por nome (ordem de confiança)
+    const match = usuariosAtivosBase.find((u) => {
+      const uEmail = (u.email || '').toLowerCase();
+      const curEmail = (currentUser.email || '').toLowerCase();
+      const uId = String(u.id || u.ID || u.usuario || '');
+      const curId = String(currentUser.id || currentUser.ID || currentUser.usuario || '');
+      const uNome = String(u.nome || u.Nome || u.usuario || '').trim();
+      const curNome = String(currentUser.nome || currentUser.Nome || currentUser.usuario || '').trim();
+
+      if (curEmail && uEmail && uEmail === curEmail) return true;
+      if (curId && uId && uId === curId) return true;
+      if (curNome && uNome && uNome === curNome) return true;
+      return false;
+    });
+
+    if (match && String((match.status || '')).trim() === 'Ativo') {
+      ativos = [match];
+    } else {
+      // Se não encontrou ou não está ativo, ativos fica vazio — exibe mensagem no render
+      ativos = [];
+    }
+  } else {
+    // Sem currentUser conhecido e não admin: fallback para nenhum usuário
+    ativos = [];
+  }
 
   const formatarMoeda = (valor) =>
     valor?.toLocaleString('pt-BR', {
@@ -183,12 +233,9 @@ const Ranking = ({ usuarios }) => {
 
         <button
           title="Clique para atualizar os dados"
-          onClick={handleRefresh} // Chamando a nova função handleRefresh
-          // Aqui, o botão também pode mostrar um spinner se quiser, assim como em GerenciarUsuarios
-          // mas para manter 'igual ao anterior sem mudar nada', deixarei apenas o ícone.
+          onClick={handleRefresh}
         >
-          {/* Implementando o RefreshCcw do lucide-react para consistência */}
-          {isLoading ? ( // Mostra o spinner se estiver carregando
+          {isLoading ? (
             <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -245,7 +292,7 @@ const Ranking = ({ usuarios }) => {
       </div>
 
       {rankingOrdenado.length === 0 ? (
-        <p>Nenhum usuário ativo com leads fechados para o período selecionado.</p>
+        <p>{isAdmin ? 'Nenhum usuário ativo com leads fechados para o período selecionado.' : 'Nenhum ranking disponível para seu usuário no período selecionado.'}</p>
       ) : (
         <div
           style={{
@@ -265,7 +312,7 @@ const Ranking = ({ usuarios }) => {
 
             return (
               <div
-                key={usuario.id}
+                key={usuario.id || usuario.usuario || usuario.email || index}
                 style={{
                   position: 'relative',
                   border: '1px solid #ccc',
