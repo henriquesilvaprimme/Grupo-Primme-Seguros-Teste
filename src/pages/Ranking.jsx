@@ -107,13 +107,19 @@ const Ranking = ({ usuarios }) => {
       return responsavelOk && statusOk && seguradoraOk && dataOk;
     });
 
-    const getCount = (seguradora) =>
-      leadsUsuario.filter((l) => l.Seguradora === seguradora).length;
+    // Lista das seguradoras que compõem o contador 'Demais Seguradoras', conforme solicitado
+    const SEGURADORAS_DEMAIS = [
+      'Tokio', 'Yelum', 'Allianz', 'Suhai', 'Bradesco', 'Hdi',
+      'Alfa', 'Zurich', 'Mitsui', 'Mapfre'
+    ];
 
-    const porto = getCount('Porto Seguro');
-    const azul = getCount('Azul Seguros');
-    const itau = getCount('Itau Seguros');
-    const demais = getCount('Demais Seguradoras');
+    // Contagem individual para as seguradoras principais
+    const porto = leadsUsuario.filter(l => l.Seguradora === 'Porto Seguro').length;
+    const azul = leadsUsuario.filter(l => l.Seguradora === 'Azul Seguros').length;
+    const itau = leadsUsuario.filter(l => l.Seguradora === 'Itau Seguros').length;
+
+    // Contagem para 'Demais Seguradoras', verificando se a seguradora do lead está na nova lista
+    const demais = leadsUsuario.filter(l => SEGURADORAS_DEMAIS.includes(l.Seguradora)).length;
 
     const vendas = porto + azul + itau + demais;
 
@@ -184,8 +190,16 @@ const Ranking = ({ usuarios }) => {
         <button
           title="Clique para atualizar os dados"
           onClick={handleRefresh} // Chamando a nova função handleRefresh
-          // Aqui, o botão também pode mostrar um spinner se quiser, assim como em GerenciarUsuarios
-          // mas para manter 'igual ao anterior sem mudar nada', deixarei apenas o ícone.
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#3b82f6', // Cor azul para o ícone
+          }}
         >
           {/* Implementando o RefreshCcw do lucide-react para consistência */}
           {isLoading ? ( // Mostra o spinner se estiver carregando
