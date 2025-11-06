@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCcw } from 'lucide-react'; // Importado para o ícone de refresh
 
-const Ranking = ({ usuarios }) => {
+// Adicionando 'currentUser' nas props. Assumimos que este objeto contém 'nome' e 'tipo' do usuário logado.
+const Ranking = ({ usuarios, currentUser }) => {
   // Renomeado para isLoading para consistência com o outro componente
   const [isLoading, setIsLoading] = useState(true);
   const [dadosLeads, setLeads] = useState([]);
@@ -15,6 +16,10 @@ const Ranking = ({ usuarios }) => {
   });
 
   const [filtroData, setFiltroData] = useState(dataInput);
+
+  // Variáveis para determinar o contexto do usuário logado
+  const isAdmin = currentUser?.tipo === 'Admin';
+  const currentUserName = currentUser?.nome;
 
   // Função para converter data no formato dd/mm/aaaa para yyyy-mm-dd
   const converterDataParaISO = (dataStr) => {
@@ -62,11 +67,12 @@ const Ranking = ({ usuarios }) => {
     );
   }
 
-  // Se não estiver carregando e houver erro, exibe a mensagem de erro (mantido do seu código anterior)
+  // Se não estiver carregando e houver erro, exibe a mensagem de erro
   if (!Array.isArray(usuarios) || !Array.isArray(dadosLeads)) {
     return <div style={{ padding: 20 }}>Erro: dados não carregados corretamente.</div>;
   }
 
+  // Filtra apenas usuários ativos e que não são Admins (para o cálculo do ranking de vendas)
   const ativos = usuarios.filter(
     (u) =>
       u.status === 'Ativo' &&
@@ -107,7 +113,7 @@ const Ranking = ({ usuarios }) => {
       return responsavelOk && statusOk && seguradoraOk && dataOk;
     });
 
-    // Lista das seguradoras que compõem o contador 'Demais Seguradoras', conforme solicitado
+    // Lista das seguradoras que compõem o contador 'Demais Seguradoras'
     const SEGURADORAS_DEMAIS = [
       'Tokio', 'Yelum', 'Allianz', 'Suhai', 'Bradesco', 'Hdi',
       'Alfa', 'Zurich', 'Mitsui', 'Mapfre'
@@ -118,7 +124,7 @@ const Ranking = ({ usuarios }) => {
     const azul = leadsUsuario.filter(l => l.Seguradora === 'Azul Seguros').length;
     const itau = leadsUsuario.filter(l => l.Seguradora === 'Itau Seguros').length;
 
-    // Contagem para 'Demais Seguradoras', verificando se a seguradora do lead está na nova lista
+    // Contagem para 'Demais Seguradoras'
     const demais = leadsUsuario.filter(l => SEGURADORAS_DEMAIS.includes(l.Seguradora)).length;
 
     const vendas = porto + azul + itau + demais;
@@ -163,6 +169,7 @@ const Ranking = ({ usuarios }) => {
     };
   });
 
+  // Ordenação do ranking (completo, usado como base para todos)
   const rankingOrdenado = usuariosComContagem.sort((a, b) => {
     if (b.vendas !== a.vendas) return b.vendas - a.vendas;
     if (b.porto !== a.porto) return b.porto - a.porto;
@@ -171,6 +178,31 @@ const Ranking = ({ usuarios }) => {
     return b.demais - a.demais;
   });
 
+  // --- LÓGICA DE FILTRAGEM POR PERMISSÃO ---
+  let rankingParaExibir = rankingOrdenado;
+
+  if (!isAdmin && currentUserName) {
+    // 1. Encontra a posição real (index) do usuário comum no ranking completo
+    const originalIndex = rankingOrdenado.findIndex(
+      (usuario) => usuario.nome === currentUserName
+    );
+
+    if (originalIndex !== -1) {
+      // 2. Cria um array contendo apenas o usuário logado, mas injeta seu índice real
+      const currentUserEntry = rankingOrdenado[originalIndex];
+      rankingParaExibir = [{
+        ...currentUserEntry,
+        // Usamos uma propriedade interna para guardar a posição real
+        _originalIndex: originalIndex
+      }];
+    } else {
+      // 3. Se o usuário comum não for encontrado (ex: 0 vendas), a lista fica vazia
+      // e a mensagem de "Nenhum usuário ativo..." será exibida.
+      rankingParaExibir = [];
+    }
+  }
+  // -----------------------------------------
+
   const getMedalha = (posicao) => {
     const medalhas = ['🥇', '🥈', '🥉'];
     return medalhas[posicao] || `${posicao + 1}º`;
@@ -178,14 +210,16 @@ const Ranking = ({ usuarios }) => {
 
   const aplicarFiltroData = () => {
     // Isso vai recalcular o ranking com base no novo filtro de dataInput
-    // O loader de página completa não se aplica aqui, pois os dados brutos já foram carregados.
     setFiltroData(dataInput);
   };
+
+  // Se o usuário não for Admin e o ranking filtrado estiver vazio, e ele for um usuário ativo,
+  // podemos mostrar uma mensagem mais direcionada. No entanto, o `rankingParaExibir` vazio é suficiente.
 
   return (
     <div style={{ padding: 20, position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <h1 style={{ margin: 0 }}>Ranking de Usuários</h1>
+        <h1 style={{ margin: 0 }}>Ranking de Usuários {isAdmin ? '(Visão Admin)' : ''}</h1>
 
         <button
           title="Clique para atualizar os dados"
@@ -214,6 +248,7 @@ const Ranking = ({ usuarios }) => {
       </div>
 
       {/* Filtro data: canto direito */}
+      {/* O filtro é exibido para todos, mas o Admin vê o ranking completo. */}
       <div
         style={{
           display: 'flex',
@@ -258,7 +293,7 @@ const Ranking = ({ usuarios }) => {
         />
       </div>
 
-      {rankingOrdenado.length === 0 ? (
+      {rankingParaExibir.length === 0 ? (
         <p>Nenhum usuário ativo com leads fechados para o período selecionado.</p>
       ) : (
         <div
@@ -268,7 +303,7 @@ const Ranking = ({ usuarios }) => {
             gap: '24px',
           }}
         >
-          {rankingOrdenado.map((usuario, index) => {
+          {rankingParaExibir.map((usuario, index) => {
             const contadores = [
               { label: 'Vendas', count: usuario.vendas, color: '#000' },
               { label: 'Porto Seguro', count: usuario.porto, color: '#1E90FF' },
@@ -276,6 +311,10 @@ const Ranking = ({ usuarios }) => {
               { label: 'Azul Seguros', count: usuario.azul, color: '#003366' },
               { label: 'Demais Seguradoras', count: usuario.demais, color: '#2E8B57' },
             ];
+            
+            // Determina a posição a ser exibida: usa o index do map se for Admin,
+            // ou a posição real (_originalIndex) se for Usuário comum.
+            const displayRankIndex = isAdmin ? index : usuario._originalIndex;
 
             return (
               <div
@@ -302,7 +341,7 @@ const Ranking = ({ usuarios }) => {
                     fontWeight: 'bold',
                   }}
                 >
-                  {getMedalha(index)}
+                  {getMedalha(displayRankIndex)}
                 </div>
 
                 <div
