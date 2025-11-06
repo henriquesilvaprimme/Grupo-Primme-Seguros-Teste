@@ -277,7 +277,6 @@ const Dashboard = ({ leads, usuarioLogado }) => {
           </div>
 
           {/* Somente para Admin: linha de Prêmio Líquido e Comissão */}
-          {usuarioLogado.tipo === 'Admin' && (
             <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
               <div style={{ ...boxStyle, backgroundColor: '#3f51b5' }}>
                 <h3>Total Prêmio Líquido</h3>
