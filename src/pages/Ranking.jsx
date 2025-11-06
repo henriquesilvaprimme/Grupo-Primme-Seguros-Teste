@@ -1,45 +1,39 @@
 import React, { useEffect, useState } from 'react';
-import { RefreshCcw } from 'lucide-react';
+import { RefreshCcw } from 'lucide-react'; // Importado para o ícone de refresh
 
-const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
+const Ranking = ({ usuarios }) => {
+  // Renomeado para isLoading para consistência com o outro componente
   const [isLoading, setIsLoading] = useState(true);
   const [dadosLeads, setLeads] = useState([]);
 
+  // Estado para filtro por mês/ano (formato yyyy-mm)
   const [dataInput, setDataInput] = useState(() => {
     const hoje = new Date();
     const ano = hoje.getFullYear();
     const mes = String(hoje.getMonth() + 1).padStart(2, '0');
     return `${ano}-${mes}`;
   });
+
   const [filtroData, setFiltroData] = useState(dataInput);
 
-  // Pega currentUser (prop > localStorage.currentUser)
-  let parsedLocalUser = null;
-  try {
-    const raw = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
-    parsedLocalUser = raw ? JSON.parse(raw) : null;
-  } catch (err) {
-    parsedLocalUser = null;
-  }
-  const currentUser = currentUserProp || parsedLocalUser || null;
-
-  const isAdmin = !!(currentUser && String((currentUser.tipo || '')).toLowerCase() === 'admin');
-
+  // Função para converter data no formato dd/mm/aaaa para yyyy-mm-dd
   const converterDataParaISO = (dataStr) => {
     if (!dataStr) return '';
     if (dataStr.includes('/')) {
       const partes = dataStr.split('/');
       if (partes.length === 3) {
+        // dd/mm/aaaa -> yyyy-mm-dd
         return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
       }
     }
+    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo yyyy-mm
     return dataStr.slice(0, 7);
   };
 
+  // Nova função para buscar dados e controlar o loader
   const handleRefresh = async () => {
-    setIsLoading(true);
+    setIsLoading(true); // Ativa o loader
     try {
-      // Mantive pegar_clientes_fechados para buscar leads; usuarios vem do parent (ou de getUsuariosAtivos)
       const respostaLeads = await fetch(
         'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
       );
@@ -49,15 +43,16 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
       console.error('Erro ao buscar dados:', error);
       setLeads([]);
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Desativa o loader
     }
   };
 
+  // Chama handleRefresh automaticamente quando o componente é montado (ou a aba é acessada)
   useEffect(() => {
     handleRefresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // O array vazio de dependências garante que isso só rode uma vez na montagem
 
+  // Loader de carregamento de página completa
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-50">
@@ -67,38 +62,17 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
     );
   }
 
+  // Se não estiver carregando e houver erro, exibe a mensagem de erro (mantido do seu código anterior)
   if (!Array.isArray(usuarios) || !Array.isArray(dadosLeads)) {
     return <div style={{ padding: 20 }}>Erro: dados não carregados corretamente.</div>;
   }
 
-  // Monta lista de ativos conforme regra (usar coluna F = status, G = tipo)
-  const usuariosAtivosBase = usuarios || [];
-
-  let ativos = [];
-  if (isAdmin) {
-    // Admin vê TODOS os Usuários com status 'Ativo' (inclui Admins também se quiser)
-    ativos = usuariosAtivosBase.filter((u) => String(u.status || '').trim() === 'Ativo');
-  } else if (currentUser) {
-    // Usuário comum vê apenas seu próprio registro (por id ou usuario)
-    const match = usuariosAtivosBase.find((u) => {
-      const uId = String(u.id || '').trim();
-      const curId = String(currentUser.id || '').trim();
-      const uUsuario = String(u.usuario || '').trim();
-      const curUsuario = String(currentUser.usuario || currentUser.usuarioLogin || '').trim();
-
-      if (curId && uId && uId === curId) return true;
-      if (curUsuario && uUsuario && uUsuario === curUsuario) return true;
-      return false;
-    });
-
-    if (match && String((match.status || '')).trim() === 'Ativo') {
-      ativos = [match];
-    } else {
-      ativos = [];
-    }
-  } else {
-    ativos = [];
-  }
+  const ativos = usuarios.filter(
+    (u) =>
+      u.status === 'Ativo' &&
+      u.email !== 'admin@admin.com' &&
+      u.tipo !== 'Admin'
+  );
 
   const formatarMoeda = (valor) =>
     valor?.toLocaleString('pt-BR', {
@@ -123,9 +97,9 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
   };
 
   const usuariosComContagem = ativos.map((usuario) => {
+    // Filtrar leads fechados do usuário com status "Fechado", seguradora preenchida e data dentro do filtro (yyyy-mm)
     const leadsUsuario = dadosLeads.filter((l) => {
-      // Agora o responsável nos leads deve ser igual ao campo 'usuario' da aba Usuarios (coluna B)
-      const responsavelOk = l.Responsavel === usuario.usuario;
+      const responsavelOk = l.Responsavel === usuario.nome;
       const statusOk = l.Status === 'Fechado';
       const seguradoraOk = l.Seguradora && l.Seguradora.trim() !== '';
       const dataISO = converterDataParaISO(l.Data);
@@ -197,6 +171,8 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
   };
 
   const aplicarFiltroData = () => {
+    // Isso vai recalcular o ranking com base no novo filtro de dataInput
+    // O loader de página completa não se aplica aqui, pois os dados brutos já foram carregados.
     setFiltroData(dataInput);
   };
 
@@ -207,9 +183,12 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
 
         <button
           title="Clique para atualizar os dados"
-          onClick={handleRefresh}
+          onClick={handleRefresh} // Chamando a nova função handleRefresh
+          // Aqui, o botão também pode mostrar um spinner se quiser, assim como em GerenciarUsuarios
+          // mas para manter 'igual ao anterior sem mudar nada', deixarei apenas o ícone.
         >
-          {isLoading ? (
+          {/* Implementando o RefreshCcw do lucide-react para consistência */}
+          {isLoading ? ( // Mostra o spinner se estiver carregando
             <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -220,6 +199,7 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
         </button>
       </div>
 
+      {/* Filtro data: canto direito */}
       <div
         style={{
           display: 'flex',
@@ -265,7 +245,7 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
       </div>
 
       {rankingOrdenado.length === 0 ? (
-        <p>{isAdmin ? 'Nenhum usuário ativo com leads fechados para o período selecionado.' : 'Nenhum ranking disponível para seu usuário no período selecionado.'}</p>
+        <p>Nenhum usuário ativo com leads fechados para o período selecionado.</p>
       ) : (
         <div
           style={{
@@ -285,7 +265,7 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
 
             return (
               <div
-                key={usuario.id || usuario.usuario || index}
+                key={usuario.id}
                 style={{
                   position: 'relative',
                   border: '1px solid #ccc',
@@ -333,7 +313,7 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
                       flexShrink: 0,
                     }}
                   >
-                    {usuario.usuario?.charAt(0)?.toUpperCase() || '?'}
+                    {usuario.nome?.charAt(0)?.toUpperCase() || '?'}
                   </div>
                   <div
                     style={{
@@ -341,7 +321,7 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
                       fontWeight: 'bold',
                     }}
                   >
-                    {usuario.usuario || 'Sem Usuário'}
+                    {usuario.nome || 'Sem Nome'}
                   </div>
                 </div>
 
