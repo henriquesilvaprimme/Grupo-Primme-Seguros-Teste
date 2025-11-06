@@ -1,22 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { RefreshCcw } from 'lucide-react'; // Importado para o ícone de refresh
+import { RefreshCcw } from 'lucide-react';
 
 const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
-  // Renomeado para isLoading para consistência com o outro componente
   const [isLoading, setIsLoading] = useState(true);
   const [dadosLeads, setLeads] = useState([]);
 
-  // Estado para filtro por mês/ano (formato yyyy-mm)
   const [dataInput, setDataInput] = useState(() => {
     const hoje = new Date();
     const ano = hoje.getFullYear();
     const mes = String(hoje.getMonth() + 1).padStart(2, '0');
     return `${ano}-${mes}`;
   });
-
   const [filtroData, setFiltroData] = useState(dataInput);
 
-  // Determina o usuário corrente (prop > localStorage)
+  // Pega currentUser (prop > localStorage.currentUser)
   let parsedLocalUser = null;
   try {
     const raw = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
@@ -26,30 +23,23 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
   }
   const currentUser = currentUserProp || parsedLocalUser || null;
 
-  const isAdmin = !!(
-    (currentUser && (String(currentUser.tipo || currentUser.userTipo || '').toLowerCase() === 'admin')) ||
-    (currentUser && currentUser.email && currentUser.email.toLowerCase() === 'admin@admin.com') ||
-    false
-  );
+  const isAdmin = !!(currentUser && String((currentUser.tipo || '')).toLowerCase() === 'admin');
 
-  // Função para converter data no formato dd/mm/aaaa para yyyy-mm-dd
   const converterDataParaISO = (dataStr) => {
     if (!dataStr) return '';
     if (dataStr.includes('/')) {
       const partes = dataStr.split('/');
       if (partes.length === 3) {
-        // dd/mm/aaaa -> yyyy-mm-dd
         return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
       }
     }
-    // Se já estiver em formato ISO ou outro, tentar retornar só o prefixo yyyy-mm
     return dataStr.slice(0, 7);
   };
 
-  // Nova função para buscar dados e controlar o loader
   const handleRefresh = async () => {
-    setIsLoading(true); // Ativa o loader
+    setIsLoading(true);
     try {
+      // Mantive pegar_clientes_fechados para buscar leads; usuarios vem do parent (ou de getUsuariosAtivos)
       const respostaLeads = await fetch(
         'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_clientes_fechados'
       );
@@ -59,17 +49,15 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
       console.error('Erro ao buscar dados:', error);
       setLeads([]);
     } finally {
-      setIsLoading(false); // Desativa o loader
+      setIsLoading(false);
     }
   };
 
-  // Chama handleRefresh automaticamente quando o componente é montado (ou a aba é acessada)
   useEffect(() => {
     handleRefresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // O array vazio de dependências garante que isso só rode uma vez na montagem
+  }, []);
 
-  // Loader de carregamento de página completa
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-50">
@@ -79,48 +67,36 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
     );
   }
 
-  // Se não estiver carregando e houver erro, exibe a mensagem de erro (mantido do seu código anterior)
   if (!Array.isArray(usuarios) || !Array.isArray(dadosLeads)) {
     return <div style={{ padding: 20 }}>Erro: dados não carregados corretamente.</div>;
   }
 
-  // Filtragem de usuários ativos:
-  // - Se Admin: mantemos a lista de ativos conforme antes.
-  // - Se Usuário comum: retornamos somente o próprio usuário (se encontrado e ativo).
+  // Monta lista de ativos conforme regra (usar coluna F = status, G = tipo)
   const usuariosAtivosBase = usuarios || [];
 
   let ativos = [];
   if (isAdmin) {
-    ativos = usuariosAtivosBase.filter(
-      (u) =>
-        u.status === 'Ativo' &&
-        (String(u.email || '').toLowerCase() !== 'admin@admin.com') && // opcional: evita mostrar o admin como usuário comum
-        String((u.tipo || '')).toLowerCase() !== 'admin'
-    );
+    // Admin vê TODOS os Usuários com status 'Ativo' (inclui Admins também se quiser)
+    ativos = usuariosAtivosBase.filter((u) => String(u.status || '').trim() === 'Ativo');
   } else if (currentUser) {
-    // tenta encontrar por email, por id ou por nome (ordem de confiança)
+    // Usuário comum vê apenas seu próprio registro (por id ou usuario)
     const match = usuariosAtivosBase.find((u) => {
-      const uEmail = (u.email || '').toLowerCase();
-      const curEmail = (currentUser.email || '').toLowerCase();
-      const uId = String(u.id || u.ID || u.usuario || '');
-      const curId = String(currentUser.id || currentUser.ID || currentUser.usuario || '');
-      const uNome = String(u.nome || u.Nome || u.usuario || '').trim();
-      const curNome = String(currentUser.nome || currentUser.Nome || currentUser.usuario || '').trim();
+      const uId = String(u.id || '').trim();
+      const curId = String(currentUser.id || '').trim();
+      const uUsuario = String(u.usuario || '').trim();
+      const curUsuario = String(currentUser.usuario || currentUser.usuarioLogin || '').trim();
 
-      if (curEmail && uEmail && uEmail === curEmail) return true;
       if (curId && uId && uId === curId) return true;
-      if (curNome && uNome && uNome === curNome) return true;
+      if (curUsuario && uUsuario && uUsuario === curUsuario) return true;
       return false;
     });
 
     if (match && String((match.status || '')).trim() === 'Ativo') {
       ativos = [match];
     } else {
-      // Se não encontrou ou não está ativo, ativos fica vazio — exibe mensagem no render
       ativos = [];
     }
   } else {
-    // Sem currentUser conhecido e não admin: fallback para nenhum usuário
     ativos = [];
   }
 
@@ -147,9 +123,9 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
   };
 
   const usuariosComContagem = ativos.map((usuario) => {
-    // Filtrar leads fechados do usuário com status "Fechado", seguradora preenchida e data dentro do filtro (yyyy-mm)
     const leadsUsuario = dadosLeads.filter((l) => {
-      const responsavelOk = l.Responsavel === usuario.nome;
+      // Agora o responsável nos leads deve ser igual ao campo 'usuario' da aba Usuarios (coluna B)
+      const responsavelOk = l.Responsavel === usuario.usuario;
       const statusOk = l.Status === 'Fechado';
       const seguradoraOk = l.Seguradora && l.Seguradora.trim() !== '';
       const dataISO = converterDataParaISO(l.Data);
@@ -221,8 +197,6 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
   };
 
   const aplicarFiltroData = () => {
-    // Isso vai recalcular o ranking com base no novo filtro de dataInput
-    // O loader de página completa não se aplica aqui, pois os dados brutos já foram carregados.
     setFiltroData(dataInput);
   };
 
@@ -246,7 +220,6 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
         </button>
       </div>
 
-      {/* Filtro data: canto direito */}
       <div
         style={{
           display: 'flex',
@@ -312,7 +285,7 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
 
             return (
               <div
-                key={usuario.id || usuario.usuario || usuario.email || index}
+                key={usuario.id || usuario.usuario || index}
                 style={{
                   position: 'relative',
                   border: '1px solid #ccc',
@@ -360,7 +333,7 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
                       flexShrink: 0,
                     }}
                   >
-                    {usuario.nome?.charAt(0)?.toUpperCase() || '?'}
+                    {usuario.usuario?.charAt(0)?.toUpperCase() || '?'}
                   </div>
                   <div
                     style={{
@@ -368,7 +341,7 @@ const Ranking = ({ usuarios, currentUser: currentUserProp }) => {
                       fontWeight: 'bold',
                     }}
                   >
-                    {usuario.nome || 'Sem Nome'}
+                    {usuario.usuario || 'Sem Usuário'}
                   </div>
                 </div>
 
