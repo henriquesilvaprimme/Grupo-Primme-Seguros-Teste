@@ -20,7 +20,6 @@ const Ranking = ({ usuarios, currentUser: propCurrentUser }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [dadosLeads, setLeads] = useState([]);
 
-  // Estado para filtro por mês/ano (formato yyyy-mm)
   const [dataInput, setDataInput] = useState(() => {
     const hoje = new Date();
     const ano = hoje.getFullYear();
@@ -92,7 +91,6 @@ const Ranking = ({ usuarios, currentUser: propCurrentUser }) => {
     return <div style={{ padding: 20 }}>Erro: dados não carregados corretamente.</div>;
   }
 
-  // Se não achou currentUser e não é admin, avisa para logar (pode adaptar para comportamento desejado)
   if (!currentUser) {
     return (
       <div style={{ padding: 20 }}>
@@ -101,23 +99,33 @@ const Ranking = ({ usuarios, currentUser: propCurrentUser }) => {
     );
   }
 
-  const isAdmin =
-    (currentUser.tipo && currentUser.tipo === 'Admin') ||
-    (currentUser.email && currentUser.email === 'admin@admin.com');
+  // Critério de admin: campo tipo === 'Admin' (coluna G no Sheets) ou email admin@admin.com
+  const isAdmin = (currentUser.tipo && currentUser.tipo === 'Admin') ||
+                  (currentUser.email && currentUser.email === 'admin@admin.com');
 
-  // Se for admin: mostra todos usuários ativos; se não for admin: mostra apenas o usuário logado (se ativo)
+  // Se for admin: mostrar todos os usuários do sheets. Se não for admin: mostrar apenas o usuário logado.
   let ativos;
   if (isAdmin) {
-    ativos = usuarios.filter((u) => u.status === 'Ativo');
+    // Mostrar todos (ou filtrar apenas por linhas que representem usuários: tipo === 'Admin' || tipo === 'Usuario')
+    ativos = usuarios.filter((u) => u && (u.tipo === 'Admin' || u.tipo === 'Usuario'));
   } else {
+    // Mostrar somente o usuário logado (comparando por email, id ou nome)
     ativos = usuarios.filter((u) => {
-      if (u.status !== 'Ativo') return false;
-      // Tenta casar por email -> id -> nome
-      if (currentUser.email && u.email === currentUser.email) return true;
-      if (currentUser.id && u.id === currentUser.id) return true;
-      if (currentUser.nome && u.nome === currentUser.nome) return true;
-      return false;
+      if (!u) return false;
+      const matchEmail = currentUser.email && u.email === currentUser.email;
+      const matchId = currentUser.id && u.id === currentUser.id;
+      const matchNome = currentUser.nome && u.nome === currentUser.nome;
+      return matchEmail || matchId || matchNome;
     });
+  }
+
+  // Se não encontrou nenhum usuário (por exemplo, email não bater), informa ao usuário
+  if (ativos.length === 0) {
+    return (
+      <div style={{ padding: 20 }}>
+        Nenhum usuário encontrado para o usuário logado. Verifique se o e-mail/nome/id do usuário está corretamente cadastrado na aba "Usuarios" do Sheets.
+      </div>
+    );
   }
 
   const formatarMoeda = (valor) =>
