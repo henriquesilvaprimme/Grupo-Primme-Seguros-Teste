@@ -284,7 +284,8 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                   {totalPremioLiquido.toLocaleString('pt-BR', {
                     style: 'currency',
                     currency: 'BRL',
-                  }}
+                   </div>
+                  )}
                   
                 </p>
               </div>
