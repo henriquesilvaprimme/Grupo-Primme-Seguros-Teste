@@ -73,21 +73,22 @@ const Sidebar = ({ nomeUsuario }) => {
           Buscar Lead
         </NavLink>
 
-        <NavLink
-          to="/ranking"
-          className={({ isActive }) =>
-            `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
-              isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
-            }`
-          }
-        >
-          <Trophy size={20} />
-          Ranking
-        </NavLink>
-
         {isAdmin && (
           <>
-            {/* Novo link para Criar Lead */}
+            {/* NOVO: Link para Ranking visível SÓ para Admin */}
+            <NavLink
+              to="/ranking"
+              className={({ isActive }) =>
+                `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
+                  isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
+                }`
+              }
+            >
+              <Trophy size={20} />
+              Ranking
+            </NavLink>
+            
+            {/* Link para Criar Lead */}
             <NavLink
               to="/criar-lead"
               className={({ isActive }) =>
