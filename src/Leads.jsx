@@ -474,7 +474,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           null
         ) : gerais.length === 0 ? (
           <div className="bg-white rounded-xl shadow-md p-6 text-center">
-            <p className="text-xl font-medium text-gray-600">Não há leads pendentes para os filtros aplicados. 🧐</p>
+            <p className="text-xl font-medium text-gray-600">Você não tem nenhum lead, aguarde. 🧐</p>
           </div>
         ) : (
           <>
