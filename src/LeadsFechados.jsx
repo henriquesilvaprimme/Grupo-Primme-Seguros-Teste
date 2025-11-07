@@ -538,7 +538,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             <div className="space-y-5">
                 {fechadosFiltradosInterno.length === 0 && !isLoading ? (
                     <div className="text-center p-12 bg-white rounded-xl shadow-md text-gray-600 text-lg">
-                        <p> Você não tem nenhum cliente renovado no período filtrado. </p>
+                        <p> Você ainda não tem nenhum fechamento, mas logo terá! 😉  </p>
                     </div>
                 ) : (
                     leadsPagina.map((lead) => {
