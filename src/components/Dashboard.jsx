@@ -117,6 +117,12 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   // O campo Vendas soma os contadores das seguradoras
   const leadsFechadosCount = portoSeguro + azulSeguros + itauSeguros + demais;
 
+  // CÁLCULO DA TAXA DE CONVERSÃO (Nova lógica)
+  const taxaConversao =
+    totalLeads > 0
+      ? Math.round((leadsFechadosCount / totalLeads) * 100) // Calcula, multiplica por 100 e arredonda
+      : 0;
+
   // Soma de prêmio líquido e média ponderada de comissão
   const totalPremioLiquido = leadsFiltradosClosed.reduce(
     (acc, lead) => acc + (Number(lead.PremioLiquido) || 0),
@@ -238,6 +244,12 @@ const Dashboard = ({ leads, usuarioLogado }) => {
               <h3>Total de Leads</h3>
               <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{totalLeads}</p>
             </div>
+            {/* NOVO COTADO: TAXA DE CONVERSÃO */}
+            <div style={{ ...boxStyle, backgroundColor: '#9C27B0' }}> {/* Nova cor para destacar */}
+              <h3>Taxa de Conversão</h3>
+              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{taxaConversao}%</p>
+            </div>
+            {/* FIM DO NOVO COTADO */}
             <div style={{ ...boxStyle, backgroundColor: '#4CAF50' }}>
               <h3>Vendas</h3>
               <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsFechadosCount}</p>
@@ -284,10 +296,10 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                   {totalPremioLiquido.toLocaleString('pt-BR', {
                     style: 'currency',
                     currency: 'BRL',
-                   })}
+                  })}
                 </p>
               </div>
-                  
+                 
               <div style={{ ...boxStyle, backgroundColor: '#009688' }}>
                 <h3>Média Comissão</h3>
                 <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
@@ -295,7 +307,6 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                 </p>
               </div>
             </div>
-          )}
         </>
       )}
     </div>
