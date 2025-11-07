@@ -284,11 +284,10 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                   {totalPremioLiquido.toLocaleString('pt-BR', {
                     style: 'currency',
                     currency: 'BRL',
-                   </div>
-                  )}
-                  
+                   })}
                 </p>
               </div>
+                  
               <div style={{ ...boxStyle, backgroundColor: '#009688' }}>
                 <h3>Média Comissão</h3>
                 <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
