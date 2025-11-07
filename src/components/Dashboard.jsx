@@ -123,20 +123,28 @@ const Dashboard = ({ leads, usuarioLogado }) => {
       ? Math.round((leadsFechadosCount / totalLeads) * 100) // Calcula, multiplica por 100 e arredonda
       : 0;
 
-  // Soma de prêmio líquido e média ponderada de comissão
+  // Soma de prêmio líquido
   const totalPremioLiquido = leadsFiltradosClosed.reduce(
     (acc, lead) => acc + (Number(lead.PremioLiquido) || 0),
     0
   );
 
-  const somaPonderadaComissao = leadsFiltradosClosed.reduce((acc, lead) => {
-    const premio = Number(lead.PremioLiquido) || 0;
-    const comissao = Number(lead.Comissao) || 0;
-    return acc + premio * (comissao / 100);
-  }, 0);
+  // --- CÁLCULO DA MÉDIA COMISSÃO (AJUSTADO CONFORME SOLICITADO) ---
+  // Lógica: Total de percentual de comissao dividido pelo numero total de Vendas.
 
+  // 1. Soma total dos percentuais de comissão
+  const somaTotalPercentualComissao = leadsFiltradosClosed.reduce(
+    (acc, lead) => acc + (Number(lead.Comissao) || 0),
+    0
+  );
+
+  // 2. Número total de vendas (igual a leadsFiltradosClosed.length)
+  const totalVendasParaMedia = leadsFiltradosClosed.length;
+
+  // 3. Média Comissão: Total Percentual / Total Vendas
   const comissaoMediaGlobal =
-    totalPremioLiquido > 0 ? (somaPonderadaComissao / totalPremioLiquido) * 100 : 0;
+    totalVendasParaMedia > 0 ? somaTotalPercentualComissao / totalVendasParaMedia : 0;
+  // --- FIM CÁLCULO AJUSTADO ---
 
   const boxStyle = {
     padding: '10px',
@@ -299,7 +307,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                   })}
                 </p>
               </div>
-                 
+                
               <div style={{ ...boxStyle, backgroundColor: '#009688' }}>
                 <h3>Média Comissão</h3>
                 <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
