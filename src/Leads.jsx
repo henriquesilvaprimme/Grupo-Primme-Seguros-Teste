@@ -31,6 +31,15 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setIsEditingObservacao(initialIsEditingObservacao);
   }, [leads]);
 
+  useEffect(() => {
+    const anyEditing = Object.values(isEditingObservacao).some(Boolean);
+    if (!anyEditing) {
+      fetchLeadsFromSheet();
+      const interval = setInterval(fetchLeadsFromSheet, 300000);
+      return () => clearInterval(interval);
+    }
+  }, [isEditingObservacao, fetchLeadsFromSheet]);
+
   const normalizarTexto = (texto = '') => {
     return texto
       .toString()
