@@ -59,6 +59,9 @@ const CriarLead = () => {
 
     setIsLoading(true); // Inicia o estado de carregamento
 
+    // Determina a aba de destino com base no tipo de seguro
+    const abaDestino = (tipoSeguro === 'Indicacao') ? 'Leads Fechados' : 'Leads';
+
     // Objeto lead com os nomes das chaves correspondentes ao que o seu script GAS espera
     // na função doPost para o parâmetro 'criar_lead'.
     const novoLead = {
@@ -71,6 +74,9 @@ const CriarLead = () => {
       // dataCriacao deve ser uma string ISO para ser facilmente parseada pelo `new Date()` no GAS
       dataCriacao: new Date().toISOString(), 
       responsavel: responsavel,
+      // Novas propriedades para indicar para qual aba enviar no front (plataforma) e no Sheets
+      abaPlataforma: abaDestino,
+      abaSheets: abaDestino,
     };
 
     try {
@@ -78,6 +84,13 @@ const CriarLead = () => {
       await criarLeadFunc(novoLead); 
 
       setMensagemFeedback('✅ Lead criado com sucesso!.'); // Mensagem de sucesso
+
+      // Se for Novo ou Renovacao, redireciona para a aba de Leads da plataforma
+      if (tipoSeguro === 'Novo' || tipoSeguro === 'Renovacao') {
+        // Navega para a rota de Leads (ajuste a rota se a sua aplicação usar outro path)
+        navigate('/leads');
+      }
+
       // Limpeza do formulário após sucesso
       setNomeLead('');
       setModeloVeiculo('');
