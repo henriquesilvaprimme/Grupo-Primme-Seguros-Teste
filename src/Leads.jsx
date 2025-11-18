@@ -6,7 +6,7 @@ const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vuj
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=alterar_atribuido';
 const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?action=salvarObservacao';
 
-const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, scrollContainerRef, onConfirmAgendamento, salvarObservacao, saveLocalChange }) => {
+const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, scrollContainerRef, saveLocalChange, forceSyncWithSheets }) => {
   const [selecionados, setSelecionados] = useState({});
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -31,15 +31,6 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     setIsEditingObservacao(initialIsEditingObservacao);
   }, [leads]);
 
-  useEffect(() => {
-    const anyEditing = Object.values(isEditingObservacao).some(Boolean);
-    if (!anyEditing) {
-      // removido fetch imediato para evitar reset; fetch periódicos em App.jsx vão sincronizar/atualizar
-      const interval = setInterval(fetchLeadsFromSheet, 300000);
-      return () => clearInterval(interval);
-    }
-  }, [isEditingObservacao, fetchLeadsFromSheet]);
-
   const normalizarTexto = (texto = '') => {
     return texto
       .toString()
@@ -60,6 +51,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     const today = new Date().toLocaleDateString('pt-BR');
 
     leads.forEach(lead => {
+      // Ignorar Fechado e Perdido do total Geral (pendentes)
       if (lead.status !== 'Fechado' && lead.status !== 'Perdido') {
         todosCount++;
       }
@@ -68,13 +60,13 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         emContatoCount++;
       } else if (lead.status === 'Sem Contato') {
         semContatoCount++;
-      } else if (lead.status && lead.status.startsWith('Agendado')) {
+      } else if (lead.status.startsWith('Agendado')) {
         const statusDateStr = lead.status.split(' - ')[1];
         if (statusDateStr) {
           const [dia, mes, ano] = statusDateStr.split('/');
           const statusDateFormatted = new Date(`${ano}-${mes}-${dia}T00:00:00`).toLocaleDateString('pt-BR');
           if (statusDateFormatted === today) {
-            agendadosCount++;
+            agendadosCount++; // Contagem apenas para agendados de hoje
           }
         }
       }
@@ -91,6 +83,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
 
   useEffect(() => {
+    // Usamos a contagem 'agendadosHoje' do useMemo
     setHasScheduledToday(contagens.agendadosHoje > 0);
   }, [contagens]);
 
@@ -98,14 +91,44 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const handleRefreshLeads = async () => {
     setIsLoading(true);
     try {
-      await fetchLeadsFromSheet();
+      // Se a prop forceSyncWithSheets foi fornecida pelo App, usamos ela — ela garante
+      // que alterações locais pendentes sejam descartadas/forçadas e que a busca venha "pura" do Sheets.
+      if (typeof forceSyncWithSheets === 'function') {
+        await forceSyncWithSheets();
+      } else {
+        // Fallback: comportamento anterior — envia syncAll e busca os leads.
+        try {
+          await fetch(`${GOOGLE_SHEETS_SCRIPT_URL}?action=syncAll`, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ forceSync: true }),
+          });
+        } catch (syncErr) {
+          console.warn('Sync request (no-cors) enviada; pode ser que a resposta não seja acessível no cliente.', syncErr);
+        }
+
+        // Aguarde um curto momento para o Apps Script processar (ajuste se necessário).
+        await new Promise((res) => setTimeout(res, 800));
+
+        // Buscar os leads atualizados (retorno com dados consolidados do Sheets).
+        await fetchLeadsFromSheet();
+      }
+
+      // Pequena espera para garantir que o fetch no pai atualize as props antes de recalcular locais
+      await new Promise((res) => setTimeout(res, 400));
+
+      // Atualizar o estado local de edição de observações conforme os dados recém-buscados.
       const refreshedIsEditingObservacao = {};
       leads.forEach(lead => {
         refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
       });
       setIsEditingObservacao(refreshedIsEditingObservacao);
     } catch (error) {
-      console.error('Erro ao buscar leads atualizados:', error);
+      console.error('Erro ao forçar sincronização/atualização:', error);
+      alert('Erro ao atualizar dados do Sheets. Verifique a conexão e tente novamente.');
     } finally {
       setIsLoading(false);
     }
@@ -197,59 +220,30 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     }));
   };
 
-  const handleEnviar = async (leadId) => {
-    const userId = selecionados[leadId];
-    if (!userId) {
+  const handleEnviar = (leadId) => {
+    const finalUserId = selecionados[leadId];
+
+    if (!finalUserId) {
       alert('Selecione um usuário antes de enviar.');
       return;
     }
 
-    // 1) Atualiza UI local
-    transferirLead(leadId, userId);
-
-    const lead = leads.find((l) => l.id === leadId);
-    if (!lead) return;
-    const leadAtualizado = { ...lead, usuarioId: userId, responsavel: usuarios.find(u => u.id == userId)?.nome || '' };
-
-    // 2) Salva alteração local para retry/sync (opcional)
+    // Salva localmente a atribuição para retry/sync futuro (TTL 5 minutos gerenciado pelo App)
     if (typeof saveLocalChange === 'function') {
       saveLocalChange({
         id: leadId,
-        type: 'assign_user',
-        data: leadAtualizado
+        type: 'alterarAtribuido',
+        data: { leadId, usuarioId: finalUserId }
       });
     }
 
-    // 3) Envia imediatamente para o endpoint de atribuição (como antes)
-    try {
-      await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify(leadAtualizado),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      // Recarrega os leads após envio para garantir sincronia (mantemos merge no fetch)
-      setTimeout(() => {
-        fetchLeadsFromSheet();
-      }, 700);
-    } catch (error) {
-      console.error('Erro ao enviar lead de atribuição:', error);
-      // Em erro, mantemos a alteração local (saveLocalChange) para tentar sincronizar depois
-    }
+    transferirLead(leadId, finalUserId);
+    const lead = leads.find((l) => l.id === leadId);
+    const leadAtualizado = { ...lead, usuarioId: finalUserId };
+    enviarLeadAtualizado(leadAtualizado);
   };
 
   const enviarLeadAtualizado = async (lead) => {
-    // Mantido por compatibilidade: encaminha para saveLocalChange + envio imediato
-    if (typeof saveLocalChange === 'function') {
-      saveLocalChange({
-        id: lead.id,
-        type: 'assign_user',
-        data: lead
-      });
-    }
-
     try {
       await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
         method: 'POST',
@@ -259,15 +253,22 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
-      setTimeout(() => {
-        fetchLeadsFromSheet();
-      }, 700);
+      fetchLeadsFromSheet();
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
     }
   };
 
   const handleAlterar = (leadId) => {
+    // Salva localmente a remoção/alteração de atribuição (usuario null) para retry/sync futuro
+    if (typeof saveLocalChange === 'function') {
+      saveLocalChange({
+        id: leadId,
+        type: 'alterarAtribuido',
+        data: { leadId, usuarioId: null }
+      });
+    }
+
     setSelecionados((prev) => ({
       ...prev,
       [leadId]: '',
@@ -334,7 +335,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
     setIsLoading(true);
     try {
-      // 1) Salva localmente (opcional) para retry/sync
+      // Salva localmente para retry/sync futuro (TTL 5 minutos gerenciado pelo App)
       if (typeof saveLocalChange === 'function') {
         saveLocalChange({
           id: leadId,
@@ -343,26 +344,19 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         });
       }
 
-      // 2) Envia imediatamente (comportamento original) usando a função passada pelo App
-      if (typeof salvarObservacao === 'function') {
-        await salvarObservacao(leadId, observacaoTexto);
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-      } else {
-        // fallback: enviar direto para o endpoint antigo (se a prop não estiver disponível)
-        await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          body: JSON.stringify({
-            leadId: leadId,
-            observacao: observacaoTexto,
-          }),
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-        setTimeout(() => fetchLeadsFromSheet(), 700);
-      }
+      await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({
+          leadId: leadId,
+          observacao: observacaoTexto,
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+      fetchLeadsFromSheet();
     } catch (error) {
       console.error('Erro ao salvar observação:', error);
       alert('Erro ao salvar observação. Por favor, tente novamente.');
@@ -376,11 +370,18 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   };
 
   const handleConfirmStatus = (leadId, novoStatus, phone) => {
-    // Atualiza estado local imediatamente
-    onUpdateStatus(leadId, novoStatus, phone);
+    // Salva localmente a alteração de status para retry/sync futuro (TTL 5 minutos gerenciado pelo App)
+    if (typeof saveLocalChange === 'function') {
+      saveLocalChange({
+        id: leadId,
+        type: 'atualizarStatus',
+        data: { leadId, status: novoStatus, phone: phone || null }
+      });
+    }
 
+    onUpdateStatus(leadId, novoStatus, phone);
     const currentLead = leads.find(l => l.id === leadId);
-    const hasNoObservacao = !currentLead?.observacao || currentLead.observacao.trim() === '';
+    const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
 
     if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) && hasNoObservacao) {
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
@@ -389,20 +390,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     } else {
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     }
-
-    // Salva a alteração local (será sincronizada após TTL)
-    if (typeof saveLocalChange === 'function') {
-      saveLocalChange({
-        id: leadId,
-        type: 'status_update',
-        data: { id: leadId, status: novoStatus, phone }
-      });
-    }
-
-    // Mantemos o fetch para atualizar a lista (o merge evitará "reset" se houver alteração local)
-    setTimeout(() => {
-      fetchLeadsFromSheet();
-    }, 500);
+    fetchLeadsFromSheet();
   };
 
   return (
@@ -423,7 +411,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
 
       {/* 2. Cabeçalho Principal e Área de Controles */}
       <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4 mb-4">
+        <div className="flex flex-wrap itens-center justify-between gap-4 border-b pb-4 mb-4">
           <h1 className="text-4xl font-extrabold text-gray-900 flex items-center">
             <Bell size={32} className="text-indigo-500 mr-3" />
             Leads
@@ -508,7 +496,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         <button
           onClick={() => aplicarFiltroStatus('Em Contato')}
           className={`
-            px-5 py-2 rounded-full font-bold transition duration-300 shadow-lg
+            px-5 py-2 rounded-full font-bold transition duração-300 shadow-lg
             ${filtroStatus === 'Em Contato' ? 'bg-orange-600 text-white ring-2 ring-orange-400' : 'bg-orange-500 text-white hover:bg-orange-600'}
           `}
         >
@@ -518,18 +506,18 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         <button
           onClick={() => aplicarFiltroStatus('Sem Contato')}
           className={`
-            px-5 py-2 rounded-full font-bold transition duration-300 shadow-lg
+            px-5 py-2 rounded-full font-bold transition duração-300 shadow-lg
             ${filtroStatus === 'Sem Contato' ? 'bg-gray-700 text-white ring-2 ring-gray-400' : 'bg-gray-500 text-white hover:bg-gray-600'}
           `}
         >
           Sem Contato <span className="text-sm font-extrabold ml-1">({contagens.semContato})</span>
         </button>
 
-        {contagens.agendadosHoje > 0 && (
+        {contagens.agendadosHoje > 0 && ( /* Usamos a contagem para exibir o botão, mesmo que `hasScheduledToday` seja o mesmo */
           <button
             onClick={() => aplicarFiltroStatus('Agendado')}
             className={`
-              px-5 py-2 rounded-full font-bold transition duration-300 shadow-lg
+              px-5 py-2 rounded-full font-bold transition duração-300 shadow-lg
               ${filtroStatus === 'Agendado' ? 'bg-blue-700 text-white ring-2 ring-blue-400' : 'bg-blue-500 text-white hover:bg-blue-600'}
             `}
           >
@@ -540,7 +528,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         <button
           onClick={() => aplicarFiltroStatus(null)}
           className={`
-            px-5 py-2 rounded-full font-bold transition duration-300 shadow-lg
+            px-5 py-2 rounded-full font-bold transition duração-300 shadow-lg
             ${filtroStatus === null ? 'bg-gray-800 text-white ring-2 ring-gray-500' : 'bg-gray-600 text-white hover:bg-gray-700'}
           `}
         >
@@ -565,7 +553,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
               return (
                 <div
                   key={lead.id}
-                  className="bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 p-6 relative border-t-4 border-indigo-500"
+                  className="bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 p-6 relative border-t-4 border-indigo-500" // Card Principal
                 >
                   
                   <div className={`grid ${hasObservacaoSection ? 'lg:grid-cols-2' : 'lg:grid-cols-1'} gap-6`}>
@@ -675,7 +663,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
               <button
                 onClick={handlePaginaAnterior}
                 disabled={paginaCorrigida <= 1 || isLoading}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium transition duration-150 shadow-md ${
+                className={`px-4 py-2 rounded-lg border texto-sm font-medium transition duration-150 shadow-md ${
                   (paginaCorrigida <= 1 || isLoading) 
                   ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
                   : 'bg-white border-indigo-500 text-indigo-600 hover:bg-indigo-50'
@@ -691,7 +679,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
               <button
                 onClick={handlePaginaProxima}
                 disabled={paginaCorrigida >= totalPaginas || isLoading}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium transition duration-150 shadow-md ${
+                className={`px-4 py-2 rounded-lg border texto-sm font-medium transition duration-150 shadow-md ${
                   (paginaCorrigida >= totalPaginas || isLoading) 
                   ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
                   : 'bg-white border-indigo-500 text-indigo-600 hover:bg-indigo-50'
