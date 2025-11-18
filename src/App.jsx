@@ -33,7 +33,7 @@ const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads`;
 const GOOGLE_SHEETS_LEADS_FECHADOS = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`;
 const GOOGLE_SHEETS_USERS_AUTH_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_usuario`;
 const SALVAR_AGENDAMENTO_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?action=salvarAgendamento`;
-const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?action=salvarObservacao`;
+const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}`;
 
 // ======= CONFIGURAÇÃO DE SINCRONIZAÇÃO LOCAL =======
 const LOCAL_CHANGES_KEY = 'leads_local_changes_v1';
@@ -574,29 +574,31 @@ function App() {
   // FUNÇÃO PARA SALVAR OBSERVAÇÃO (restaurada para enviar imediatamente, como antes)
   const salvarObservacao = async (leadId, observacao) => {
     try {
-      // Envia em modo no-cors para compatibilidade com Apps Script que você usava originalmente
-      await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
+      const response = await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
         method: 'POST',
-        mode: 'no-cors',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          action: 'salvarObservacao',
           leadId: leadId,
           observacao: observacao,
         }),
       });
 
-      // Forçar atualização dos leads após envio (pequeno atraso para dar tempo ao Apps Script processar)
-      setTimeout(() => {
-        fetchLeadsFromSheet();
-      }, 800);
+      if (response && response.ok) {
+        console.log('Observação salva com sucesso!');
+        // Recarrega os leads para que a nova observação apareça
+        await fetchLeadsFromSheet();
+      } else {
+        // Se servidor não retornar ok (em modo no-cors pode ser indefinido), ainda chamamos fetch para tentar atualizar
+        console.warn('Resposta não OK ao salvar observação (pode ser no-cors):', response);
+        setTimeout(fetchLeadsFromSheet, 800);
+      }
     } catch (error) {
-      console.error('Erro ao salvar observação (network/CORS):', error);
-      // Mesmo em erro, tentar atualizar para manter UI consistente
-      setTimeout(() => {
-        fetchLeadsFromSheet();
-      }, 1200);
+      console.error('Erro de rede ao salvar observação:', error);
+      // Tentar atualizar localmente mesmo em erro de rede
+      setTimeout(fetchLeadsFromSheet, 1200);
     }
   };
 
@@ -695,6 +697,53 @@ function App() {
     }
   };
 
+  // ===================== NOVA FUNÇÃO: força sincronização imediata =====================
+  const forceSyncWithSheets = async () => {
+    // Objetivo: o botão REFRESH deve ser determinante — sobrescrever o estado local com o Sheets.
+    try {
+      // 1) Carrega alterações locais atuais
+      loadLocalChangesFromStorage();
+
+      // 2) Limpa explicitamente as alterações locais (descarta pendentes),
+      // para garantir que o fetch venha "puro" do Sheets e não seja mesclado.
+      const hadLocalChanges = Object.keys(localChangesRef.current).length > 0;
+      if (hadLocalChanges) {
+        console.log('forceSyncWithSheets: limpando alterações locais pendentes para forçar estado do Sheets.');
+      }
+      localChangesRef.current = {};
+      persistLocalChangesToStorage();
+
+      // 3) Solicitar ao Apps Script uma sincronização global (ex.: consolidar dados, puxar de outras abas)
+      try {
+        await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?action=syncAll`, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ forceSync: true }),
+        });
+      } catch (syncErr) {
+        // no-cors pode gerar erro ao ler a resposta — isso é esperado em muitos cenários com Apps Script.
+        console.warn('Sync request (no-cors) enviada; a resposta pode não ser acessível no cliente.', syncErr);
+      }
+
+      // 4) Pequena espera para o Apps Script processar (ajuste o tempo se necessário)
+      await new Promise((res) => setTimeout(res, 900));
+
+      // 5) Buscar os dados atualizados diretamente do Sheets (sem aplicar alterações locais)
+      //    Para garantir que não ocorra merge, garantimos que localChangesRef está vazio antes do fetch.
+      await fetchLeadsFromSheet();
+      await fetchLeadsFechadosFromSheet();
+
+      console.log('forceSyncWithSheets: dados atualizados a partir do Sheets e alterações locais removidas.');
+    } catch (error) {
+      console.error('Erro ao forçar sincronização com Sheets:', error);
+      alert('Erro ao sincronizar com o Sheets. Verifique a conexão e tente novamente.');
+    }
+  };
+  // =============================================================================
+
   if (!isAuthenticated) {
     return (
       <div
@@ -790,6 +839,8 @@ function App() {
                 salvarObservacao={salvarObservacao}
                 // NOVO: função que salva alterações localmente para sincronizar depois
                 saveLocalChange={saveLocalChange}
+                // NOVO: função para forçar sincronização imediata com o Sheets
+                forceSyncWithSheets={forceSyncWithSheets}
               />
             }
           />
